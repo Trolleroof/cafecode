@@ -254,16 +254,181 @@ export default function IDEPage() {
     }
   };
 
-  const suggestFix = async () => {
+  const handleChatSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMessage = { type: 'user', content: chatInput };
+    setChatMessages(prev => [...prev, userMessage]);
+
+    // Simulate AI response based on input
+    setTimeout(() => {
+      let aiResponse = '';
+      const input = chatInput.toLowerCase();
+      
+      if (input.includes('error') || input.includes('bug')) {
+        aiResponse = 'I can help you debug! Try using the "Analyze Code" button to get detailed error analysis, or click "Suggest Fix" if you already know there\'s an error.';
+      } else if (input.includes('help') || input.includes('how')) {
+        aiResponse = 'I\'m here to help! You can:\n• Write code in the editor\n• Click "Run" to execute it\n• Use "Analyze Code" to check for issues\n• Use "Suggest Fix" to get automatic fixes\n• Ask me specific questions about your code';
+      } else if (input.includes('syntax')) {
+        aiResponse = 'For syntax help, make sure to:\n• Check your brackets and parentheses\n• Verify proper indentation (especially in Python)\n• Ensure semicolons where needed (JavaScript)\n• Use proper quotes for strings';
+      } else {
+        aiResponse = `I understand you're asking about: "${chatInput}". While I'm a demo assistant, in the full version I would provide contextual help based on your code and specific questions!`;
+      }
+
+      const response = { type: 'assistant', content: aiResponse };
+      setChatMessages(prev => [...prev, response]);
+    }, 1000);
+
+    setChatInput('');
+  };
+
+  const handleHint = () => {
+    const languageSpecificHints = {
+      javascript: [
+        'Remember to use semicolons at the end of statements in JavaScript.',
+        'Check that all your brackets { } and parentheses ( ) are properly closed.',
+        'Use console.log() to debug and see what values your variables contain.',
+        'Make sure variable names are spelled consistently throughout your code.',
+        'Functions should have descriptive names that explain what they do.'
+      ],
+      python: [
+        'Python uses indentation to define code blocks - make sure your indentation is consistent.',
+        'Remember that Python is case-sensitive - "Name" and "name" are different variables.',
+        'Use print() to see the values of your variables and debug your code.',
+        'Make sure you\'re using the correct number of spaces or tabs for indentation.',
+        'Function names in Python should use snake_case (like my_function).'
+      ],
+      html: [
+        'Make sure all HTML tags are properly closed with matching opening and closing tags.',
+        'Check that your HTML structure is valid - elements should be properly nested.',
+        'Remember to include the DOCTYPE declaration at the top of your HTML file.',
+        'Use semantic HTML elements like <header>, <main>, and <footer> for better structure.',
+        'Validate your HTML to catch any syntax errors or missing attributes.'
+      ]
+    };
+    
+    const hints = languageSpecificHints[selectedLanguage as keyof typeof languageSpecificHints] || [
+      'Make sure your syntax is correct for the selected programming language.',
+      'Check for missing brackets, parentheses, or semicolons.',
+      'Use descriptive variable and function names.',
+      'Test your code with different inputs to ensure it works correctly.',
+      'Break complex problems into smaller, manageable functions.'
+    ];
+    
+    const randomHint = hints[Math.floor(Math.random() * hints.length)];
+    const hintMessage = {
+      type: 'assistant',
+      content: `💡 ${selectedLanguage.toUpperCase()} Hint: ${randomHint}`
+    };
+    setChatMessages(prev => [...prev, hintMessage]);
+  };
+
+  const handleSuggestFix = async () => {
+    // First, check if we have analysis results with errors
     if (!analysisResults || analysisResults.errors.length === 0) {
-      const message = {
+      // If no analysis results, run analysis first
+      const analysisMessage = {
         type: 'assistant',
-        content: '✅ No errors found to fix! Run code analysis first if you suspect there are issues.'
+        content: '🔍 Let me analyze your code first to find issues that need fixing...'
       };
-      setChatMessages(prev => [...prev, message]);
+      setChatMessages(prev => [...prev, analysisMessage]);
+      
+      // Run analysis and then suggest fix
+      setIsAnalyzing(true);
+      
+      try {
+        const response = await fetch('http://localhost:8000/api/code/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            code: code,
+            language: selectedLanguage,
+            context: 'IDE analysis for fix suggestion'
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        setAnalysisResults(result);
+        
+        if (result.errors.length === 0) {
+          const noErrorsMessage = {
+            type: 'assistant',
+            content: '✅ Great news! No errors found in your code. Your code looks good to go!'
+          };
+          setChatMessages(prev => [...prev, noErrorsMessage]);
+          setIsAnalyzing(false);
+          return;
+        }
+        
+        // Continue with fix suggestion if errors found
+        setIsAnalyzing(false);
+        setIsFixing(true);
+        
+        const firstError = result.errors[0];
+        const fixResponse = await fetch('http://localhost:8000/api/code/fix', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            code: code,
+            language: selectedLanguage,
+            error_message: firstError.message,
+            line_number: firstError.line_number
+          }),
+        });
+
+        if (!fixResponse.ok) {
+          throw new Error(`HTTP error! status: ${fixResponse.status}`);
+        }
+
+        const fixResult = await fixResponse.json();
+        
+        if (fixResult.success && fixResult.fixed_code !== code) {
+          // Update the code with the fix
+          setCode(fixResult.fixed_code);
+          
+          const fixMessage = {
+            type: 'assistant',
+            content: `🔧 Code Fixed!\n\n` +
+              `Confidence: ${fixResult.confidence_score}%\n\n` +
+              `${fixResult.explanation}\n\n` +
+              `Applied ${fixResult.fixes_applied.length} fix(es). The code has been updated in the editor.`
+          };
+          setChatMessages(prev => [...prev, fixMessage]);
+          
+          // Clear previous analysis results since code has changed
+          setAnalysisResults(null);
+        } else {
+          const message = {
+            type: 'assistant',
+            content: `🤔 ${fixResult.explanation || 'No fixes could be applied automatically.'}`
+          };
+          setChatMessages(prev => [...prev, message]);
+        }
+
+      } catch (error) {
+        console.error('Fix suggestion failed:', error);
+        const errorMessage = {
+          type: 'assistant',
+          content: `❌ Fix suggestion failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend server is running on port 8000.`
+        };
+        setChatMessages(prev => [...prev, errorMessage]);
+      } finally {
+        setIsAnalyzing(false);
+        setIsFixing(false);
+      }
       return;
     }
 
+    // If we already have analysis results with errors, proceed with fix
     setIsFixing(true);
 
     try {
@@ -320,52 +485,6 @@ export default function IDEPage() {
     } finally {
       setIsFixing(false);
     }
-  };
-
-  const handleChatSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-
-    const userMessage = { type: 'user', content: chatInput };
-    setChatMessages(prev => [...prev, userMessage]);
-
-    // Simulate AI response based on input
-    setTimeout(() => {
-      let aiResponse = '';
-      const input = chatInput.toLowerCase();
-      
-      if (input.includes('error') || input.includes('bug')) {
-        aiResponse = 'I can help you debug! Try using the "Analyze Code" button to get detailed error analysis, or click "Suggest Fix" if you already know there\'s an error.';
-      } else if (input.includes('help') || input.includes('how')) {
-        aiResponse = 'I\'m here to help! You can:\n• Write code in the editor\n• Click "Run" to execute it\n• Use "Analyze Code" to check for issues\n• Use "Suggest Fix" to get automatic fixes\n• Ask me specific questions about your code';
-      } else if (input.includes('syntax')) {
-        aiResponse = 'For syntax help, make sure to:\n• Check your brackets and parentheses\n• Verify proper indentation (especially in Python)\n• Ensure semicolons where needed (JavaScript)\n• Use proper quotes for strings';
-      } else {
-        aiResponse = `I understand you're asking about: "${chatInput}". While I'm a demo assistant, in the full version I would provide contextual help based on your code and specific questions!`;
-      }
-
-      const response = { type: 'assistant', content: aiResponse };
-      setChatMessages(prev => [...prev, response]);
-    }, 1000);
-
-    setChatInput('');
-  };
-
-  const handleHint = () => {
-    const hints = [
-      'Make sure your function names are descriptive and your syntax is correct.',
-      'Check for missing semicolons in JavaScript or proper indentation in Python.',
-      'Remember to close all brackets and parentheses.',
-      'Use console.log() in JavaScript or print() in Python to see output.',
-      'Test your code with different inputs to make sure it works correctly.'
-    ];
-    
-    const randomHint = hints[Math.floor(Math.random() * hints.length)];
-    const hintMessage = {
-      type: 'assistant',
-      content: `💡 Hint: ${randomHint}`
-    };
-    setChatMessages(prev => [...prev, hintMessage]);
   };
 
   return (
@@ -457,12 +576,12 @@ export default function IDEPage() {
                 <span>Hint</span>
               </button>
               <button
-                onClick={suggestFix}
-                disabled={isFixing}
+                onClick={handleSuggestFix}
+                disabled={isFixing || isAnalyzing}
                 className="flex items-center space-x-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded hover:bg-orange-200 disabled:opacity-50"
               >
-                {isFixing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-                <span>{isFixing ? 'Fixing...' : 'Suggest Fix'}</span>
+                {(isFixing || isAnalyzing) ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                <span>{isFixing ? 'Fixing...' : isAnalyzing ? 'Analyzing...' : 'Suggest Fix'}</span>
               </button>
             </div>
           </div>
