@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Play, MessageSquare, Lightbulb, Code2 } from 'lucide-react';
+import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const languages = [
@@ -14,24 +14,39 @@ const defaultCode = {
   javascript: `// Your first JavaScript function
 function greetUser(name) {
   console.log(\`Hello, \${name}! Welcome to coding!\`);
+  return \`Welcome, \${name}!\`;
 }
 
-greetUser('Future Developer');`,
+// Call the function
+const result = greetUser('Future Developer');
+console.log(result);`,
 
   python: `# Your first Python function
 def greet_user(name):
-    print(f"Hello, {name}! Welcome to coding!")
+    message = f"Hello, {name}! Welcome to coding!"
+    print(message)
+    return message
 
-greet_user("Future Developer")`,
+# Call the function
+result = greet_user("Future Developer")
+print(f"Result: {result}")`,
 
   html: `<!DOCTYPE html>
 <html>
 <head>
     <title>My First Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { color: #333; }
+        p { color: #666; }
+    </style>
 </head>
 <body>
     <h1>Hello, World!</h1>
     <p>Welcome to coding!</p>
+    <script>
+        console.log("Page loaded successfully!");
+    </script>
 </body>
 </html>`
 };
@@ -46,41 +61,265 @@ export default function IDEPage() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isFixing, setIsFixing] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState(null);
 
   const handleLanguageChange = (langId: string) => {
     setSelectedLanguage(langId);
     setCode(defaultCode[langId as keyof typeof defaultCode]);
     setOutput('');
+    setAnalysisResults(null);
+  };
+
+  const executeJavaScript = (code: string) => {
+    const logs: string[] = [];
+    const errors: string[] = [];
+    
+    // Create a custom console for capturing output
+    const customConsole = {
+      log: (...args: any[]) => {
+        logs.push(args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' '));
+      },
+      error: (...args: any[]) => {
+        errors.push(args.map(arg => String(arg)).join(' '));
+      },
+      warn: (...args: any[]) => {
+        logs.push('⚠️ ' + args.map(arg => String(arg)).join(' '));
+      }
+    };
+
+    try {
+      // Create a function that executes the code with our custom console
+      const executeCode = new Function('console', code);
+      executeCode(customConsole);
+      
+      if (errors.length > 0) {
+        return `❌ Errors:\n${errors.join('\n')}\n\n📝 Output:\n${logs.join('\n')}`;
+      }
+      
+      return logs.length > 0 ? logs.join('\n') : '✅ Code executed successfully (no output)';
+    } catch (error) {
+      return `❌ Runtime Error: ${error}`;
+    }
+  };
+
+  const executePython = (code: string) => {
+    // Simulate Python execution by parsing basic print statements
+    const lines = code.split('\n');
+    const outputs: string[] = [];
+    
+    try {
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('print(')) {
+          // Extract content from print statement
+          const match = trimmed.match(/print\((.*)\)/);
+          if (match) {
+            let content = match[1];
+            // Handle f-strings and basic string formatting
+            if (content.includes('f"') || content.includes("f'")) {
+              content = content.replace(/f["'](.*)["']/, '$1');
+              content = content.replace(/\{([^}]+)\}/g, (_, expr) => {
+                if (expr.includes('name')) return 'Future Developer';
+                return expr;
+              });
+            }
+            // Remove quotes
+            content = content.replace(/^["']|["']$/g, '');
+            outputs.push(content);
+          }
+        }
+      }
+      
+      return outputs.length > 0 ? outputs.join('\n') : '✅ Python code executed successfully (no output)';
+    } catch (error) {
+      return `❌ Python Error: ${error}`;
+    }
+  };
+
+  const executeHTML = (code: string) => {
+    // For HTML, we'll show a preview message and extract any console.log statements
+    const logs: string[] = [];
+    
+    // Extract JavaScript from script tags
+    const scriptMatches = code.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
+    if (scriptMatches) {
+      scriptMatches.forEach(script => {
+        const jsCode = script.replace(/<script[^>]*>|<\/script>/gi, '');
+        const consoleMatches = jsCode.match(/console\.log\([^)]+\)/g);
+        if (consoleMatches) {
+          consoleMatches.forEach(logStatement => {
+            const content = logStatement.match(/console\.log\(["']([^"']+)["']\)/);
+            if (content) {
+              logs.push(content[1]);
+            }
+          });
+        }
+      });
+    }
+    
+    let output = '🌐 HTML page would be rendered in browser\n';
+    if (logs.length > 0) {
+      output += '📝 Console output:\n' + logs.join('\n');
+    }
+    
+    return output;
   };
 
   const handleRunCode = async () => {
     setIsRunning(true);
-    setOutput('Running code...');
+    setOutput('🚀 Running code...\n');
     
-    // Simulate code execution
+    // Simulate execution delay
     setTimeout(() => {
-      if (selectedLanguage === 'javascript') {
-        try {
-          // Simple JavaScript execution simulation
-          const logs: string[] = [];
-          const originalLog = console.log;
-          console.log = (...args) => {
-            logs.push(args.join(' '));
-          };
-          
-          // Basic eval for demo purposes (not secure for production)
-          eval(code);
-          
-          console.log = originalLog;
-          setOutput(logs.join('\n') || 'Code executed successfully (no output)');
-        } catch (error) {
-          setOutput(`Error: ${error}`);
-        }
-      } else {
-        setOutput(`${selectedLanguage} execution would happen on the backend. Code ready to run!`);
+      let result = '';
+      
+      switch (selectedLanguage) {
+        case 'javascript':
+          result = executeJavaScript(code);
+          break;
+        case 'python':
+          result = executePython(code);
+          break;
+        case 'html':
+          result = executeHTML(code);
+          break;
+        default:
+          result = `${selectedLanguage} execution not implemented yet`;
       }
+      
+      setOutput(result);
       setIsRunning(false);
     }, 1000);
+  };
+
+  const analyzeCode = async () => {
+    setIsAnalyzing(true);
+    
+    try {
+      const response = await fetch('http://localhost:8000/api/code/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: code,
+          language: selectedLanguage,
+          context: 'IDE analysis request'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setAnalysisResults(result);
+      
+      // Add analysis results to chat
+      const analysisMessage = {
+        type: 'assistant',
+        content: `📊 Code Analysis Complete!\n\n` +
+          `Quality Score: ${result.code_quality_score}/100\n` +
+          `Errors: ${result.errors.length}\n` +
+          `Warnings: ${result.warnings.length}\n\n` +
+          `${result.analysis_summary}`
+      };
+      setChatMessages(prev => [...prev, analysisMessage]);
+
+      if (result.errors.length > 0) {
+        const errorDetails = result.errors.map((error: any, index: number) => 
+          `${index + 1}. ${error.message} (Line ${error.line_number || 'unknown'})`
+        ).join('\n');
+        
+        const errorMessage = {
+          type: 'assistant',
+          content: `🚨 Errors Found:\n${errorDetails}`
+        };
+        setChatMessages(prev => [...prev, errorMessage]);
+      }
+
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      const errorMessage = {
+        type: 'assistant',
+        content: `❌ Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend server is running on port 8000.`
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const suggestFix = async () => {
+    if (!analysisResults || analysisResults.errors.length === 0) {
+      const message = {
+        type: 'assistant',
+        content: '✅ No errors found to fix! Run code analysis first if you suspect there are issues.'
+      };
+      setChatMessages(prev => [...prev, message]);
+      return;
+    }
+
+    setIsFixing(true);
+
+    try {
+      const firstError = analysisResults.errors[0];
+      const response = await fetch('http://localhost:8000/api/code/fix', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: code,
+          language: selectedLanguage,
+          error_message: firstError.message,
+          line_number: firstError.line_number
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.fixed_code !== code) {
+        // Update the code with the fix
+        setCode(result.fixed_code);
+        
+        const fixMessage = {
+          type: 'assistant',
+          content: `🔧 Code Fixed!\n\n` +
+            `Confidence: ${result.confidence_score}%\n\n` +
+            `${result.explanation}\n\n` +
+            `Applied ${result.fixes_applied.length} fix(es). The code has been updated in the editor.`
+        };
+        setChatMessages(prev => [...prev, fixMessage]);
+        
+        // Clear previous analysis results since code has changed
+        setAnalysisResults(null);
+      } else {
+        const message = {
+          type: 'assistant',
+          content: `🤔 ${result.explanation || 'No fixes could be applied automatically.'}`
+        };
+        setChatMessages(prev => [...prev, message]);
+      }
+
+    } catch (error) {
+      console.error('Fix failed:', error);
+      const errorMessage = {
+        type: 'assistant',
+        content: `❌ Fix failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend server is running on port 8000.`
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsFixing(false);
+    }
   };
 
   const handleChatSubmit = (e: React.FormEvent) => {
@@ -90,32 +329,43 @@ export default function IDEPage() {
     const userMessage = { type: 'user', content: chatInput };
     setChatMessages(prev => [...prev, userMessage]);
 
-    // Simulate AI response
+    // Simulate AI response based on input
     setTimeout(() => {
-      const aiResponse = {
-        type: 'assistant',
-        content: `I can help you with that! This is a placeholder response for: "${chatInput}". In the full version, I'll provide contextual hints about your code.`
-      };
-      setChatMessages(prev => [...prev, aiResponse]);
+      let aiResponse = '';
+      const input = chatInput.toLowerCase();
+      
+      if (input.includes('error') || input.includes('bug')) {
+        aiResponse = 'I can help you debug! Try using the "Analyze Code" button to get detailed error analysis, or click "Suggest Fix" if you already know there\'s an error.';
+      } else if (input.includes('help') || input.includes('how')) {
+        aiResponse = 'I\'m here to help! You can:\n• Write code in the editor\n• Click "Run" to execute it\n• Use "Analyze Code" to check for issues\n• Use "Suggest Fix" to get automatic fixes\n• Ask me specific questions about your code';
+      } else if (input.includes('syntax')) {
+        aiResponse = 'For syntax help, make sure to:\n• Check your brackets and parentheses\n• Verify proper indentation (especially in Python)\n• Ensure semicolons where needed (JavaScript)\n• Use proper quotes for strings';
+      } else {
+        aiResponse = `I understand you're asking about: "${chatInput}". While I'm a demo assistant, in the full version I would provide contextual help based on your code and specific questions!`;
+      }
+
+      const response = { type: 'assistant', content: aiResponse };
+      setChatMessages(prev => [...prev, response]);
     }, 1000);
 
     setChatInput('');
   };
 
   const handleHint = () => {
+    const hints = [
+      'Make sure your function names are descriptive and your syntax is correct.',
+      'Check for missing semicolons in JavaScript or proper indentation in Python.',
+      'Remember to close all brackets and parentheses.',
+      'Use console.log() in JavaScript or print() in Python to see output.',
+      'Test your code with different inputs to make sure it works correctly.'
+    ];
+    
+    const randomHint = hints[Math.floor(Math.random() * hints.length)];
     const hintMessage = {
       type: 'assistant',
-      content: 'Here\'s a hint: Make sure your function names are descriptive and your syntax is correct. Check for missing semicolons in JavaScript or proper indentation in Python!'
+      content: `💡 Hint: ${randomHint}`
     };
     setChatMessages(prev => [...prev, hintMessage]);
-  };
-
-  const handleSuggestFix = () => {
-    const fixMessage = {
-      type: 'assistant',
-      content: 'I\'d suggest checking line 3 for a potential syntax error. In the full version, I\'ll provide specific line-by-line fixes you can apply with one click!'
-    };
-    setChatMessages(prev => [...prev, fixMessage]);
   };
 
   return (
@@ -144,14 +394,25 @@ export default function IDEPage() {
             </select>
           </div>
 
-          <button
-            onClick={handleRunCode}
-            disabled={isRunning}
-            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-          >
-            <Play className="h-4 w-4" />
-            <span>{isRunning ? 'Running...' : 'Run'}</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={analyzeCode}
+              disabled={isAnalyzing}
+              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertCircle className="h-4 w-4" />}
+              <span>{isAnalyzing ? 'Analyzing...' : 'Analyze Code'}</span>
+            </button>
+
+            <button
+              onClick={handleRunCode}
+              disabled={isRunning}
+              className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              <span>{isRunning ? 'Running...' : 'Run'}</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -190,16 +451,18 @@ export default function IDEPage() {
             <div className="flex space-x-2 mt-2">
               <button
                 onClick={handleHint}
-                className="flex items-center space-x-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded"
+                className="flex items-center space-x-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
               >
                 <Lightbulb className="h-3 w-3" />
                 <span>Hint</span>
               </button>
               <button
-                onClick={handleSuggestFix}
-                className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded"
+                onClick={suggestFix}
+                disabled={isFixing}
+                className="flex items-center space-x-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded hover:bg-orange-200 disabled:opacity-50"
               >
-                Suggest Fix
+                {isFixing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                <span>{isFixing ? 'Fixing...' : 'Suggest Fix'}</span>
               </button>
             </div>
           </div>
@@ -217,7 +480,7 @@ export default function IDEPage() {
                     : 'bg-green-100 text-green-900 mr-4'
                 }`}
               >
-                {message.content}
+                <pre className="whitespace-pre-wrap font-sans">{message.content}</pre>
               </div>
             ))}
           </div>
