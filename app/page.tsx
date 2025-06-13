@@ -10,6 +10,10 @@ import Footer from '@/components/Footer';
 export default function Home() {
   const router = useRouter();
 
+  const handleStartCoding = () => {
+    router.push('/ide');
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -49,7 +53,7 @@ export default function Home() {
             {/* Enhanced CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 mb-16">
               <button 
-                onClick={() => router.push('/ide')}
+                onClick={handleStartCoding}
                 className="group btn-primary px-10 py-5 text-xl font-bold shadow-2xl animate-pulse-glow"
               >
                 <div className="flex items-center space-x-3">

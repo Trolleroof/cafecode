@@ -2,9 +2,15 @@
 
 import React, { useState } from 'react';
 import { Menu, X, Code2, Github, Twitter } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const router = useRouter();
+
+  const handleStartCoding = () => {
+    router.push('/ide');
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/20">
@@ -31,7 +37,10 @@ const Header = () => {
             <button className="text-gray-700 hover:text-primary-600 transition-colors font-semibold text-lg">
               Sign In
             </button>
-            <button className="btn-primary px-8 py-3 text-lg font-bold shadow-lg">
+            <button 
+              onClick={handleStartCoding}
+              className="btn-primary px-8 py-3 text-lg font-bold shadow-lg"
+            >
               Start Coding
             </button>
           </div>
@@ -57,7 +66,10 @@ const Header = () => {
                 <button className="text-left text-gray-700 hover:text-primary-600 transition-colors font-semibold text-lg">
                   Sign In
                 </button>
-                <button className="btn-primary px-8 py-3 text-lg font-bold shadow-lg">
+                <button 
+                  onClick={handleStartCoding}
+                  className="btn-primary px-8 py-3 text-lg font-bold shadow-lg"
+                >
                   Start Coding
                 </button>
               </div>
