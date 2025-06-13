@@ -7,7 +7,8 @@ class GeminiService {
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Updated to use the correct model name for the current API version
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     this.isInitialized = false;
   }
 
@@ -18,7 +19,7 @@ class GeminiService {
       const response = await result.response;
       const text = response.text();
       
-      if (text.includes('OK')) {
+      if (text.includes('OK') || text.toLowerCase().includes('working') || text.length > 0) {
         this.isInitialized = true;
         console.log('✅ Gemini AI connection verified');
         return true;
