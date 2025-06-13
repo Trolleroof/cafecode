@@ -16,102 +16,108 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-        {/* Background */}
-        <div className="absolute inset-0 gradient-bg opacity-10"></div>
+        {/* Enhanced Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-accent-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/5 to-accent-500/5"></div>
         
-        {/* Floating elements */}
-        <div className="absolute top-20 left-10 w-20 h-20 bg-primary-200 rounded-full opacity-20 animate-bounce-gentle"></div>
-        <div className="absolute top-40 right-20 w-16 h-16 bg-accent-200 rounded-full opacity-20 animate-bounce-gentle" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute bottom-40 left-20 w-12 h-12 bg-primary-300 rounded-full opacity-20 animate-bounce-gentle" style={{ animationDelay: '2s' }}></div>
+        {/* Enhanced floating elements */}
+        <div className="absolute top-20 left-10 w-24 h-24 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full opacity-20 animate-float blur-sm"></div>
+        <div className="absolute top-40 right-20 w-20 h-20 bg-gradient-to-br from-accent-400 to-accent-600 rounded-full opacity-20 animate-float blur-sm" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute bottom-40 left-20 w-16 h-16 bg-gradient-to-br from-primary-300 to-accent-300 rounded-full opacity-20 animate-float blur-sm" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute top-1/2 right-1/4 w-12 h-12 bg-gradient-to-br from-accent-500 to-primary-500 rounded-full opacity-15 animate-bounce-gentle" style={{ animationDelay: '1s' }}></div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="animate-slide-up">
-            {/* Badge */}
-            <div className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm border border-primary-200 rounded-full px-4 py-2 mb-8">
-              <Sparkles className="h-4 w-4 text-primary-500" />
-              <span className="text-sm font-medium text-primary-700">Perfect for Beginners</span>
+            {/* Enhanced Badge */}
+            <div className="inline-flex items-center space-x-2 glass rounded-full px-6 py-3 mb-8 shadow-lg">
+              <Sparkles className="h-5 w-5 text-primary-600" />
+              <span className="text-sm font-semibold text-primary-700 tracking-wide">Perfect for Beginners</span>
             </div>
 
-            {/* Main heading */}
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold text-gray-900 mb-6 text-balance">
+            {/* Enhanced Main heading */}
+            <h1 className="text-5xl sm:text-6xl lg:text-8xl font-bold text-gray-900 mb-8 leading-tight">
               Learn to Code with
-              <span className="bg-gradient-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent"> Confidence</span>
+              <span className="block bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500 bg-clip-text text-transparent animate-gradient"> Confidence</span>
             </h1>
 
-            {/* Subheading */}
-            <p className="text-xl sm:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto text-balance">
+            {/* Enhanced Subheading */}
+            <p className="text-xl sm:text-2xl lg:text-3xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed font-light">
               A beginner-friendly online IDE designed for self-taught developers and bootcamp students. 
-              Write code, get instant help, and learn by doing.
+              <span className="block mt-2 font-medium text-gray-700">Write code, get instant help, and learn by doing.</span>
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6 mb-12">
+            {/* Enhanced CTA Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 mb-16">
               <button 
                 onClick={() => router.push('/ide')}
-                className="group bg-gradient-to-r from-primary-500 to-accent-500 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-2xl transition-all duration-300 flex items-center space-x-2 animate-pulse-glow"
+                className="group btn-primary px-10 py-5 text-xl font-bold shadow-2xl animate-pulse-glow"
               >
-                <Play className="h-5 w-5" />
-                <span>Start Coding Now</span>
-                <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                <div className="flex items-center space-x-3">
+                  <Play className="h-6 w-6" />
+                  <span>Start Coding Now</span>
+                  <ArrowRight className="h-6 w-6 group-hover:translate-x-2 transition-transform duration-300" />
+                </div>
               </button>
-              <button className="text-gray-700 px-8 py-4 rounded-xl text-lg font-semibold border-2 border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-all duration-300">
-                Watch Demo
+              <button className="btn-secondary px-10 py-5 text-xl font-bold">
+                <div className="flex items-center space-x-3">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span>Watch Demo</span>
+                </div>
               </button>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-2xl mx-auto">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-primary-600 mb-2">10K+</div>
-                <div className="text-gray-600">Students Learning</div>
+            {/* Enhanced Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-12 max-w-3xl mx-auto">
+              <div className="text-center group">
+                <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300">10K+</div>
+                <div className="text-gray-600 font-medium text-lg">Students Learning</div>
               </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-accent-600 mb-2">50+</div>
-                <div className="text-gray-600">Coding Challenges</div>
+              <div className="text-center group">
+                <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-accent-600 to-accent-500 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300">50+</div>
+                <div className="text-gray-600 font-medium text-lg">Coding Challenges</div>
               </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-primary-600 mb-2">24/7</div>
-                <div className="text-gray-600">AI Assistant</div>
+              <div className="text-center group">
+                <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300">24/7</div>
+                <div className="text-gray-600 font-medium text-lg">AI Assistant</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Code preview mockup */}
-        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 w-full max-w-4xl px-4 animate-fade-in" style={{ animationDelay: '1s' }}>
-          <div className="bg-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
-            <div className="flex items-center space-x-2 px-4 py-3 bg-gray-800">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <div className="ml-4 text-gray-400 text-sm font-mono">main.js</div>
+        {/* Enhanced code preview mockup */}
+        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 w-full max-w-5xl px-4 animate-fade-in" style={{ animationDelay: '1s' }}>
+          <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-700 shadow-glow">
+            <div className="flex items-center space-x-3 px-6 py-4 bg-gray-800">
+              <div className="w-4 h-4 bg-red-500 rounded-full shadow-sm"></div>
+              <div className="w-4 h-4 bg-yellow-500 rounded-full shadow-sm"></div>
+              <div className="w-4 h-4 bg-green-500 rounded-full shadow-sm"></div>
+              <div className="ml-6 text-gray-400 text-sm font-mono">main.js</div>
             </div>
-            <div className="p-6 font-mono text-sm">
+            <div className="p-8 font-mono text-base leading-relaxed">
               <div className="text-gray-500">// Your first JavaScript function</div>
               <div className="text-blue-400">function <span className="text-yellow-400">greetUser</span>(<span className="text-orange-400">name</span>) {'{'}</div>
-              <div className="ml-4 text-green-400">console.log(<span className="text-red-400">`Hello, ${'${name}'} Welcome to coding!`</span>);</div>
+              <div className="ml-6 text-green-400">console.log(<span className="text-red-400">`Hello, ${'${name}'} Welcome to coding!`</span>);</div>
               <div className="text-blue-400">{'}'}</div>
-              <div className="mt-2 text-yellow-400">greetUser(<span className="text-red-400">&apos;Future Developer&apos;</span>);</div>
+              <div className="mt-3 text-yellow-400">greetUser(<span className="text-red-400">&apos;Future Developer&apos;</span>);</div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-gray-50">
+      <section id="features" className="py-24 bg-gradient-to-br from-gray-50 to-primary-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
               Everything You Need to
-              <span className="bg-gradient-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent"> Start Coding</span>
+              <span className="block bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent"> Start Coding</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Our IDE is specifically designed for beginners, with features that make learning to code intuitive and enjoyable.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {[
               {
                 icon: MessageSquare,
@@ -152,15 +158,15 @@ export default function Home() {
             ].map((feature, index) => (
               <div
                 key={index}
-                className="group bg-white rounded-xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-primary-200"
+                className="group bg-white rounded-2xl p-10 shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-primary-200 transform hover:-translate-y-2"
               >
-                <div className={`inline-flex p-3 rounded-lg bg-gradient-to-r ${feature.color} mb-6`}>
-                  <feature.icon className="h-6 w-6 text-white" />
+                <div className={`inline-flex p-4 rounded-xl bg-gradient-to-r ${feature.color} mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <feature.icon className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4 group-hover:text-primary-600 transition-colors">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6 group-hover:text-primary-600 transition-colors">
                   {feature.title}
                 </h3>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed text-lg">
                   {feature.description}
                 </p>
               </div>
@@ -170,19 +176,19 @@ export default function Home() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 bg-white">
+      <section id="how-it-works" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
               How CodeCraft IDE
-              <span className="bg-gradient-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent"> Works</span>
+              <span className="block bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent"> Works</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Three simple steps to start your coding journey with confidence and support every step of the way.
             </p>
           </div>
 
-          <div className="space-y-20">
+          <div className="space-y-32">
             {[
               {
                 icon: Edit3,
@@ -205,43 +211,41 @@ export default function Home() {
             ].map((step, index) => (
               <div
                 key={index}
-                className={`flex flex-col ${index % 2 === 1 ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-12`}
+                className={`flex flex-col ${index % 2 === 1 ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-16`}
               >
                 {/* Content */}
-                <div className="flex-1 space-y-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full text-white font-bold text-lg">
+                <div className="flex-1 space-y-8">
+                  <div className="flex items-center space-x-6">
+                    <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full text-white font-bold text-2xl shadow-lg">
                       {index + 1}
                     </div>
-                    <div className="bg-gradient-to-r from-primary-500 to-accent-500 p-3 rounded-lg">
-                      <step.icon className="h-6 w-6 text-white" />
+                    <div className="bg-gradient-to-r from-primary-500 to-accent-500 p-4 rounded-xl shadow-lg">
+                      <step.icon className="h-8 w-8 text-white" />
                     </div>
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                  <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
                     {step.title}
                   </h3>
-                  <p className="text-lg text-gray-600 leading-relaxed">
+                  <p className="text-xl text-gray-600 leading-relaxed">
                     {step.description}
                   </p>
-                  <button className="inline-flex items-center text-primary-600 font-semibold hover:text-primary-700 transition-colors">
+                  <button className="inline-flex items-center text-primary-600 font-bold text-lg hover:text-primary-700 transition-colors group">
                     Learn more
-                    <svg className="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
 
                 {/* Image */}
                 <div className="flex-1">
-                  <div className="relative">
+                  <div className="relative group">
                     <Image
                       src={step.image}
                       alt={step.title}
-                      width={600}
-                      height={400}
-                      className="w-full h-80 object-cover rounded-2xl shadow-2xl"
+                      width={700}
+                      height={500}
+                      className="w-full h-96 object-cover rounded-3xl shadow-2xl group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-2xl"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-3xl group-hover:opacity-75 transition-opacity duration-500"></div>
                   </div>
                 </div>
               </div>
@@ -251,19 +255,19 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-gradient-to-br from-primary-50 to-accent-50">
+      <section className="py-24 bg-gradient-to-br from-primary-50 to-accent-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
               What Our
-              <span className="bg-gradient-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent"> Students Say</span>
+              <span className="block bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent"> Students Say</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Join thousands of beginners who have successfully started their coding journey with CodeCraft IDE.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {[
               {
                 name: 'Sarah Chen',
@@ -289,31 +293,31 @@ export default function Home() {
             ].map((testimonial, index) => (
               <div
                 key={index}
-                className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100"
+                className="bg-white rounded-3xl p-10 shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 transform hover:-translate-y-2"
               >
-                <div className="flex items-center mb-6">
+                <div className="flex items-center mb-8">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
+                    <Star key={i} className="h-6 w-6 text-yellow-400 fill-current" />
                   ))}
                 </div>
                 
-                <Quote className="h-8 w-8 text-primary-300 mb-4" />
+                <Quote className="h-10 w-10 text-primary-300 mb-6" />
                 
-                <p className="text-gray-700 mb-6 leading-relaxed">
-                  &quot;{testimonial.content}&quot;
+                <p className="text-gray-700 mb-8 leading-relaxed text-lg">
+                  "{testimonial.content}"
                 </p>
                 
                 <div className="flex items-center">
                   <Image
                     src={testimonial.image}
                     alt={testimonial.name}
-                    width={48}
-                    height={48}
-                    className="w-12 h-12 rounded-full object-cover mr-4"
+                    width={56}
+                    height={56}
+                    className="w-14 h-14 rounded-full object-cover mr-4 shadow-lg"
                   />
                   <div>
-                    <h4 className="font-semibold text-gray-900">{testimonial.name}</h4>
-                    <p className="text-gray-600 text-sm">{testimonial.role}</p>
+                    <h4 className="font-bold text-gray-900 text-lg">{testimonial.name}</h4>
+                    <p className="text-gray-600">{testimonial.role}</p>
                   </div>
                 </div>
               </div>
@@ -323,19 +327,19 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-white">
+      <section id="pricing" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
               Simple, Transparent
-              <span className="bg-gradient-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent"> Pricing</span>
+              <span className="block bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent"> Pricing</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Start free and upgrade as you grow. No hidden fees, no complicated tiers.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-6xl mx-auto">
             {[
               {
                 name: 'Free',
@@ -389,44 +393,44 @@ export default function Home() {
             ].map((plan, index) => (
               <div
                 key={index}
-                className={`relative bg-white rounded-2xl border-2 p-8 ${
+                className={`relative bg-white rounded-3xl border-2 p-10 ${
                   plan.popular
-                    ? 'border-primary-500 shadow-2xl scale-105'
-                    : 'border-gray-200 shadow-sm hover:shadow-lg'
-                } transition-all duration-300`}
+                    ? 'border-primary-500 shadow-2xl scale-105 shadow-glow'
+                    : 'border-gray-200 shadow-lg hover:shadow-2xl'
+                } transition-all duration-500 transform hover:-translate-y-2`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-gradient-to-r from-primary-500 to-accent-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center space-x-1">
-                      <Sparkles className="h-4 w-4" />
+                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-gradient-to-r from-primary-500 to-accent-500 text-white px-6 py-3 rounded-full text-sm font-bold flex items-center space-x-2 shadow-lg">
+                      <Sparkles className="h-5 w-5" />
                       <span>Most Popular</span>
                     </div>
                   </div>
                 )}
 
-                <div className="text-center mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                  <div className="mb-4">
-                    <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                    <span className="text-gray-600 ml-2">/{plan.period}</span>
+                <div className="text-center mb-10">
+                  <h3 className="text-3xl font-bold text-gray-900 mb-4">{plan.name}</h3>
+                  <div className="mb-6">
+                    <span className="text-5xl font-bold text-gray-900">{plan.price}</span>
+                    <span className="text-gray-600 ml-2 text-xl">/{plan.period}</span>
                   </div>
-                  <p className="text-gray-600">{plan.description}</p>
+                  <p className="text-gray-600 text-lg">{plan.description}</p>
                 </div>
 
-                <ul className="space-y-4 mb-8">
+                <ul className="space-y-5 mb-10">
                   {plan.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center">
-                      <Check className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                      <span className="text-gray-700">{feature}</span>
+                      <Check className="h-6 w-6 text-green-500 mr-4 flex-shrink-0" />
+                      <span className="text-gray-700 text-lg">{feature}</span>
                     </li>
                   ))}
                 </ul>
 
                 <button
-                  className={`w-full py-3 px-6 rounded-lg font-semibold transition-all duration-300 ${
+                  className={`w-full py-4 px-8 rounded-xl font-bold text-lg transition-all duration-300 ${
                     plan.popular
-                      ? 'bg-gradient-to-r from-primary-500 to-accent-500 text-white hover:shadow-lg'
-                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                      ? 'btn-primary shadow-lg'
+                      : 'btn-secondary'
                   }`}
                 >
                   {plan.cta}
@@ -435,14 +439,23 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="text-center mt-12">
-            <p className="text-gray-600 mb-4">
+          <div className="text-center mt-16">
+            <p className="text-gray-600 mb-6 text-lg">
               All plans include a 14-day free trial. No credit card required.
             </p>
-            <div className="flex items-center justify-center space-x-6 text-sm text-gray-500">
-              <span>✓ Cancel anytime</span>
-              <span>✓ 30-day money back guarantee</span>
-              <span>✓ No setup fees</span>
+            <div className="flex items-center justify-center space-x-8 text-gray-500 font-medium">
+              <span className="flex items-center">
+                <Check className="h-5 w-5 text-green-500 mr-2" />
+                Cancel anytime
+              </span>
+              <span className="flex items-center">
+                <Check className="h-5 w-5 text-green-500 mr-2" />
+                30-day money back guarantee
+              </span>
+              <span className="flex items-center">
+                <Check className="h-5 w-5 text-green-500 mr-2" />
+                No setup fees
+              </span>
             </div>
           </div>
         </div>
