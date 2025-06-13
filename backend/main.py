@@ -1,227 +1,178 @@
-#!/usr/bin/env python3
-"""
-CodeCraft IDE Backend Server
-A simple Python backend server for the CodeCraft IDE application.
-"""
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import uvicorn
+import logging
+import os
+from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
-import http.server
-import socketserver
-import json
-import urllib.parse
-from datetime import datetime
+from routers import code_helper
+from services.gemini import GeminiService
+from models.schemas import HealthResponse, ErrorResponse
 
-class CodeCraftHandler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            html_content = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CodeCraft IDE - Backend Server</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            background: #0d1117;
-            color: #c9d1d9;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-        }
-        
-        .terminal {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            padding: 2rem;
-            max-width: 600px;
-            width: 100%;
-            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
-        }
-        
-        .terminal-header {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid #30363d;
-        }
-        
-        .terminal-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-        
-        .dot-red { background: #ff5f56; }
-        .dot-yellow { background: #ffbd2e; }
-        .dot-green { background: #27ca3f; }
-        
-        .terminal-title {
-            margin-left: 1rem;
-            color: #8b949e;
-            font-size: 0.9rem;
-        }
-        
-        .output {
-            font-size: 0.95rem;
-            line-height: 1.6;
-        }
-        
-        .prompt {
-            color: #7c3aed;
-            font-weight: bold;
-        }
-        
-        .success {
-            color: #3fb950;
-        }
-        
-        .info {
-            color: #58a6ff;
-        }
-        
-        .timestamp {
-            color: #8b949e;
-            font-size: 0.85rem;
-        }
-        
-        .logo {
-            color: #f85149;
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-        
-        .blink {
-            animation: blink 1s infinite;
-        }
-        
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
-        }
-    </style>
-</head>
-<body>
-    <div class="terminal">
-        <div class="terminal-header">
-            <div class="terminal-dot dot-red"></div>
-            <div class="terminal-dot dot-yellow"></div>
-            <div class="terminal-dot dot-green"></div>
-            <div class="terminal-title">CodeCraft Backend Server</div>
-        </div>
-        
-        <div class="output">
-            <div><span class="prompt">$</span> python main.py</div>
-            <div class="success">✓ CodeCraft IDE Backend Server Started</div>
-            <div class="info">🐍 Python HTTP Server running on port 8000</div>
-            <div class="timestamp">📅 """ + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """</div>
-            <br>
-            <div class="logo">    ____          __      ____            ______</div>
-            <div class="logo">   / __ \\____     / /___  / __ \\___  _   __/ ____/</div>
-            <div class="logo">  / /_/ / __ \\   / / __ \\/ / / / _ \\| | / / __/   </div>
-            <div class="logo"> / ____/ /_/ /  / / /_/ / /_/ /  __/| |/ / /___   </div>
-            <div class="logo">/_/    \\____/  /_/\\____/_____/\\___/ |___/_____/   </div>
-            <br>
-            <div class="success">🚀 Server Status: <strong>ONLINE</strong></div>
-            <div class="info">📡 Endpoints Available:</div>
-            <div>   • GET  /           - This page</div>
-            <div>   • GET  /api/hello  - Hello World API</div>
-            <div>   • POST /api/echo   - Echo service</div>
-            <br>
-            <div class="prompt">server@codecraft:~$ <span class="blink">_</span></div>
-        </div>
-    </div>
-</body>
-</html>
-            """
-            
-            self.wfile.write(html_content.encode())
-            
-        elif self.path == '/api/hello':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            response = {
-                "message": "Hello World from CodeCraft IDE Backend!",
-                "status": "success",
-                "server": "Python HTTP Server",
-                "timestamp": datetime.now().isoformat(),
-                "version": "1.0.0"
-            }
-            
-            self.wfile.write(json.dumps(response, indent=2).encode())
-            
+# Load environment variables
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Global service instance
+gemini_service: GeminiService = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    global gemini_service
+    
+    # Startup
+    logger.info("Starting CodeCraft IDE Backend...")
+    
+    # Initialize Gemini service
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        logger.error("GEMINI_API_KEY not found in environment variables")
+        raise ValueError("GEMINI_API_KEY is required")
+    
+    try:
+        gemini_service = GeminiService(api_key)
+        logger.info("Gemini AI service initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Gemini service: {str(e)}")
+        raise
+    
+    # Check API connectivity
+    try:
+        api_status = await gemini_service.check_api_status()
+        if api_status:
+            logger.info("Gemini API connectivity verified")
         else:
-            super().do_GET()
+            logger.warning("Gemini API connectivity check failed")
+    except Exception as e:
+        logger.warning(f"Could not verify Gemini API connectivity: {str(e)}")
     
-    def do_POST(self):
-        if self.path == '/api/echo':
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            try:
-                data = json.loads(post_data.decode())
-                response = {
-                    "echo": data,
-                    "message": "Data received successfully",
-                    "timestamp": datetime.now().isoformat()
-                }
-            except json.JSONDecodeError:
-                response = {
-                    "error": "Invalid JSON",
-                    "received": post_data.decode(),
-                    "timestamp": datetime.now().isoformat()
-                }
-            
-            self.wfile.write(json.dumps(response, indent=2).encode())
-        else:
-            self.send_response(404)
-            self.end_headers()
+    logger.info("Application startup completed")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down CodeCraft IDE Backend...")
+    gemini_service = None
+    logger.info("Application shutdown completed")
 
-def main():
-    PORT = 8000
+# Create FastAPI application
+app = FastAPI(
+    title="CodeCraft IDE Backend",
+    description="AI-powered code analysis and error fixing service for CodeCraft IDE",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan
+)
+
+# Configure CORS
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(code_helper.router)
+
+# Root endpoint
+@app.get("/", response_model=HealthResponse)
+async def root():
+    """Root endpoint with service information"""
+    global gemini_service
     
-    print("🐍 Starting CodeCraft IDE Backend Server...")
-    print(f"🚀 Server will run on http://localhost:{PORT}")
-    print("📡 Available endpoints:")
-    print("   • GET  /           - Main page")
-    print("   • GET  /api/hello  - Hello World API")
-    print("   • POST /api/echo   - Echo service")
-    print("-" * 50)
+    try:
+        gemini_status = "connected" if gemini_service else "not_initialized"
+        if gemini_service:
+            api_check = await gemini_service.check_api_status()
+            gemini_status = "connected" if api_check else "disconnected"
+    except Exception:
+        gemini_status = "error"
     
-    with socketserver.TCPServer(("", PORT), CodeCraftHandler) as httpd:
-        print(f"✅ Server started successfully on port {PORT}")
-        print("🔄 Press Ctrl+C to stop the server")
-        print("=" * 50)
+    return HealthResponse(
+        status="online",
+        version="1.0.0",
+        timestamp=str(int(__import__('time').time())),
+        gemini_api_status=gemini_status
+    )
+
+# Health check endpoint
+@app.get("/health", response_model=HealthResponse)
+async def health_check():
+    """Detailed health check endpoint"""
+    global gemini_service
+    
+    try:
+        gemini_status = "not_initialized"
+        if gemini_service:
+            api_check = await gemini_service.check_api_status()
+            gemini_status = "connected" if api_check else "disconnected"
         
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\n🛑 Server stopped by user")
-            print("👋 Goodbye!")
+        return HealthResponse(
+            status="healthy" if gemini_status == "connected" else "degraded",
+            version="1.0.0",
+            timestamp=str(int(__import__('time').time())),
+            gemini_api_status=gemini_status
+        )
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return HealthResponse(
+            status="unhealthy",
+            version="1.0.0",
+            timestamp=str(int(__import__('time').time())),
+            gemini_api_status="error"
+        )
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc: Exception):
+    """Global exception handler"""
+    logger.error(f"Unhandled exception: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content=ErrorResponse(
+            error="Internal server error",
+            error_code="GLOBAL_ERROR",
+            details={"path": str(request.url), "method": request.method}
+        ).dict()
+    )
+
+# HTTP exception handler
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    """HTTP exception handler"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ErrorResponse(
+            error=exc.detail,
+            error_code=f"HTTP_{exc.status_code}"
+        ).dict()
+    )
 
 if __name__ == "__main__":
-    main()
+    # Get configuration from environment
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 8000))
+    debug = os.getenv("DEBUG", "True").lower() == "true"
+    
+    logger.info(f"Starting server on {host}:{port} (debug={debug})")
+    
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=debug,
+        log_level="info" if debug else "warning"
+    )
