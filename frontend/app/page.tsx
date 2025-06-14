@@ -44,7 +44,7 @@ export default function Home() {
 
           {/* Subheading */}
           <p className="text-xl sm:text-2xl lg:text-3xl text-gray-800 mb-8 max-w-2xl mx-auto leading-relaxed font-semibold drop-shadow-sm" style={{textShadow: '0 1px 6px rgba(0,0,0,0.06)'}}>
-            A beginner-friendly online IDE designed for self-taught developers and bootcamp students. 
+            A beginner-friendly IDE designed for self-taught developers and bootcamp students. 
             <span className="block mt-2 font-bold text-gray-900">Write code, get instant help, and learn by doing.</span>
           </p>
 
