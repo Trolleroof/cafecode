@@ -226,6 +226,8 @@
 /* Enhanced button styles */
 .btn-primary {
   @apply relative overflow-hidden bg-gradient-to-r from-primary-500 to-accent-500 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl;
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
 }
 
 .btn-primary::before {
@@ -241,6 +243,14 @@
 
 .btn-primary:hover::before {
   left: 100%;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary .group-hover\:translate-x-2 {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-secondary {

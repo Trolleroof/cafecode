@@ -63,7 +63,7 @@ export default function IDEPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
-  const [analysisResults, setAnalysisResults] = useState(null);
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
 
   const handleLanguageChange = (langId: string) => {
     setSelectedLanguage(langId);

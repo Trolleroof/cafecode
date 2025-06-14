@@ -33,13 +33,13 @@ const Header = () => {
           </nav>
 
           {/* CTA Buttons */}
-          <div className="hidden md:flex items-center space-x-6">
-            <button className="text-gray-700 hover:text-primary-600 transition-colors font-semibold text-lg">
+          <div className="hidden md:flex items-center text-black space-x-6">
+            <button className="text-gray-700 hover:text-primary-600  font-semibold text-lg">
               Sign In
             </button>
             <button 
               onClick={handleStartCoding}
-              className="btn-primary px-8 py-3 text-lg font-bold shadow-lg"
+              className="px-8 py-3 text-lg text-black font-bold shadow-lg"
             >
               Start Coding
             </button>
@@ -63,12 +63,12 @@ const Header = () => {
               <a href="#pricing" className="text-gray-700 hover:text-primary-600 transition-colors font-semibold text-lg">Pricing</a>
               <a href="#about" className="text-gray-700 hover:text-primary-600 transition-colors font-semibold text-lg">About</a>
               <div className="flex flex-col space-y-4 pt-6 border-t border-gray-200">
-                <button className="text-left text-gray-700 hover:text-primary-600 transition-colors font-semibold text-lg">
+                <button className="text-left text-black hover:text-primary-600 transition-colors font-semibold text-lg">
                   Sign In
                 </button>
                 <button 
                   onClick={handleStartCoding}
-                  className="btn-primary px-8 py-3 text-lg font-bold shadow-lg"
+                  className="btn-primary px-8 py-3 text-lg text-black font-bold shadow-lg"
                 >
                   Start Coding
                 </button>

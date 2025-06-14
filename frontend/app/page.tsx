@@ -19,77 +19,56 @@ export default function Home() {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-        {/* Enhanced Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-accent-50"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/5 to-accent-500/5"></div>
-        
-        {/* Enhanced floating elements */}
+      <section className="relative min-h-[80vh] flex flex-col items-center justify-center overflow-hidden pt-24 pb-0">
+        {/* Background gradients */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-accent-50 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/5 to-accent-500/5 pointer-events-none"></div>
+        {/* Floating elements (move away from code mockup area) */}
         <div className="absolute top-20 left-10 w-24 h-24 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full opacity-20 animate-float blur-sm"></div>
         <div className="absolute top-40 right-20 w-20 h-20 bg-gradient-to-br from-accent-400 to-accent-600 rounded-full opacity-20 animate-float blur-sm" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-40 left-20 w-16 h-16 bg-gradient-to-br from-primary-300 to-accent-300 rounded-full opacity-20 animate-float blur-sm" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute bottom-1/2 left-20 w-16 h-16 bg-gradient-to-br from-primary-300 to-accent-300 rounded-full opacity-20 animate-float blur-sm" style={{ animationDelay: '4s' }}></div>
         <div className="absolute top-1/2 right-1/4 w-12 h-12 bg-gradient-to-br from-accent-500 to-primary-500 rounded-full opacity-15 animate-bounce-gentle" style={{ animationDelay: '1s' }}></div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="animate-slide-up">
-            {/* Enhanced Badge */}
-            <div className="inline-flex items-center space-x-2 glass rounded-full px-6 py-3 mb-8 shadow-lg">
-              <Sparkles className="h-5 w-5 text-primary-600" />
-              <span className="text-sm font-semibold text-primary-700 tracking-wide">Perfect for Beginners</span>
+        <div className="relative z-10 w-full max-w-12xl mx-auto text-center flex flex-col items-center">
+          {/* Badge */}
+          <div className="inline-flex items-center space-x-2 glass rounded-full px-6 py-3 mb-6 shadow-lg">
+            <Sparkles className="h-5 w-5 text-primary-600" />
+            <span className="text-sm font-semibold text-primary-700 tracking-wide">Perfect for Beginners</span>
+          </div>
+
+          {/* Main heading */}
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 mb-4 leading-tight drop-shadow-md" style={{textShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
+            Learn to Code with
+            <span className="block bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500 bg-clip-text animate-gradient drop-shadow-md" style={{textShadow: '0 2px 8px rgba(0,0,0,0.15)'}}> Confidence</span>
+          </h1>
+
+          {/* Subheading */}
+          <p className="text-xl sm:text-2xl lg:text-3xl text-gray-800 mb-8 max-w-2xl mx-auto leading-relaxed font-semibold drop-shadow-sm" style={{textShadow: '0 1px 6px rgba(0,0,0,0.06)'}}>
+            A beginner-friendly online IDE designed for self-taught developers and bootcamp students. 
+            <span className="block mt-2 font-bold text-gray-900">Write code, get instant help, and learn by doing.</span>
+          </p>
+
+          {/* CTA Button with soft glow/blur background */}
+          <div className="relative flex justify-center mb-8">
+            <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
+              <div className="w-80 h-16 bg-primary-500/30 blur-xl rounded-2xl shadow-lg"></div>
             </div>
-
-            {/* Enhanced Main heading */}
-            <h1 className="text-5xl sm:text-6xl lg:text-8xl font-bold text-gray-900 mb-8 leading-tight">
-              Learn to Code with
-              <span className="block bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500 bg-clip-text text-transparent animate-gradient"> Confidence</span>
-            </h1>
-
-            {/* Enhanced Subheading */}
-            <p className="text-xl sm:text-2xl lg:text-3xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed font-light">
-              A beginner-friendly online IDE designed for self-taught developers and bootcamp students. 
-              <span className="block mt-2 font-medium text-gray-700">Write code, get instant help, and learn by doing.</span>
-            </p>
-
-            {/* Enhanced CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-8 mb-16">
-              <button 
-                onClick={handleStartCoding}
-                className="group btn-primary px-10 py-5 text-xl font-bold shadow-2xl animate-pulse-glow"
-              >
-                <div className="flex items-center space-x-3">
-                  <Play className="h-6 w-6" />
-                  <span>Start Coding Now</span>
-                  <ArrowRight className="h-6 w-6 group-hover:translate-x-2 transition-transform duration-300" />
-                </div>
-              </button>
-              <button className="btn-secondary px-10 py-5 text-xl font-bold">
-                <div className="flex items-center space-x-3">
-                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                  <span>Watch Demo</span>
-                </div>
-              </button>
-            </div>
-
-            {/* Enhanced Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-12 max-w-3xl mx-auto">
-              <div className="text-center group">
-                <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300">10K+</div>
-                <div className="text-gray-600 font-medium text-lg">Students Learning</div>
+            <button 
+              onClick={handleStartCoding}
+              className="relative group btn-primary px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-primary-500/30 border border-primary-500/40"
+              style={{ color: '#fff', background: 'linear-gradient(90deg, #6366f1 0%, #14b8a6 100%)', textShadow: '0 1px 8px rgba(0,0,0,0.18)' }}
+            >
+              <div className="flex items-center font-black space-x-4">
+                <Play className="h-7 w-7 group-hover:scale-110 transition-transform" />
+                <span className="tracking-wide">Start Coding Now</span>
+                <ArrowRight className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
               </div>
-              <div className="text-center group">
-                <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-accent-600 to-accent-500 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300">50+</div>
-                <div className="text-gray-600 font-medium text-lg">Coding Challenges</div>
-              </div>
-              <div className="text-center group">
-                <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300">24/7</div>
-                <div className="text-gray-600 font-medium text-lg">AI Assistant</div>
-              </div>
-            </div>
+            </button>
           </div>
         </div>
 
-        {/* Enhanced code preview mockup */}
-        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 w-full max-w-5xl px-4 animate-fade-in" style={{ animationDelay: '1s' }}>
+        {/* Code preview mockup, spaced below hero content */}
+        <div className="relative z-10 w-full max-w-3xl mx-auto px-4 mt-2 animate-fade-in" style={{ animationDelay: '1s' }}>
           <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-700 shadow-glow">
             <div className="flex items-center space-x-3 px-6 py-4 bg-gray-800">
               <div className="w-4 h-4 bg-red-500 rounded-full shadow-sm"></div>
@@ -102,8 +81,24 @@ export default function Home() {
               <div className="text-blue-400">function <span className="text-yellow-400">greetUser</span>(<span className="text-orange-400">name</span>) {'{'}</div>
               <div className="ml-6 text-green-400">console.log(<span className="text-red-400">`Hello, ${'${name}'} Welcome to coding!`</span>);</div>
               <div className="text-blue-400">{'}'}</div>
-              <div className="mt-3 text-yellow-400">greetUser(<span className="text-red-400">&apos;Future Developer&apos;</span>);</div>
+              <div className="mt-3 text-yellow-400">greetUser(<span className="text-red-400">'Future Developer'</span>);</div>
             </div>
+          </div>
+        </div>
+
+        {/* Stats row, now below code mockup and spaced out */}
+        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto mt-12">
+          <div className="text-center group">
+            <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">10K+</div>
+            <div className="text-gray-600 font-medium text-lg">Students Learning</div>
+          </div>
+          <div className="text-center group">
+            <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-accent-600 to-accent-500 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">50+</div>
+            <div className="text-gray-600 font-medium text-lg">Coding Challenges</div>
+          </div>
+          <div className="text-center group">
+            <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">24/7</div>
+            <div className="text-gray-600 font-medium text-lg">AI Assistant</div>
           </div>
         </div>
       </section>
