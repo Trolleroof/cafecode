@@ -73,7 +73,7 @@ const Header = () => {
             </button>
             <button 
               onClick={handleStartCoding}
-              className="from-primary-500 to-accent-500 text-white px-6 py-2.5 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+              className="bg-gradient-to-r from-primary-500 to-accent-500 text-white px-6 py-2.5 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
             >
               Start Coding
             </button>
