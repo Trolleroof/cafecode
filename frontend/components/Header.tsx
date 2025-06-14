@@ -27,7 +27,7 @@ const Header = () => {
         <div className="flex justify-between items-center h-16 lg:h-20">
           {/* Logo */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => router.push('/')}>
-            <div className="bg-gradient-to-r from-primary-500 to-accent-500 p-2.5 lg:p-3 rounded-xl shadow-lg">
+            <div className="bg-gradient-to-r from-blue-600 to-teal-600 p-2.5 lg:p-3 rounded-xl shadow-lg">
               <Code2 className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
             </div>
             <span className="text-xl lg:text-2xl font-bold text-gray-900 hidden sm:block">
@@ -42,25 +42,25 @@ const Header = () => {
           <nav className="hidden lg:flex items-center space-x-8">
             <button 
               onClick={() => handleNavClick('#features')}
-              className="text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg"
+              className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg"
             >
               Features
             </button>
             <button 
               onClick={() => handleNavClick('#how-it-works')}
-              className="text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg"
+              className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg"
             >
               How it Works
             </button>
             <button 
               onClick={() => handleNavClick('#pricing')}
-              className="text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg"
+              className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg"
             >
               Pricing
             </button>
             <button 
               onClick={() => handleNavClick('#about')}
-              className="text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg"
+              className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg"
             >
               About
             </button>
@@ -68,12 +68,12 @@ const Header = () => {
 
           {/* Desktop CTA Buttons */}
           <div className="hidden lg:flex items-center space-x-4">
-            <button className="text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg">
+            <button className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg">
               Sign In
             </button>
             <button 
               onClick={handleStartCoding}
-              className="bg-gradient-to-r from-primary-500 to-accent-500 text-white px-6 py-2.5 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
             >
               Start Coding
             </button>
@@ -83,7 +83,7 @@ const Header = () => {
           <div className="flex lg:hidden items-center space-x-3">
             <button 
               onClick={handleStartCoding}
-              className="bg-gradient-to-r from-primary-500 to-accent-500 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-300"
             >
               Start Coding
             </button>
@@ -112,30 +112,30 @@ const Header = () => {
           <nav className="flex flex-col space-y-4 pt-4 border-t border-gray-200">
             <button 
               onClick={() => handleNavClick('#features')}
-              className="text-left text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg py-2"
+              className="text-left text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg py-2"
             >
               Features
             </button>
             <button 
               onClick={() => handleNavClick('#how-it-works')}
-              className="text-left text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg py-2"
+              className="text-left text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg py-2"
             >
               How it Works
             </button>
             <button 
               onClick={() => handleNavClick('#pricing')}
-              className="text-left text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg py-2"
+              className="text-left text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg py-2"
             >
               Pricing
             </button>
             <button 
               onClick={() => handleNavClick('#about')}
-              className="text-left text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg py-2"
+              className="text-left text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg py-2"
             >
               About
             </button>
             <div className="flex flex-col space-y-3 pt-4 border-t border-gray-200">
-              <button className="text-left text-gray-700 hover:text-primary-600 transition-colors font-medium text-lg py-2">
+              <button className="text-left text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg py-2">
                 Sign In
               </button>
             </div>
