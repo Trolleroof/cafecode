@@ -9,6 +9,8 @@ import { dirname, join } from 'path';
 // Import routes
 import codeRoutes from './routes/code.js';
 import { initializeGemini } from './services/gemini.js';
+import pythonRoutes from './routes/python.js';
+import translateRoutes from './routes/translate.js';
 
 // Load environment variables
 dotenv.config();
@@ -81,6 +83,8 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/code', codeRoutes);
+app.use('/api/python', pythonRoutes);
+app.use('/api/translate', translateRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -185,13 +189,7 @@ async function startServer() {
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🤖 Gemini AI: ${geminiService ? '✅ Connected' : '❌ Disconnected'}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('📋 Available endpoints:');
-      console.log(`   • GET  /              - Service info`);
-      console.log(`   • GET  /health        - Health check`);
-      console.log(`   • POST /api/code/analyze - Code analysis`);
-      console.log(`   • POST /api/code/fix     - Code fixing`);
-      console.log(`   • GET  /api/code/health  - Service status`);
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     });
 
     // Store server reference for graceful shutdown

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -11,25 +11,9 @@ const languages = [
 ];
 
 const defaultCode = {
-  javascript: `// Your first JavaScript function
-function greetUser(name) {
-  console.log(\`Hello, \${name}! Welcome to coding!\`);
-  return \`Welcome, \${name}!\`;
-}
+  javascript: `// Your first JavaScript function`,
 
-// Call the function
-const result = greetUser('Future Developer');
-console.log(result);`,
-
-  python: `# Your first Python function
-def greet_user(name):
-    message = f"Hello, {name}! Welcome to coding!"
-    print(message)
-    return message
-
-# Call the function
-result = greet_user("Future Developer")
-print(f"Result: {result}")`,
+  python: `# Your first Python function`,
 
   html: `<!DOCTYPE html>
 <html>
@@ -51,11 +35,16 @@ print(f"Result: {result}")`,
 </html>`
 };
 
+type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
+
 export default function IDEPage() {
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
   const [code, setCode] = useState(defaultCode.javascript);
+  const [pyodide, setPyodide] = useState<any>(null);
+  const [isPyodideLoading, setIsPyodideLoading] = useState(true);
   const router = useRouter();
   const [output, setOutput] = useState('');
+  const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('idle');
   const [chatMessages, setChatMessages] = useState([
     { type: 'system', content: 'Welcome! I\'m here to help you learn to code. Ask me for hints or help with errors!' }
   ]);
@@ -64,10 +53,41 @@ export default function IDEPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const [showTranslateBubble, setShowTranslateBubble] = useState(false);
+
+  useEffect(() => {
+    const initPyodide = async () => {
+      try {
+        // Load Pyodide from CDN
+        const pyodideScript = document.createElement('script');
+        pyodideScript.src = 'https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js';
+        document.body.appendChild(pyodideScript);
+
+        await new Promise((resolve, reject) => {
+          pyodideScript.onload = resolve;
+          pyodideScript.onerror = reject;
+        });
+
+        // @ts-ignore
+        const pyodideInstance = await window.loadPyodide({
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+        });
+        
+        setPyodide(pyodideInstance);
+        setIsPyodideLoading(false);
+      } catch (error) {
+        console.error('Failed to load Pyodide:', error);
+        setIsPyodideLoading(false);
+      }
+    };
+
+    initPyodide();
+  }, []);
 
   const handleLanguageChange = (langId: string) => {
     setSelectedLanguage(langId);
     setCode(defaultCode[langId as keyof typeof defaultCode]);
+    setExecutionStatus('idle');
     setOutput('');
     setAnalysisResults(null);
   };
@@ -106,37 +126,43 @@ export default function IDEPage() {
     }
   };
 
-  const executePython = (code: string) => {
-    // Simulate Python execution by parsing basic print statements
-    const lines = code.split('\n');
-    const outputs: string[] = [];
-    
+  const executePython = async (code: string) => {
+    if (!pyodide) {
+      return '❌ Python runtime is not ready yet. Please wait a moment and try again.';
+    }
+
+    let capturedOutput = '';
+    const originalStdout = pyodide.runPython("import sys; sys.stdout");
+
     try {
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('print(')) {
-          // Extract content from print statement
-          const match = trimmed.match(/print\((.*)\)/);
-          if (match) {
-            let content = match[1];
-            // Handle f-strings and basic string formatting
-            if (content.includes('f"') || content.includes("f'")) {
-              content = content.replace(/f["'](.*)["']/, '$1');
-              content = content.replace(/\{([^}]+)\}/g, (_, expr) => {
-                if (expr.includes('name')) return 'Future Developer';
-                return expr;
-              });
-            }
-            // Remove quotes
-            content = content.replace(/^["']|["']$/g, '');
-            outputs.push(content);
-          }
+      // Redirect Python's stdout to our JavaScript variable, handling byte arrays
+      pyodide.setStdout({ write: (msg: any) => {
+        let textMsg = '';
+        if (typeof msg === 'string') {
+          textMsg = msg;
+        } else if (msg instanceof Uint8Array) {
+          // Use TextDecoder to convert Uint8Array to string
+          textMsg = new TextDecoder().decode(msg);
+        } else {
+          // Fallback for other unexpected types (should ideally not happen with direct Pyodide output)
+          textMsg = String(msg);
         }
-      }
-      
-      return outputs.length > 0 ? outputs.join('\n') : '✅ Python code executed successfully (no output)';
-    } catch (error) {
-      return `❌ Python Error: ${error}`;
+        capturedOutput += textMsg;
+        return msg.length || 0; // Return the original length of the message/buffer
+      } });
+
+      // Execute the code
+      await pyodide.runPythonAsync(code);
+
+      console.log('Final capturedOutput before return:', capturedOutput);
+
+      // Return the captured output, preserving newlines
+      return capturedOutput;
+    } catch (error: any) {
+      return `❌ Python Error: ${error.message}`;
+    } finally {
+      // Restore original stdout to avoid side effects
+      pyodide.setStdout(originalStdout);
     }
   };
 
@@ -169,20 +195,26 @@ export default function IDEPage() {
     return output;
   };
 
+  const handleCodeChange = (newCode: string) => {
+    setCode(newCode);
+    setExecutionStatus('idle');
+    setOutput('');
+  };
+
   const handleRunCode = async () => {
+    setExecutionStatus('running');
     setIsRunning(true);
     setOutput('🚀 Running code...\n');
     
-    // Simulate execution delay
-    setTimeout(() => {
-      let result = '';
-      
+    let result = '';
+
+    try {
       switch (selectedLanguage) {
         case 'javascript':
           result = executeJavaScript(code);
           break;
         case 'python':
-          result = executePython(code);
+          result = await executePython(code);
           break;
         case 'html':
           result = executeHTML(code);
@@ -192,8 +224,70 @@ export default function IDEPage() {
       }
       
       setOutput(result);
+      setExecutionStatus(result.startsWith('❌') ? 'error' : 'success');
+    } catch (error: any) {
+      setOutput(`❌ Error: ${error.message}`);
+      setExecutionStatus('error');
+    } finally {
       setIsRunning(false);
-    }, 1000);
+      // Show translate bubble if there was an error in Python execution
+      if (selectedLanguage === 'python' && result.startsWith('❌')) {
+        setShowTranslateBubble(true);
+      } else {
+        setShowTranslateBubble(false);
+      }
+    }
+  };
+
+  const handleTranslateError = async () => {
+    // Ensure we have an error message to translate
+    if (!output || !output.startsWith('❌')) {
+      return;
+    }
+
+    setChatMessages(prev => [...prev, { type: 'system', content: 'Translating error...\n' }]);
+
+    try {
+      const errorText = output.substring(output.indexOf(':') + 1).trim(); // Extract the actual error message
+      const response = await fetch('http://localhost:8000/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: errorText,
+          targetLanguage: 'English' // Assuming English is the target language for now
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (result.translated_text) {
+        const translatedMessage = {
+          type: 'assistant',
+          content: `🌍 Translation of the error:\n\n${result.translated_text}`
+        };
+        setChatMessages(prev => [...prev, translatedMessage]);
+      } else {
+        const errorMessage = {
+          type: 'assistant',
+          content: '❌ Translation failed: No translated text received.'
+        };
+        setChatMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('Translation API call failed:', error);
+      const errorMessage = {
+        type: 'assistant',
+        content: `❌ Translation failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend server is running.`
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setShowTranslateBubble(false); // Hide bubble after translation attempt
+    }
   };
 
   const analyzeCode = async () => {
@@ -273,7 +367,7 @@ export default function IDEPage() {
       } else if (input.includes('syntax')) {
         aiResponse = 'For syntax help, make sure to:\n• Check your brackets and parentheses\n• Verify proper indentation (especially in Python)\n• Ensure semicolons where needed (JavaScript)\n• Use proper quotes for strings';
       } else {
-        aiResponse = `I understand you're asking about: "${chatInput}". While I'm a demo assistant, in the full version I would provide contextual help based on your code and specific questions!`;
+        aiResponse = `I understand you\'re asking about: "${chatInput}". While I\'m a demo assistant, in the full version I would provide contextual help based on your code and specific questions!`;
       }
 
       const response = { type: 'assistant', content: aiResponse };
@@ -543,7 +637,7 @@ export default function IDEPage() {
           <div className="flex-1 p-4">
             <textarea
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => handleCodeChange(e.target.value)}
               className="w-full h-full font-mono text-sm border border-gray-300 rounded p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Write your code here..."
               spellCheck={false}
@@ -551,11 +645,34 @@ export default function IDEPage() {
           </div>
 
           {/* Output Section */}
-          <div className="h-48 border-t border-gray-200 bg-gray-900 text-green-400 p-4">
+          <div className="relative h-48 border-t border-gray-200 bg-gray-900 text-green-400 p-4">
             <div className="text-sm font-semibold mb-2 text-gray-300">Output:</div>
-            <pre className="text-sm whitespace-pre-wrap font-mono">
+            <pre className="text-sm whitespace-pre-wrap font-mono overflow-y-auto h-full">
               {output || 'Click "Run" to execute your code...'}
             </pre>
+            {/* Status Pill */}
+            <div className={`
+              absolute top-2 right-2 px-3 py-1 rounded-full text-xs font-medium shadow-md
+              ${executionStatus === 'idle' ? 'bg-gray-200 text-gray-600' : ''}
+              ${executionStatus === 'running' ? 'bg-blue-500 text-white animate-pulse' : ''}
+              ${executionStatus === 'success' ? 'bg-green-500 text-white' : ''}
+              ${executionStatus === 'error' ? 'bg-red-500 text-white' : ''}
+            `}>
+              {executionStatus === 'idle' && 'Ready'}
+              {executionStatus === 'running' && 'Running...'}
+              {executionStatus === 'success' && 'Success'}
+              {executionStatus === 'error' && 'Error'}
+            </div>
+            {/* Translate Bubble (appears only on error) */}
+            {showTranslateBubble && executionStatus === 'error' && output.startsWith('❌') && (
+              <div
+                className="absolute bottom-2 right-2 bg-blue-600 text-white text-xs px-3 py-1 rounded-full shadow-lg cursor-pointer transform transition-all duration-200"
+                onClick={handleTranslateError}
+                title="Click to translate this error message"
+              >
+                Translate
+              </div>
+            )}
           </div>
         </div>
 

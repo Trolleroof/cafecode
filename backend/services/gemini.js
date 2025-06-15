@@ -15,13 +15,13 @@ class GeminiService {
   async initialize() {
     try {
       // Test the connection with a simple prompt
-      const result = await this.model.generateContent('Hello, respond with "OK" if you are working.');
+      const result = await this.model.generateContent('Respond with "OK" if you are working.');
       const response = await result.response;
       const text = response.text();
       
       if (text.includes('OK') || text.toLowerCase().includes('working') || text.length > 0) {
         this.isInitialized = true;
-        console.log('✅ Gemini AI connection verified');
+        console.log('✅ Gemini AI works');
         return true;
       } else {
         throw new Error('Unexpected response from Gemini AI');
@@ -265,6 +265,19 @@ Requirements:
         confidence_score: 0,
         execution_time: executionTime
       };
+    }
+  }
+
+  async translateText(text, targetLanguage = 'English') {
+    const prompt = `Translate the following text into ${targetLanguage}:\n\n${text}\n\nProvide only the translated text, no additional explanations or formatting.`;
+    try {
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const translatedText = response.text();
+      return { success: true, translated_text: translatedText };
+    } catch (error) {
+      console.error('Gemini AI translation failed:', error.message);
+      return { success: false, error: error.message };
     }
   }
 }
