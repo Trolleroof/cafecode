@@ -138,6 +138,31 @@ Requirements:
 `;
   }
 
+  createHintPrompt(code, language) {
+    return `
+You are an expert programming assistant. Provide a helpful hint for the following ${language} code.
+
+Code:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Please provide your hint in the following JSON format:
+{
+  "hint_text": "A concise and helpful hint, suitable for a beginner.",
+  "line_number": number or null, // The specific line number the hint refers to (null if general)
+  "suggestion_type": "syntax|logic|best_practice|performance|security|readability",
+  "detailed_explanation": "An optional detailed explanation if the hint needs more context."
+}
+
+Requirements:
+1. Keep the hint concise but actionable.
+2. If possible, identify a specific line number where the hint applies.
+3. Focus on common pitfalls, best practices, or potential improvements.
+4. Avoid directly giving the solution unless explicitly asked (which is not the case here).
+`;
+  }
+
   parseJsonResponse(responseText) {
     try {
       // Try to extract JSON from markdown code blocks
@@ -178,13 +203,13 @@ Requirements:
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
-      const text = response.text();
+      const responseText = response.text();
 
-      if (!text) {
+      if (!responseText) {
         throw new Error('Empty response from Gemini AI');
       }
 
-      const analysisData = this.parseJsonResponse(text);
+      const analysisData = this.parseJsonResponse(responseText);
       const executionTime = (Date.now() - startTime) / 1000;
 
       return {
@@ -235,13 +260,13 @@ Requirements:
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
-      const text = response.text();
+      const responseText = response.text();
 
-      if (!text) {
+      if (!responseText) {
         throw new Error('Empty response from Gemini AI');
       }
 
-      const fixData = this.parseJsonResponse(text);
+      const fixData = this.parseJsonResponse(responseText);
       const executionTime = (Date.now() - startTime) / 1000;
 
       return {
@@ -269,15 +294,115 @@ Requirements:
   }
 
   async translateText(text, targetLanguage = 'English') {
-    const prompt = `Translate the following text into ${targetLanguage}:\n\n${text}\n\nProvide only the translated text, no additional explanations or formatting.`;
     try {
+      if (!this.isInitialized) {
+        throw new Error('Gemini service not initialized');
+      }
+
+      const prompt = `
+You are an expert programming assistant. Your task is to translate programming error messages into plain, easy-to-understand English for beginners, and provide actionable suggestions for fixing them. Ensure the output is directly usable and well-structured, without any markdown formatting that might interfere with client-side rendering (e.g., no bolding with **).
+
+Error message:
+${text}
+
+Please provide your response in the following JSON format:
+{
+  "translated_text": "A clear, concise, and easy-to-understand explanation of the error message, suitable for a beginner. Avoid markdown bolding.",
+  "error_type": "syntax|runtime|logic|type|reference|etc",
+  "severity": "low|medium|high|critical",
+  "suggestions": [
+    "Specific, actionable suggestion 1 to fix the error.",
+    "Specific, actionable suggestion 2 to fix the error."
+  ],
+  "common_causes": [
+    "Common reason 1 why this error occurs.",
+    "Common reason 2 why this error occurs."
+  ]
+}
+
+Requirements:
+1.  Explain the error in simple, non-technical terms, focusing on clarity.
+2.  Identify the type and severity of the error.
+3.  Provide specific, actionable suggestions for fixing the error.
+4.  List common causes of this type of error to aid understanding.
+5.  Keep the explanation concise but informative.
+6.  Focus on helping beginners understand and fix the error efficiently.
+7.  Crucially, ensure the \`translated_text\` field contains plain text without any markdown characters (like \`**\` for bolding), as the frontend will handle formatting.
+`;
+
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
-      const translatedText = response.text();
-      return { success: true, translated_text: translatedText };
+      const responseText = response.text();
+
+      if (!responseText) {
+        throw new Error('Empty response from Gemini AI');
+      }
+
+      const translationData = this.parseJsonResponse(responseText);
+      
+      return {
+        success: true,
+        translated_text: translationData.translated_text,
+        error_type: translationData.error_type,
+        severity: translationData.severity,
+        suggestions: translationData.suggestions,
+        common_causes: translationData.common_causes
+      };
+
     } catch (error) {
-      console.error('Gemini AI translation failed:', error.message);
-      return { success: false, error: error.message };
+      console.error('Translation failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  async getHint(request) {
+    const startTime = Date.now();
+
+    try {
+      if (!this.isInitialized) {
+        throw new Error('Gemini service not initialized');
+      }
+
+      const prompt = this.createHintPrompt(
+        request.code,
+        request.language
+      );
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text();
+
+      if (!responseText) {
+        throw new Error('Empty response from Gemini AI');
+      }
+
+      const hintData = this.parseJsonResponse(responseText);
+      const executionTime = (Date.now() - startTime) / 1000;
+
+      return {
+        success: true,
+        hint_text: hintData.hint_text || 'No specific hint available.',
+        line_number: hintData.line_number || null,
+        suggestion_type: hintData.suggestion_type || 'general',
+        detailed_explanation: hintData.detailed_explanation || null,
+        execution_time: executionTime
+      };
+
+    } catch (error) {
+      const executionTime = (Date.now() - startTime) / 1000;
+      console.error('Hint generation failed:', error.message);
+
+      return {
+        success: false,
+        hint_text: `Failed to generate hint: ${error.message}`,
+        line_number: null,
+        suggestion_type: 'error',
+        detailed_explanation: null,
+        execution_time: executionTime
+      };
     }
   }
 }

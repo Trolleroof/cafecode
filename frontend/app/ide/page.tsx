@@ -1,10 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Editor from 'react-simple-code-editor';
+import { highlight, languages } from 'prismjs/components/prism-core';
+import 'prismjs/components/prism-clike';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-markup'; // For HTML
+import 'prismjs/themes/prism-tomorrow.css'; // Or any other Prism theme you prefer
 
-const languages = [
+
+const supportedLanguages = [
   { id: 'javascript', name: 'JavaScript', extension: '.js' },
   { id: 'python', name: 'Python', extension: '.py' },
   { id: 'html', name: 'HTML', extension: '.html' }
@@ -50,10 +58,14 @@ export default function IDEPage() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
   const [showTranslateBubble, setShowTranslateBubble] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
+  const [hintedLine, setHintedLine] = useState<number | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
 
   useEffect(() => {
     const initPyodide = async () => {
@@ -89,7 +101,8 @@ export default function IDEPage() {
     setCode(defaultCode[langId as keyof typeof defaultCode]);
     setExecutionStatus('idle');
     setOutput('');
-    setAnalysisResults(null);
+    setHintedLine(null);
+    setHighlightedLine(null);
   };
 
   const executeJavaScript = (code: string) => {
@@ -199,6 +212,19 @@ export default function IDEPage() {
     setCode(newCode);
     setExecutionStatus('idle');
     setOutput('');
+    setHintedLine(null);
+  };
+
+  // Simplified highlightCode function without line numbers
+  const highlightCode = (code: string, language: string) => {
+    let langObj: any;
+    if (languages[language as keyof typeof languages]) {
+      langObj = languages[language as keyof typeof languages];
+    } else {
+      langObj = languages.clike; // Fallback to clike if language not found
+    }
+
+    return highlight(code, langObj, language);
   };
 
   const handleRunCode = async () => {
@@ -230,12 +256,6 @@ export default function IDEPage() {
       setExecutionStatus('error');
     } finally {
       setIsRunning(false);
-      // Show translate bubble if there was an error in Python execution
-      if (selectedLanguage === 'python' && result.startsWith('❌')) {
-        setShowTranslateBubble(true);
-      } else {
-        setShowTranslateBubble(false);
-      }
     }
   };
 
@@ -245,106 +265,53 @@ export default function IDEPage() {
       return;
     }
 
-    setChatMessages(prev => [...prev, { type: 'system', content: 'Translating error...\n' }]);
-
     try {
-      const errorText = output.substring(output.indexOf(':') + 1).trim(); // Extract the actual error message
+      const errorMessage = output.substring(output.indexOf('❌') + 2).trim();
+      // Directly call the backend API route for translation
       const response = await fetch('http://localhost:8000/api/translate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          text: errorText,
-          targetLanguage: 'English' // Assuming English is the target language for now
-        }),
+        body: JSON.stringify({ text: errorMessage }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       const result = await response.json();
-      if (result.translated_text) {
-        const translatedMessage = {
-          type: 'assistant',
-          content: `🌍 Translation of the error:\n\n${result.translated_text}`
-        };
-        setChatMessages(prev => [...prev, translatedMessage]);
+
+      if (result.success && result.translation) {
+        const translatedMessage = `
+Translated Error (Severity: ${result.translation.severity || 'Unknown'}):
+${result.translation.text}
+
+Error Type: ${result.translation.error_type || 'N/A'}
+
+Suggestions:
+${result.translation.suggestions && result.translation.suggestions.length > 0 
+  ? result.translation.suggestions.map((s: string) => `- ${s}`).join('\n')
+  : '- No specific suggestions provided.'}
+
+Common Causes:
+${result.translation.common_causes && result.translation.common_causes.length > 0 
+  ? result.translation.common_causes.map((c: string) => `- ${c}`).join('\n')
+  : '- No common causes listed.'}
+`;
+
+        setChatMessages(prev => [
+          ...prev,
+          { type: 'system', content: translatedMessage }
+        ]);
       } else {
-        const errorMessage = {
-          type: 'assistant',
-          content: '❌ Translation failed: No translated text received.'
-        };
-        setChatMessages(prev => [...prev, errorMessage]);
+        setChatMessages(prev => [
+          ...prev,
+          { type: 'system', content: `Failed to translate error: ${result.error || 'Unknown error'}` }
+        ]);
       }
-    } catch (error) {
-      console.error('Translation API call failed:', error);
-      const errorMessage = {
-        type: 'assistant',
-        content: `❌ Translation failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend server is running.`
-      };
-      setChatMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setShowTranslateBubble(false); // Hide bubble after translation attempt
-    }
-  };
-
-  const analyzeCode = async () => {
-    setIsAnalyzing(true);
-    
-    try {
-      const response = await fetch('http://localhost:8000/api/code/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code: code,
-          language: selectedLanguage,
-          context: 'IDE analysis request'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      setAnalysisResults(result);
-      
-      // Add analysis results to chat
-      const analysisMessage = {
-        type: 'assistant',
-        content: `📊 Code Analysis Complete!\n\n` +
-          `Quality Score: ${result.code_quality_score}/100\n` +
-          `Errors: ${result.errors.length}\n` +
-          `Warnings: ${result.warnings.length}\n\n` +
-          `${result.analysis_summary}`
-      };
-      setChatMessages(prev => [...prev, analysisMessage]);
-
-      if (result.errors.length > 0) {
-        const errorDetails = result.errors.map((error: any, index: number) => 
-          `${index + 1}. ${error.message} (Line ${error.line_number || 'unknown'})`
-        ).join('\n');
-        
-        const errorMessage = {
-          type: 'assistant',
-          content: `🚨 Errors Found:\n${errorDetails}`
-        };
-        setChatMessages(prev => [...prev, errorMessage]);
-      }
-
-    } catch (error) {
-      console.error('Analysis failed:', error);
-      const errorMessage = {
-        type: 'assistant',
-        content: `❌ Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend server is running on port 8000.`
-      };
-      setChatMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsAnalyzing(false);
+    } catch (error: any) {
+      console.error('Error translating error message:', error);
+      setChatMessages(prev => [
+        ...prev,
+        { type: 'system', content: `Failed to translate error due to a network or server issue: ${error.message}` }
+      ]);
     }
   };
 
@@ -361,9 +328,9 @@ export default function IDEPage() {
       const input = chatInput.toLowerCase();
       
       if (input.includes('error') || input.includes('bug')) {
-        aiResponse = 'I can help you debug! Try using the "Analyze Code" button to get detailed error analysis, or click "Suggest Fix" if you already know there\'s an error.';
+        aiResponse = 'I can help you debug! Click "Suggest Fix" if you know there\'s an error.';
       } else if (input.includes('help') || input.includes('how')) {
-        aiResponse = 'I\'m here to help! You can:\n• Write code in the editor\n• Click "Run" to execute it\n• Use "Analyze Code" to check for issues\n• Use "Suggest Fix" to get automatic fixes\n• Ask me specific questions about your code';
+        aiResponse = 'I\'m here to help! You can:\n• Write code in the editor\n• Click "Run" to execute it\n• Use "Suggest Fix" to get automatic fixes\n• Ask me specific questions about your code';
       } else if (input.includes('syntax')) {
         aiResponse = 'For syntax help, make sure to:\n• Check your brackets and parentheses\n• Verify proper indentation (especially in Python)\n• Ensure semicolons where needed (JavaScript)\n• Use proper quotes for strings';
       } else {
@@ -377,157 +344,95 @@ export default function IDEPage() {
     setChatInput('');
   };
 
-  const handleHint = () => {
-    const languageSpecificHints = {
-      javascript: [
-        'Remember to use semicolons at the end of statements in JavaScript.',
-        'Check that all your brackets { } and parentheses ( ) are properly closed.',
-        'Use console.log() to debug and see what values your variables contain.',
-        'Make sure variable names are spelled consistently throughout your code.',
-        'Functions should have descriptive names that explain what they do.'
-      ],
-      python: [
-        'Python uses indentation to define code blocks - make sure your indentation is consistent.',
-        'Remember that Python is case-sensitive - "Name" and "name" are different variables.',
-        'Use print() to see the values of your variables and debug your code.',
-        'Make sure you\'re using the correct number of spaces or tabs for indentation.',
-        'Function names in Python should use snake_case (like my_function).'
-      ],
-      html: [
-        'Make sure all HTML tags are properly closed with matching opening and closing tags.',
-        'Check that your HTML structure is valid - elements should be properly nested.',
-        'Remember to include the DOCTYPE declaration at the top of your HTML file.',
-        'Use semantic HTML elements like <header>, <main>, and <footer> for better structure.',
-        'Validate your HTML to catch any syntax errors or missing attributes.'
-      ]
-    };
-    
-    const hints = languageSpecificHints[selectedLanguage as keyof typeof languageSpecificHints] || [
-      'Make sure your syntax is correct for the selected programming language.',
-      'Check for missing brackets, parentheses, or semicolons.',
-      'Use descriptive variable and function names.',
-      'Test your code with different inputs to ensure it works correctly.',
-      'Break complex problems into smaller, manageable functions.'
-    ];
-    
-    const randomHint = hints[Math.floor(Math.random() * hints.length)];
-    const hintMessage = {
-      type: 'assistant',
-      content: `💡 ${selectedLanguage.toUpperCase()} Hint: ${randomHint}`
-    };
-    setChatMessages(prev => [...prev, hintMessage]);
+  const handleHint = async () => {
+    setChatMessages(prev => [...prev, { type: 'system', content: 'Generating hint...' }]);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/hint', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: code,
+          language: selectedLanguage,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.hint) {
+        let hintMessageContent = `💡 AI Hint: ${result.hint.hint_text}`;
+        if (result.hint.line_number) {
+          hintMessageContent += ` (Line: ${result.hint.line_number})`;
+          setHintedLine(result.hint.line_number);
+        }
+        if (result.hint.detailed_explanation) {
+          hintMessageContent += `\n\n${result.hint.detailed_explanation}`;
+        }
+        
+        setChatMessages(prev => [
+          ...prev,
+          { type: 'system', content: hintMessageContent }
+        ]);
+      } else {
+        setChatMessages(prev => [
+          ...prev,
+          { type: 'system', content: `Failed to get hint: ${result.error || 'Unknown error'}` }
+        ]);
+      }
+    } catch (error: any) {
+      console.error('Error generating hint:', error);
+      setChatMessages(prev => [
+        ...prev,
+        { type: 'system', content: `Failed to get hint due to a network or server issue: ${error.message}` }
+      ]);
+    }
   };
 
   const handleSuggestFix = async () => {
-    // First, check if we have analysis results with errors
-    if (!analysisResults || analysisResults.errors.length === 0) {
-      // If no analysis results, run analysis first
+    // Set fixing state to true at the beginning
+    setIsFixing(true);
+
+    try {
+      // Run analysis first to get errors
       const analysisMessage = {
         type: 'assistant',
         content: '🔍 Let me analyze your code first to find issues that need fixing...'
       };
       setChatMessages(prev => [...prev, analysisMessage]);
-      
-      // Run analysis and then suggest fix
-      setIsAnalyzing(true);
-      
-      try {
-        const response = await fetch('http://localhost:8000/api/code/analyze', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            code: code,
-            language: selectedLanguage,
-            context: 'IDE analysis for fix suggestion'
-          }),
-        });
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+      const response = await fetch('http://localhost:8000/api/code/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: code,
+          language: selectedLanguage,
+          context: 'IDE analysis for fix suggestion'
+        }),
+      });
 
-        const result = await response.json();
-        setAnalysisResults(result);
-        
-        if (result.errors.length === 0) {
-          const noErrorsMessage = {
-            type: 'assistant',
-            content: '✅ Great news! No errors found in your code. Your code looks good to go!'
-          };
-          setChatMessages(prev => [...prev, noErrorsMessage]);
-          setIsAnalyzing(false);
-          return;
-        }
-        
-        // Continue with fix suggestion if errors found
-        setIsAnalyzing(false);
-        setIsFixing(true);
-        
-        const firstError = result.errors[0];
-        const fixResponse = await fetch('http://localhost:8000/api/code/fix', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            code: code,
-            language: selectedLanguage,
-            error_message: firstError.message,
-            line_number: firstError.line_number
-          }),
-        });
-
-        if (!fixResponse.ok) {
-          throw new Error(`HTTP error! status: ${fixResponse.status}`);
-        }
-
-        const fixResult = await fixResponse.json();
-        
-        if (fixResult.success && fixResult.fixed_code !== code) {
-          // Update the code with the fix
-          setCode(fixResult.fixed_code);
-          
-          const fixMessage = {
-            type: 'assistant',
-            content: `🔧 Code Fixed!\n\n` +
-              `Confidence: ${fixResult.confidence_score}%\n\n` +
-              `${fixResult.explanation}\n\n` +
-              `Applied ${fixResult.fixes_applied.length} fix(es). The code has been updated in the editor.`
-          };
-          setChatMessages(prev => [...prev, fixMessage]);
-          
-          // Clear previous analysis results since code has changed
-          setAnalysisResults(null);
-        } else {
-          const message = {
-            type: 'assistant',
-            content: `🤔 ${fixResult.explanation || 'No fixes could be applied automatically.'}`
-          };
-          setChatMessages(prev => [...prev, message]);
-        }
-
-      } catch (error) {
-        console.error('Fix suggestion failed:', error);
-        const errorMessage = {
-          type: 'assistant',
-          content: `❌ Fix suggestion failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend server is running on port 8000.`
-        };
-        setChatMessages(prev => [...prev, errorMessage]);
-      } finally {
-        setIsAnalyzing(false);
-        setIsFixing(false);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return;
-    }
 
-    // If we already have analysis results with errors, proceed with fix
-    setIsFixing(true);
+      const currentAnalysisResults = await response.json();
+      setAnalysisResults(currentAnalysisResults);
 
-    try {
-      const firstError = analysisResults.errors[0];
-      const response = await fetch('http://localhost:8000/api/code/fix', {
+      if (currentAnalysisResults.errors.length === 0) {
+        const noErrorsMessage = {
+          type: 'assistant',
+          content: '✅ Great news! No errors found in your code. Your code looks good to go!'
+        };
+        setChatMessages(prev => [...prev, noErrorsMessage]);
+        return; // No errors, so nothing to fix.
+      }
+
+      // Now proceed with fix suggestion.
+      const firstError = currentAnalysisResults.errors[0];
+      const fixResponse = await fetch('http://localhost:8000/api/code/fix', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -540,205 +445,213 @@ export default function IDEPage() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!fixResponse.ok) {
+        throw new Error(`HTTP error! status: ${fixResponse.status}`);
       }
 
-      const result = await response.json();
-      
-      if (result.success && result.fixed_code !== code) {
-        // Update the code with the fix
-        setCode(result.fixed_code);
-        
-        const fixMessage = {
-          type: 'assistant',
-          content: `🔧 Code Fixed!\n\n` +
-            `Confidence: ${result.confidence_score}%\n\n` +
-            `${result.explanation}\n\n` +
-            `Applied ${result.fixes_applied.length} fix(es). The code has been updated in the editor.`
-        };
-        setChatMessages(prev => [...prev, fixMessage]);
-        
-        // Clear previous analysis results since code has changed
-        setAnalysisResults(null);
+      const fixResult = await fixResponse.json();
+
+      if (fixResult.success && fixResult.fixed) {
+        setCode(fixResult.code);
+        setChatMessages(prev => [
+          ...prev,
+          { type: 'system', content: '✅ Code fixed successfully! The suggested changes have been applied.' }
+        ]);
       } else {
-        const message = {
-          type: 'assistant',
-          content: `🤔 ${result.explanation || 'No fixes could be applied automatically.'}`
-        };
-        setChatMessages(prev => [...prev, message]);
+        setChatMessages(prev => [
+          ...prev,
+          { type: 'system', content: `❌ Failed to fix code: ${fixResult.error || 'Unknown error'}` }
+        ]);
       }
-
-    } catch (error) {
-      console.error('Fix failed:', error);
-      const errorMessage = {
-        type: 'assistant',
-        content: `❌ Fix failed: ${error instanceof Error ? error.message : 'Unknown error'}. Make sure the backend server is running on port 8000.`
-      };
-      setChatMessages(prev => [...prev, errorMessage]);
+    } catch (error: any) {
+      console.error('Error in handleSuggestFix:', error);
+      setChatMessages(prev => [
+        ...prev,
+        { type: 'system', content: `❌ Error during fix suggestion: ${error.message}. Make sure the backend server is running on port 8000.` }
+      ]);
     } finally {
-      setIsFixing(false);
+      setIsFixing(false); // Ensure fixing state is reset whether successful or not
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 cursor-pointer" onClick={() => router.push('/')}>
-              <Code2 className="h-6 w-6 text-blue-600" />
-              <span className="text-xl font-semibold">
-                CodeCraft IDE
-              </span>
+  // Custom editor wrapper component with line numbers - FIXED VERSION
+  const CodeEditorWithLineNumbers = () => {
+    const lineCount = code.split('\n').length;
+    const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
+    const editorContainerRef = useRef<HTMLDivElement>(null);
+    
+    // useEffect to manage cursor position after code changes
+    useEffect(() => {
+      const textarea = editorContainerRef.current?.querySelector('textarea');
+      if (textarea) {
+        // Set cursor to the end of the text
+        const len = textarea.value.length;
+        textarea.setSelectionRange(len, len);
+      }
+    }, [code]); // Re-run this effect whenever 'code' changes
+
+    return (
+      <div 
+        ref={editorContainerRef}
+        className="flex h-full relative"
+      >
+        {/* Line numbers column */}
+        <div 
+          className="flex-shrink-0 bg-gray-700 text-gray-400 text-right pr-3 pl-2 py-2 select-none" 
+          style={{ fontFamily: '"Fira code", "Fira Mono", monospace', fontSize: 14, lineHeight: '1.5' }}
+        >
+          {lineNumbers.map(num => (
+            <div 
+              key={num} 
+              className={`${num === highlightedLine ? 'text-blue-400 bg-blue-900/30' : ''} ${num === hintedLine ? 'text-yellow-400 bg-yellow-900/30' : ''}`}
+              style={{ minWidth: '30px', height: '21px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}
+            >
+              {num}
             </div>
-            
-            <select
-              value={selectedLanguage}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-1 text-sm"
-            >
-              {languages.map(lang => (
-                <option key={lang.id} value={lang.id}>
-                  {lang.name}
-                </option>
-              ))}
-            </select>
+          ))}
+        </div>
+        
+        {/* Code editor */}
+        <div className="flex-1 relative">
+          <Editor
+            value={code}
+            onValueChange={handleCodeChange}
+            highlight={code => highlightCode(code, selectedLanguage)}
+            padding={10}
+            className="h-full font-mono text-sm overflow-auto"
+            style={{
+              fontFamily: '"Fira code", "Fira Mono", monospace',
+              fontSize: 14,
+              lineHeight: '1.5',
+            }}
+            textareaId="codeEditor"
+            autoFocus={true} // Keep autoFocus for initial focus
+            onSelect={(e) => {
+              // Only update highlighted line, do not interfere with default selection behavior
+              const textarea = e.target as HTMLTextAreaElement;
+              const lineNumber = (textarea.value.substring(0, textarea.selectionStart).match(/\n/g) || []).length + 1;
+              setHighlightedLine(lineNumber);
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-900 text-white">
+      {/* Top Bar */}
+      <div className="flex items-center justify-between py-2 px-4 bg-gray-800 shadow-md">
+        <h1 className="text-xl font-bold text-blue-400">Bolt IDE</h1>
+        <div className="flex items-center space-x-4">
+          <select
+            value={selectedLanguage}
+            onChange={(e) => handleLanguageChange(e.target.value)}
+            className="px-3 py-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {supportedLanguages.map((lang) => (
+              <option key={lang.id} value={lang.id}>
+                {lang.name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleRunCode}
+            className="flex items-center px-4 py-2 bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            disabled={isRunning || isPyodideLoading}
+          >
+            {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+            Run
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Code Editor */}
+        <div className="flex-1 flex flex-col bg-gray-850 border-r border-gray-700 h-full">
+          <div className="flex justify-between items-center py-1 px-2 bg-gray-700">
+            <span className="text-sm font-semibold">{selectedLanguage.toUpperCase()} Code</span>
           </div>
-
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={analyzeCode}
-              disabled={isAnalyzing}
-              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertCircle className="h-4 w-4" />}
-              <span>{isAnalyzing ? 'Analyzing...' : 'Analyze Code'}</span>
-            </button>
-
-            <button
-              onClick={handleRunCode}
-              disabled={isRunning}
-              className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
-            >
-              {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-              <span>{isRunning ? 'Running...' : 'Run'}</span>
-            </button>
+          <div className="flex-1 overflow-auto">
+            <CodeEditorWithLineNumbers />
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <div className="flex h-[calc(100vh-73px)]">
-        {/* Editor Section */}
-        <div className="flex-1 flex flex-col">
-          {/* Code Editor */}
-          <div className="flex-1 p-4">
-            <textarea
-              value={code}
-              onChange={(e) => handleCodeChange(e.target.value)}
-              className="w-full h-full font-mono text-sm border border-gray-300 rounded p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Write your code here..."
-              spellCheck={false}
-            />
-          </div>
-
-          {/* Output Section */}
-          <div className="relative h-48 border-t border-gray-200 bg-gray-900 text-green-400 p-4">
-            <div className="text-sm font-semibold mb-2 text-gray-300">Output:</div>
-            <pre className="text-sm whitespace-pre-wrap font-mono overflow-y-auto h-full">
-              {output || 'Click "Run" to execute your code...'}
+        {/* Output and Chat Area */}
+        <div className="w-[450px] flex flex-col">
+          {/* Output Window */}
+          <div className="h-[400px] flex flex-col bg-gray-800 p-4 overflow-auto text-sm border-b border-gray-700">
+            <h2 className="text-lg font-semibold mb-2">Output</h2>
+            <pre className="flex-1 bg-gray-900 p-3 rounded-md overflow-auto text-sm text-gray-200">
+              {isPyodideLoading && selectedLanguage === 'python' ? 'Loading Python runtime (Pyodide)...' : output}
             </pre>
-            {/* Status Pill */}
-            <div className={`
-              absolute top-2 right-2 px-3 py-1 rounded-full text-xs font-medium shadow-md
-              ${executionStatus === 'idle' ? 'bg-gray-200 text-gray-600' : ''}
-              ${executionStatus === 'running' ? 'bg-blue-500 text-white animate-pulse' : ''}
-              ${executionStatus === 'success' ? 'bg-green-500 text-white' : ''}
-              ${executionStatus === 'error' ? 'bg-red-500 text-white' : ''}
-            `}>
-              {executionStatus === 'idle' && 'Ready'}
-              {executionStatus === 'running' && 'Running...'}
-              {executionStatus === 'success' && 'Success'}
-              {executionStatus === 'error' && 'Error'}
-            </div>
-            {/* Translate Bubble (appears only on error) */}
-            {showTranslateBubble && executionStatus === 'error' && output.startsWith('❌') && (
-              <div
-                className="absolute bottom-2 right-2 bg-blue-600 text-white text-xs px-3 py-1 rounded-full shadow-lg cursor-pointer transform transition-all duration-200"
+            {executionStatus === 'error' && output.startsWith('❌') && (
+              <button
                 onClick={handleTranslateError}
-                title="Click to translate this error message"
+                className="mt-2 flex items-center justify-center px-3 py-1 bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
               >
-                Translate
-              </div>
+                <MessageSquare className="mr-2 h-4 w-4" /> Translate Error
+              </button>
             )}
           </div>
-        </div>
 
-        {/* Chat Pane */}
-        <div className="w-80 border-l border-gray-200 bg-white flex flex-col">
-          {/* Chat Header */}
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="font-semibold flex items-center space-x-2">
-              <MessageSquare className="h-5 w-5" />
-              <span>AI Assistant</span>
-            </h2>
-            <div className="flex space-x-2 mt-2">
-              <button
-                onClick={handleHint}
-                className="flex items-center space-x-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-              >
-                <Lightbulb className="h-3 w-3" />
-                <span>Hint</span>
-              </button>
+          {/* Chat Interface */}
+          <div className="flex-1 flex flex-col bg-gray-800 p-4 min-h-0">
+            <h2 className="text-lg font-semibold mb-2">AI Assistant</h2>
+            <div className="flex flex-col overflow-y-auto space-y-2 bg-gray-900 p-3 rounded-md mb-3 min-h-[100px]">
+              {chatMessages.map((msg, index) => (
+                <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[70%] p-2 rounded-lg text-sm whitespace-pre-wrap ${
+                      msg.type === 'user'
+                        ? 'bg-blue-700 text-white'
+                        : 'bg-gray-700 text-gray-100'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* AI Action Buttons */}
+            <div className="flex space-x-2 mb-3">
               <button
                 onClick={handleSuggestFix}
-                disabled={isFixing || isAnalyzing}
-                className="flex items-center space-x-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded hover:bg-orange-200 disabled:opacity-50"
+                className="flex items-center flex-1 px-4 py-2 bg-orange-600 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 text-white text-sm justify-center"
+                disabled={isFixing}
               >
-                {(isFixing || isAnalyzing) ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-                <span>{isFixing ? 'Fixing...' : isAnalyzing ? 'Analyzing...' : 'Suggest Fix'}</span>
+                {isFixing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertCircle className="mr-2 h-4 w-4" />}
+                Suggest Fix
+              </button>
+              <button
+                onClick={handleHint}
+                className="flex items-center flex-1 px-4 py-2 bg-yellow-600 rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white text-sm justify-center"
+              >
+                <Lightbulb className="mr-2 h-4 w-4" />
+                Get Hint
               </button>
             </div>
-          </div>
 
-          {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {chatMessages.map((message, index) => (
-              <div
-                key={index}
-                className={`p-3 rounded text-sm ${
-                  message.type === 'user'
-                    ? 'bg-blue-100 text-blue-900 ml-4'
-                    : message.type === 'system'
-                    ? 'bg-gray-100 text-gray-700'
-                    : 'bg-green-100 text-green-900 mr-4'
-                }`}
-              >
-                <pre className="whitespace-pre-wrap font-sans">{message.content}</pre>
-              </div>
-            ))}
-          </div>
-
-          {/* Chat Input */}
-          <form onSubmit={handleChatSubmit} className="p-4 border-t border-gray-200">
-            <div className="flex space-x-2">
+            {/* Chat Input */}
+            <form onSubmit={handleChatSubmit} className="flex">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ask for help"
-                className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ask for help or a hint..."
+                className="flex-1 px-3 py-2 rounded-l-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700"
+                className="px-4 py-2 bg-blue-600 rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                Send
+                <MessageSquare className="h-5 w-5" />
               </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </div>

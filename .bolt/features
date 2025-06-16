@@ -5,13 +5,8 @@
    - Real-time code analysis for multiple languages
    - Error detection and suggestions
    - Code improvement recommendations
-   - Support for Python, JavaScript, Java, C++, C, HTML, CSS, and TypeScript
+   - Support for Python, Javascript and HTML/css are next but still need to be worked on
 
-2. Intelligent Code Fixing
-   - One-click code fixes
-   - Line-by-line error correction
-   - Context-aware suggestions
-   - Confidence scoring for fixes
 
 3. Interactive Learning Environment
    - Clean, distraction-free interface
@@ -19,26 +14,12 @@
    - Instant feedback on code changes
    - Beginner-friendly design
 
-4. AI Chat Assistant
-   - 24/7 availability
-   - Contextual help and hints
-   - Personalized learning guidance
-   - Real-time code explanations
-
 5. Multi-language Support
    - Python
    - JavaScript
-   - Java
-   - C++
-   - C
-   - HTML
-   - CSS
-   - TypeScript
+   - HTML/CSS
 
-6. Code Translation
-   - Language-to-language translation
-   - Syntax conversion
-   - Code adaptation
+
 
 ## Technical Features
 1. Backend Services

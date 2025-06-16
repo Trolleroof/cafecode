@@ -11,6 +11,7 @@ import codeRoutes from './routes/code.js';
 import { initializeGemini } from './services/gemini.js';
 import pythonRoutes from './routes/python.js';
 import translateRoutes from './routes/translate.js';
+import hintRoutes from './routes/hint.js';
 
 // Load environment variables
 dotenv.config();
@@ -85,6 +86,7 @@ app.use((req, res, next) => {
 app.use('/api/code', codeRoutes);
 app.use('/api/python', pythonRoutes);
 app.use('/api/translate', translateRoutes);
+app.use('/api/hint', hintRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
