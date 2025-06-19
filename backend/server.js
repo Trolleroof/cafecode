@@ -12,6 +12,7 @@ import { initializeGemini } from './services/gemini.js';
 import pythonRoutes from './routes/python.js';
 import translateRoutes from './routes/translate.js';
 import hintRoutes from './routes/hint.js';
+import guidedRoutes from './routes/guided.js';
 
 // Load environment variables
 dotenv.config();
@@ -21,6 +22,9 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+// Trust proxy configuration
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet({
@@ -87,6 +91,7 @@ app.use('/api/code', codeRoutes);
 app.use('/api/python', pythonRoutes);
 app.use('/api/translate', translateRoutes);
 app.use('/api/hint', hintRoutes);
+app.use('/api/guided', guidedRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

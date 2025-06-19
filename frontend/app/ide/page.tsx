@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2, BookOpen } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs/components/prism-core';
@@ -10,6 +10,8 @@ import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-markup'; // For HTML
 import 'prismjs/themes/prism-tomorrow.css'; // Or any other Prism theme you prefer
+import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
+import GuidedStep from '@/components/GuidedStep';
 
 
 const supportedLanguages = [
@@ -45,6 +47,18 @@ const defaultCode = {
 
 type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
 
+interface Step {
+  id: string;
+  instruction: string;
+  lineRanges: number[];
+}
+
+interface GuidedProject {
+  projectId: string;
+  steps: Step[];
+  currentStep: number;
+}
+
 export default function IDEPage() {
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
   const [code, setCode] = useState(defaultCode.javascript);
@@ -66,6 +80,9 @@ export default function IDEPage() {
   const [hintedLine, setHintedLine] = useState<number | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const [isEditorFocused, setIsEditorFocused] = useState(false);
+  const [isGuidedModalOpen, setIsGuidedModalOpen] = useState(false);
+  const [guidedProject, setGuidedProject] = useState<GuidedProject | null>(null);
+  const [stepFeedback, setStepFeedback] = useState<any[]>([]);
 
   useEffect(() => {
     const initPyodide = async () => {
@@ -315,33 +332,33 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
     }
   };
 
-  const handleChatSubmit = (e: React.FormEvent) => {
+  const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const userMessage = { type: 'user', content: chatInput };
-    setChatMessages(prev => [...prev, userMessage]);
-
-    // Simulate AI response based on input
-    setTimeout(() => {
-      let aiResponse = '';
-      const input = chatInput.toLowerCase();
-      
-      if (input.includes('error') || input.includes('bug')) {
-        aiResponse = 'I can help you debug! Click "Suggest Fix" if you know there\'s an error.';
-      } else if (input.includes('help') || input.includes('how')) {
-        aiResponse = 'I\'m here to help! You can:\n• Write code in the editor\n• Click "Run" to execute it\n• Use "Suggest Fix" to get automatic fixes\n• Ask me specific questions about your code';
-      } else if (input.includes('syntax')) {
-        aiResponse = 'For syntax help, make sure to:\n• Check your brackets and parentheses\n• Verify proper indentation (especially in Python)\n• Ensure semicolons where needed (JavaScript)\n• Use proper quotes for strings';
-      } else {
-        aiResponse = `I understand you\'re asking about: "${chatInput}". While I\'m a demo assistant, in the full version I would provide contextual help based on your code and specific questions!`;
-      }
-
-      const response = { type: 'assistant', content: aiResponse };
-      setChatMessages(prev => [...prev, response]);
-    }, 1000);
-
+    const newMessage = { type: 'user', content: chatInput };
+    setChatMessages(prev => [...prev, newMessage]);
     setChatInput('');
+
+    try {
+      const response = await fetch('/api/guided/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: guidedProject?.projectId,
+          currentStep: guidedProject?.currentStep,
+          history: [...chatMessages, newMessage]
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to get chat response');
+
+      const data = await response.json();
+      setChatMessages(prev => [...prev, data.response]);
+    } catch (error) {
+      console.error('Error in chat:', error);
+      // Handle error
+    }
   };
 
   const handleHint = async () => {
@@ -538,6 +555,88 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
     );
   };
 
+  const handleStartGuidedProject = async (description: string) => {
+    try {
+      const response = await fetch('/api/guided/startProject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectDescription: description })
+      });
+
+      if (!response.ok) throw new Error('Failed to start project');
+
+      const data = await response.json();
+      setGuidedProject({
+        projectId: data.projectId,
+        steps: data.steps,
+        currentStep: 0
+      });
+      setIsGuidedModalOpen(false);
+      
+      // Add welcome message to chat
+      setChatMessages(prev => [...prev, data.welcomeMessage]);
+    } catch (error) {
+      console.error('Error starting guided project:', error);
+      // Handle error (show toast notification, etc.)
+    }
+  };
+
+  const handleAnalyzeStep = async () => {
+    if (!guidedProject) return;
+
+    try {
+      const response = await fetch('/api/guided/analyzeStep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: guidedProject.projectId,
+          stepId: guidedProject.steps[guidedProject.currentStep].id,
+          code
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to analyze step');
+
+      const data = await response.json();
+      setStepFeedback(data.feedback);
+      
+      // Add feedback message to chat
+      setChatMessages(prev => [...prev, data.chatMessage]);
+    } catch (error) {
+      console.error('Error analyzing step:', error);
+      // Handle error
+    }
+  };
+
+  const handleNextStep = () => {
+    if (!guidedProject) return;
+
+    const nextStep = guidedProject.currentStep + 1;
+    if (nextStep < guidedProject.steps.length) {
+      setGuidedProject({
+        ...guidedProject,
+        currentStep: nextStep
+      });
+      setStepFeedback([]);
+      
+      // Add next step message to chat
+      const nextStepMessage = {
+        type: 'assistant',
+        content: `Great! Let's move on to step ${nextStep + 1}:\n\n${guidedProject.steps[nextStep].instruction}\n\nI'll help you write the code in the specified line ranges.`
+      };
+      setChatMessages(prev => [...prev, nextStepMessage]);
+    } else {
+      // Project completed
+      const completionMessage = {
+        type: 'assistant',
+        content: "🎉 Congratulations! You've completed the project! Feel free to start a new project or continue exploring the IDE."
+      };
+      setChatMessages(prev => [...prev, completionMessage]);
+      setGuidedProject(null);
+      setStepFeedback([]);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white">
       {/* Top Bar */}
@@ -562,6 +661,13 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           >
             {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
             Run
+          </button>
+          <button
+            onClick={() => setIsGuidedModalOpen(true)}
+            className="btn-secondary flex items-center space-x-2"
+          >
+            <BookOpen className="h-4 w-4" />
+            <span>Start Guided Project</span>
           </button>
         </div>
       </div>
@@ -654,6 +760,22 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           </div>
         </div>
       </div>
+
+      {/* Add these components before the editor */}
+      <ProjectDescriptionModal
+        isOpen={isGuidedModalOpen}
+        onClose={() => setIsGuidedModalOpen(false)}
+        onSubmit={handleStartGuidedProject}
+      />
+
+      {guidedProject && (
+        <GuidedStep
+          instruction={guidedProject.steps[guidedProject.currentStep].instruction}
+          feedback={stepFeedback}
+          onNextStep={handleNextStep}
+          isLastStep={guidedProject.currentStep === guidedProject.steps.length - 1}
+        />
+      )}
     </div>
   );
 }
