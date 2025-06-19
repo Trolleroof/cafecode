@@ -664,7 +664,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           </button>
           <button
             onClick={() => setIsGuidedModalOpen(true)}
-            className="btn-secondary flex items-center space-x-2"
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
           >
             <BookOpen className="h-4 w-4" />
             <span>Start Guided Project</span>
