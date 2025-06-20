@@ -11,7 +11,8 @@ import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-markup'; // For HTML
 import 'prismjs/themes/prism-tomorrow.css'; // Or any other Prism theme you prefer
 import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
-import GuidedStep from '@/components/GuidedStep';
+import GuidedStepPopup from '@/components/GuidedStepPopup';
+import TypingIndicator from '@/components/TypingIndicator';
 
 
 const supportedLanguages = [
@@ -25,23 +26,9 @@ const defaultCode = {
 
   python: `# Your first Python function`,
 
-  html: `<!DOCTYPE html>
+  html: `<!Insert HTML Here>
 <html>
-<head>
-    <title>My First Page</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        h1 { color: #333; }
-        p { color: #666; }
-    </style>
-</head>
-<body>
-    <h1>Hello, World!</h1>
-    <p>Welcome to coding!</p>
-    <script>
-        console.log("Page loaded successfully!");
-    </script>
-</body>
+
 </html>`
 };
 
@@ -59,17 +46,20 @@ interface GuidedProject {
   currentStep: number;
 }
 
+interface ChatMessage {
+  type: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
 export default function IDEPage() {
-  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
+  const [selectedLanguage, setSelectedLanguage] = useState(supportedLanguages[0].id);
   const [code, setCode] = useState(defaultCode.javascript);
   const [pyodide, setPyodide] = useState<any>(null);
   const [isPyodideLoading, setIsPyodideLoading] = useState(true);
   const router = useRouter();
   const [output, setOutput] = useState('');
   const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('idle');
-  const [chatMessages, setChatMessages] = useState([
-    { type: 'system', content: 'Welcome! I\'m here to help you learn to code. Ask me for hints or help with errors!' }
-  ]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
@@ -83,6 +73,13 @@ export default function IDEPage() {
   const [isGuidedModalOpen, setIsGuidedModalOpen] = useState(false);
   const [guidedProject, setGuidedProject] = useState<GuidedProject | null>(null);
   const [stepFeedback, setStepFeedback] = useState<any[]>([]);
+  const [isStepComplete, setIsStepComplete] = useState(false);
+  const [isAssistantTyping, setIsAssistantTyping] = useState(false);
+  const chatInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
   useEffect(() => {
     const initPyodide = async () => {
@@ -277,11 +274,9 @@ export default function IDEPage() {
   };
 
   const handleTranslateError = async () => {
-    // Ensure we have an error message to translate
-    if (!output || !output.startsWith('❌')) {
-      return;
-    }
+    if (!output.startsWith('❌')) return;
 
+    setIsAssistantTyping(true);
     try {
       const errorMessage = output.substring(output.indexOf('❌') + 2).trim();
       // Directly call the backend API route for translation
@@ -296,7 +291,9 @@ export default function IDEPage() {
       const result = await response.json();
 
       if (result.success && result.translation) {
-        const translatedMessage = `
+        const translatedMessage: ChatMessage = {
+          type: 'system',
+          content: `
 Translated Error (Severity: ${result.translation.severity || 'Unknown'}):
 ${result.translation.text}
 
@@ -311,12 +308,9 @@ Common Causes:
 ${result.translation.common_causes && result.translation.common_causes.length > 0 
   ? result.translation.common_causes.map((c: string) => `- ${c}`).join('\n')
   : '- No common causes listed.'}
-`;
-
-        setChatMessages(prev => [
-          ...prev,
-          { type: 'system', content: translatedMessage }
-        ]);
+`
+        };
+        setChatMessages(prev => [...prev, translatedMessage]);
       } else {
         setChatMessages(prev => [
           ...prev,
@@ -329,6 +323,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         ...prev,
         { type: 'system', content: `Failed to translate error due to a network or server issue: ${error.message}` }
       ]);
+    } finally {
+      setIsAssistantTyping(false);
     }
   };
 
@@ -336,35 +332,63 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const newMessage = { type: 'user', content: chatInput };
-    setChatMessages(prev => [...prev, newMessage]);
+    const userMessage: ChatMessage = { type: 'user', content: chatInput };
+    setChatMessages(prev => [...prev, userMessage]);
     setChatInput('');
+    setIsAssistantTyping(true);
 
-    try {
-      const response = await fetch('/api/guided/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: guidedProject?.projectId,
-          currentStep: guidedProject?.currentStep,
-          history: [...chatMessages, newMessage]
-        })
-      });
-
-      if (!response.ok) throw new Error('Failed to get chat response');
-
-      const data = await response.json();
-      setChatMessages(prev => [...prev, data.response]);
-    } catch (error) {
-      console.error('Error in chat:', error);
-      // Handle error
+    if (guidedProject) {
+      try {
+        const response = await fetch('/api/guided/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: guidedProject.projectId,
+            currentStep: guidedProject.currentStep,
+            history: [...chatMessages, userMessage],
+          }),
+        });
+        const data = await response.json();
+        if (data.response && data.response.content) {
+          setChatMessages(prev => [...prev, { type: 'assistant', content: data.response.content }]);
+        } else {
+          setChatMessages(prev => [...prev, { type: 'system', content: 'Failed to get a response from the assistant.' }]);
+        }
+      } catch (error: any) {
+        setChatMessages(prev => [...prev, { type: 'system', content: 'Error contacting assistant: ' + error.message }]);
+      } finally {
+        setIsAssistantTyping(false);
+        chatInputRef.current?.focus();
+      }
+    } else {
+      try {
+        const response = await fetch('/api/guided/simple-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            history: [...chatMessages, userMessage],
+          }),
+        });
+        const data = await response.json();
+        if (data.response && data.response.content) {
+          setChatMessages(prev => [...prev, { type: 'assistant', content: data.response.content }]);
+        } else {
+          setChatMessages(prev => [...prev, { type: 'system', content: 'Failed to get a response from the assistant.' }]);
+        }
+      } catch (error: any) {
+        setChatMessages(prev => [...prev, { type: 'system', content: 'Error contacting assistant: ' + error.message }]);
+      } finally {
+        setIsAssistantTyping(false);
+        chatInputRef.current?.focus();
+      }
     }
   };
 
   const handleHint = async () => {
-    setChatMessages(prev => [...prev, { type: 'system', content: 'Generating hint...' }]);
-
+    setIsAssistantTyping(true);
     try {
+      setChatMessages(prev => [...prev, { type: 'system', content: 'Generating hint...' }]);
+
       const response = await fetch('http://localhost:8000/api/hint', {
         method: 'POST',
         headers: {
@@ -388,10 +412,11 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           hintMessageContent += `\n\n${result.hint.detailed_explanation}`;
         }
         
-        setChatMessages(prev => [
-          ...prev,
-          { type: 'system', content: hintMessageContent }
-        ]);
+        const hintMessage: ChatMessage = {
+          type: 'system',
+          content: hintMessageContent
+        };
+        setChatMessages(prev => [...prev, hintMessage]);
       } else {
         setChatMessages(prev => [
           ...prev,
@@ -400,20 +425,20 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
       }
     } catch (error: any) {
       console.error('Error generating hint:', error);
-      setChatMessages(prev => [
-        ...prev,
-        { type: 'system', content: `Failed to get hint due to a network or server issue: ${error.message}` }
-      ]);
+      const errorMessage: ChatMessage = { type: 'system', content: 'Sorry, I ran into an issue getting you a hint.' };
+      setChatMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsAssistantTyping(false);
     }
   };
 
   const handleSuggestFix = async () => {
-    // Set fixing state to true at the beginning
-    setIsFixing(true);
-
+    setIsAssistantTyping(true);
     try {
+      setIsFixing(true);
+
       // Run analysis first to get errors
-      const analysisMessage = {
+      const analysisMessage: ChatMessage = {
         type: 'assistant',
         content: '🔍 Let me analyze your code first to find issues that need fixing...'
       };
@@ -421,9 +446,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
 
       const response = await fetch('http://localhost:8000/api/code/analyze', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: code,
           language: selectedLanguage,
@@ -438,22 +461,20 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
       const currentAnalysisResults = await response.json();
       setAnalysisResults(currentAnalysisResults);
 
-      if (currentAnalysisResults.errors.length === 0) {
-        const noErrorsMessage = {
+      if (!currentAnalysisResults.errors || currentAnalysisResults.errors.length === 0) {
+        const noErrorsMessage: ChatMessage = {
           type: 'assistant',
           content: '✅ Great news! No errors found in your code. Your code looks good to go!'
         };
         setChatMessages(prev => [...prev, noErrorsMessage]);
-        return; // No errors, so nothing to fix.
+        return;
       }
 
       // Now proceed with fix suggestion.
       const firstError = currentAnalysisResults.errors[0];
       const fixResponse = await fetch('http://localhost:8000/api/code/fix', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: code,
           language: selectedLanguage,
@@ -468,26 +489,46 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
 
       const fixResult = await fixResponse.json();
 
-      if (fixResult.success && fixResult.fixed) {
-        setCode(fixResult.code);
-        setChatMessages(prev => [
-          ...prev,
-          { type: 'system', content: '✅ Code fixed successfully! The suggested changes have been applied.' }
-        ]);
+      if (fixResult.success && fixResult.fixed_code) {
+        // Only show the fix in the chat, do not update the code editor
+        const fixMessage: ChatMessage = {
+          type: 'assistant',
+          content:
+            '💡 Here is a suggested fix for your code:\n\n' +
+            (fixResult.fixed_code
+              ? `\${selectedLanguage}\n${fixResult.fixed_code}\n\\n`
+              : '') +
+            (fixResult.explanation
+              ? `**Explanation:**\n${fixResult.explanation}`
+              : '')
+        };
+        setChatMessages(prev => [...prev, fixMessage]);
+      } else if (fixResult.success && fixResult.code) {
+        // fallback for some backends that use 'code' instead of 'fixed_code'
+        const fixMessage: ChatMessage = {
+          type: 'assistant',
+          content:
+            '💡 Here is a suggested fix for your code:\n\n' +
+            `\${selectedLanguage}\n${fixResult.code}\n\\n` +
+            (fixResult.explanation
+              ? `**Explanation:**\n${fixResult.explanation}`
+              : '')
+        };
+        setChatMessages(prev => [...prev, fixMessage]);
       } else {
-        setChatMessages(prev => [
-          ...prev,
-          { type: 'system', content: `❌ Failed to fix code: ${fixResult.error || 'Unknown error'}` }
-        ]);
+        const errorMessage: ChatMessage = {
+          type: 'system',
+          content: `❌ Failed to suggest a fix: ${fixResult.error || 'Unknown error'}`
+        };
+        setChatMessages(prev => [...prev, errorMessage]);
       }
     } catch (error: any) {
       console.error('Error in handleSuggestFix:', error);
-      setChatMessages(prev => [
-        ...prev,
-        { type: 'system', content: `❌ Error during fix suggestion: ${error.message}. Make sure the backend server is running on port 8000.` }
-      ]);
+      const errorMessage: ChatMessage = { type: 'system', content: 'Sorry, I ran into an issue suggesting a fix.' };
+      setChatMessages(prev => [...prev, errorMessage]);
     } finally {
-      setIsFixing(false); // Ensure fixing state is reset whether successful or not
+      setIsFixing(false);
+      setIsAssistantTyping(false);
     }
   };
 
@@ -563,20 +604,24 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         body: JSON.stringify({ projectDescription: description })
       });
 
-      if (!response.ok) throw new Error('Failed to start project');
+      if (!response.ok) {
+        throw new Error('Failed to start guided project');
+      }
 
-      const data = await response.json();
+      const { projectId, steps, welcomeMessage }: { projectId: string; steps: Step[]; welcomeMessage: ChatMessage } = await response.json();
+      
       setGuidedProject({
-        projectId: data.projectId,
-        steps: data.steps,
+        projectId,
+        steps,
         currentStep: 0
       });
-      setIsGuidedModalOpen(false);
-      
-      // Add welcome message to chat
-      setChatMessages(prev => [...prev, data.welcomeMessage]);
+      setIsGuidedModalOpen(false); // Close the submission modal
+
+      setChatMessages(prev => [...prev, welcomeMessage]);
+      setIsStepComplete(false);
+
     } catch (error) {
-      console.error('Error starting guided project:', error);
+      console.error("Error starting guided project:", error);
       // Handle error (show toast notification, etc.)
     }
   };
@@ -584,6 +629,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
   const handleAnalyzeStep = async () => {
     if (!guidedProject) return;
 
+    setIsAssistantTyping(true);
     try {
       const response = await fetch('/api/guided/analyzeStep', {
         method: 'POST',
@@ -600,11 +646,20 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
       const data = await response.json();
       setStepFeedback(data.feedback);
       
-      // Add feedback message to chat
-      setChatMessages(prev => [...prev, data.chatMessage]);
+      const chatMessage: ChatMessage = data.chatMessage;
+      setChatMessages(prev => [...prev, chatMessage]);
+
+      // Check if all feedback items are correct
+      const allCorrect = data.feedback.every((f: any) => f.correct);
+      if (allCorrect) {
+        setIsStepComplete(true); // Enable "Next Step" button
+      }
+
     } catch (error) {
       console.error('Error analyzing step:', error);
       // Handle error
+    } finally {
+      setIsAssistantTyping(false);
     }
   };
 
@@ -618,16 +673,17 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         currentStep: nextStep
       });
       setStepFeedback([]);
+      setIsStepComplete(false); // Reset for the new step
       
       // Add next step message to chat
-      const nextStepMessage = {
+      const nextStepMessage: ChatMessage = {
         type: 'assistant',
         content: `Great! Let's move on to step ${nextStep + 1}:\n\n${guidedProject.steps[nextStep].instruction}\n\nI'll help you write the code in the specified line ranges.`
       };
       setChatMessages(prev => [...prev, nextStepMessage]);
     } else {
       // Project completed
-      const completionMessage = {
+      const completionMessage: ChatMessage = {
         type: 'assistant',
         content: "🎉 Congratulations! You've completed the project! Feel free to start a new project or continue exploring the IDE."
       };
@@ -675,13 +731,22 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Code Editor */}
-        <div className="flex-1 flex flex-col bg-gray-850 border-r border-gray-700 h-full">
+        <div className="flex-1 flex flex-col bg-gray-850 border-r border-gray-700 h-full relative">
           <div className="flex justify-between items-center py-1 px-2 bg-gray-700">
             <span className="text-sm font-semibold">{selectedLanguage.toUpperCase()} Code</span>
           </div>
           <div className="flex-1 overflow-auto">
             <CodeEditorWithLineNumbers />
           </div>
+          {guidedProject && (
+            <GuidedStepPopup
+              instruction={guidedProject.steps[guidedProject.currentStep].instruction}
+              isComplete={isStepComplete}
+              onNextStep={handleNextStep}
+              stepNumber={guidedProject.currentStep + 1}
+              totalSteps={guidedProject.steps.length}
+            />
+          )}
         </div>
 
         {/* Output and Chat Area */}
@@ -719,6 +784,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
                   </div>
                 </div>
               ))}
+              {isAssistantTyping && <TypingIndicator />}
               <div ref={messagesEndRef} />
             </div>
 
@@ -749,6 +815,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Ask for help or a hint..."
                 className="flex-1 px-3 py-2 rounded-l-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                ref={chatInputRef}
               />
               <button
                 type="submit"
@@ -767,15 +834,6 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         onClose={() => setIsGuidedModalOpen(false)}
         onSubmit={handleStartGuidedProject}
       />
-
-      {guidedProject && (
-        <GuidedStep
-          instruction={guidedProject.steps[guidedProject.currentStep].instruction}
-          feedback={stepFeedback}
-          onNextStep={handleNextStep}
-          isLastStep={guidedProject.currentStep === guidedProject.steps.length - 1}
-        />
-      )}
     </div>
   );
 }
