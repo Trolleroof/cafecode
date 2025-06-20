@@ -6,6 +6,9 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// Load environment variables FIRST
+dotenv.config();
+
 // Import routes
 import codeRoutes from './routes/code.js';
 import { initializeGemini } from './services/gemini.js';
@@ -14,14 +17,18 @@ import translateRoutes from './routes/translate.js';
 import hintRoutes from './routes/hint.js';
 import guidedRoutes from './routes/guided.js';
 
-// Load environment variables
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+
+// Verify environment variables are loaded
+console.log('🔧 Environment Variables Status:');
+console.log(`   PORT: ${PORT}`);
+console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+console.log(`   GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ Loaded' : '❌ Missing'}`);
+console.log(`   ALLOWED_ORIGINS: ${process.env.ALLOWED_ORIGINS || 'Using defaults'}`);
 
 // Trust proxy configuration
 app.set('trust proxy', 1);
@@ -72,10 +79,16 @@ let geminiService = null;
 async function initializeServices() {
   try {
     console.log('🤖 Initializing Gemini AI service...');
+    
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY environment variable is not set. Please check your .env file.');
+    }
+    
     geminiService = await initializeGemini(process.env.GEMINI_API_KEY);
     console.log('✅ Gemini AI service initialized successfully');
   } catch (error) {
     console.error('❌ Failed to initialize Gemini AI service:', error.message);
+    console.error('💡 Make sure your .env file contains a valid GEMINI_API_KEY');
     process.exit(1);
   }
 }
@@ -100,11 +113,14 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     status: 'online',
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    gemini_status: geminiService ? 'connected' : 'disconnected',
     endpoints: {
       health: '/health',
       analyze: '/api/code/analyze',
       fix: '/api/code/fix',
-      docs: '/api/code/health'
+      docs: '/api/code/docs',
+      guided: '/api/guided'
     }
   });
 });
@@ -125,7 +141,8 @@ app.get('/health', async (req, res) => {
       },
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      api_key_status: process.env.GEMINI_API_KEY ? 'configured' : 'missing'
     });
   } catch (error) {
     console.error('Health check failed:', error);
@@ -195,8 +212,8 @@ async function startServer() {
       console.log(`📡 Server running on: http://localhost:${PORT}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🤖 Gemini AI: ${geminiService ? '✅ Connected' : '❌ Disconnected'}`);
+      console.log(`🔑 API Key: ${process.env.GEMINI_API_KEY ? '✅ Configured' : '❌ Missing'}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
     });
 
     // Store server reference for graceful shutdown
