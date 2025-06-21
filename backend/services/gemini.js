@@ -138,9 +138,23 @@ Requirements:
 `;
   }
 
-  createHintPrompt(code, language) {
+  createHintPrompt(code, language, stepInstruction = null, lineRanges = null, stepId = null) {
+    const stepContext = stepInstruction && lineRanges && stepId 
+      ? `Your goal is to help a beginner programmer complete a specific step in a guided project.
+
+Current Step Information:
+- Step ${stepId}: ${stepInstruction}
+- Target Line Range: ${lineRanges.join('-')}
+
+Hinting Logic:
+1. Analyze the user's code against the Current Step Information.
+2. If the code correctly implements the step's instructions, your hint should be a confirmation message, like "Looks like you've got it! Your variables are declared correctly. You can click 'Check Step' to verify and move on."
+3. If the code is incorrect or incomplete for the current step, provide a small, actionable hint to guide the user toward the correct solution for THIS STEP ONLY.
+4. DO NOT give hints about future steps (like getting user input) or general best practices that are not relevant to the current instruction. Your entire focus is on the current step.`
+      : 'You are an expert programming assistant. Provide a general, helpful hint for the following code.';
+
     return `
-You are an expert programming assistant. Provide a helpful hint for the following ${language} code.
+${stepContext}
 
 Code:
 \`\`\`${language}
@@ -149,40 +163,59 @@ ${code}
 
 Please provide your hint in the following JSON format:
 {
-  "hint_text": "A concise and helpful hint, suitable for a beginner.",
+  "hint_text": "A concise and helpful hint, suitable for a beginner. ${stepInstruction ? 'Your hint should be a confirmation if the code is correct, or a small tip if it is incorrect.' : ''}",
   "line_number": number or null, // The specific line number the hint refers to (null if general)
   "suggestion_type": "syntax|logic|best_practice|performance|security|readability",
   "detailed_explanation": "An optional detailed explanation if the hint needs more context."
 }
 
-Requirements:
-1. Keep the hint concise but actionable.
-2. If possible, identify a specific line number where the hint applies.
-3. Focus on common pitfalls, best practices, or potential improvements.
-4. Avoid directly giving the solution unless explicitly asked (which is not the case here).
+Requirements for hints:
+- Keep the hint concise and actionable in simple terms.
+- Avoid directly giving the solution.
+- Focus ONLY on the current step if one is provided.
 `;
   }
 
-  parseJsonResponse(responseText) {
+  // Helper function to robustly extract JSON from Gemini responses
+  extractJsonFromResponse(responseText) {
+    // Try to extract JSON from markdown code blocks first
+    const codeBlockMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch) {
+      return codeBlockMatch[1].trim();
+    }
+    // Try to extract the first {...} or [...] block
+    const curlyMatch = responseText.match(/({[\s\S]*})/);
+    if (curlyMatch) {
+      return curlyMatch[1].trim();
+    }
+    const arrayMatch = responseText.match(/(\[[\s\S]*\])/);
+    if (arrayMatch) {
+      return arrayMatch[1].trim();
+    }
+    // Fallback: return the response as-is
+    return responseText.trim();
+  };
+
+  // Helper function to robustly parse JSON, with repair fallback
+  robustJsonParse(jsonString) {
     try {
-      // Try to extract JSON from markdown code blocks
-      let jsonText = responseText;
-      
-      if (responseText.includes('```json')) {
-        const start = responseText.indexOf('```json') + 7;
-        const end = responseText.indexOf('```', start);
-        jsonText = responseText.substring(start, end).trim();
-      } else if (responseText.includes('```')) {
-        const start = responseText.indexOf('```') + 3;
-        const end = responseText.indexOf('```', start);
-        jsonText = responseText.substring(start, end).trim();
+      return JSON.parse(jsonString);
+    } catch (e) {
+      // Try to trim to last closing brace/bracket
+      let lastCurly = jsonString.lastIndexOf('}');
+      let lastSquare = jsonString.lastIndexOf(']');
+      let last = Math.max(lastCurly, lastSquare);
+      if (last !== -1) {
+        try {
+          return JSON.parse(jsonString.slice(0, last + 1));
+        } catch (e2) {
+          // fall through
+        }
       }
-      
-      return JSON.parse(jsonText);
-    } catch (error) {
-      console.error('Failed to parse JSON response:', error.message);
-      console.error('Response text:', responseText);
-      throw new Error(`Invalid JSON response from AI: ${error.message}`);
+      // If still fails, throw with more context
+      console.error('Failed to parse JSON response:', e.message);
+      console.error('Response text:', jsonString);
+      throw new Error(`Invalid JSON response from AI: ${e.message}`);
     }
   }
 
@@ -209,7 +242,8 @@ Requirements:
         throw new Error('Empty response from Gemini AI');
       }
 
-      const analysisData = this.parseJsonResponse(responseText);
+      const cleanResponse = this.extractJsonFromResponse(responseText);
+      const analysisData = this.robustJsonParse(cleanResponse);
       const executionTime = (Date.now() - startTime) / 1000;
 
       return {
@@ -266,7 +300,8 @@ Requirements:
         throw new Error('Empty response from Gemini AI');
       }
 
-      const fixData = this.parseJsonResponse(responseText);
+      const cleanResponse = this.extractJsonFromResponse(responseText);
+      const fixData = this.robustJsonParse(cleanResponse);
       const executionTime = (Date.now() - startTime) / 1000;
 
       return {
@@ -338,8 +373,10 @@ Requirements:
         throw new Error('Empty response from Gemini AI');
       }
 
-      const translationData = this.parseJsonResponse(responseText);
-      
+      const cleanResponse = this.extractJsonFromResponse(responseText);
+      const translationData = this.robustJsonParse(cleanResponse);
+      const executionTime = (Date.now() - startTime) / 1000;
+
       return {
         success: true,
         translated_text: translationData.translated_text,
@@ -368,7 +405,10 @@ Requirements:
 
       const prompt = this.createHintPrompt(
         request.code,
-        request.language
+        request.language,
+        request.stepInstruction,
+        request.lineRanges,
+        request.stepId
       );
 
       const result = await this.model.generateContent(prompt);
@@ -379,7 +419,8 @@ Requirements:
         throw new Error('Empty response from Gemini AI');
       }
 
-      const hintData = this.parseJsonResponse(responseText);
+      const cleanResponse = this.extractJsonFromResponse(responseText);
+      const hintData = this.robustJsonParse(cleanResponse);
       const executionTime = (Date.now() - startTime) / 1000;
 
       return {

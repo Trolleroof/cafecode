@@ -4,7 +4,7 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   try {
-    const { code, language } = req.body;
+    const { code, language, stepInstruction, lineRanges, stepId } = req.body;
 
     if (!code || !language) {
       return res.status(400).json({
@@ -24,7 +24,10 @@ router.post('/', async (req, res) => {
 
     const result = await geminiService.getHint({
       code,
-      language
+      language,
+      stepInstruction,
+      lineRanges,
+      stepId
     });
 
     if (!result.success) {

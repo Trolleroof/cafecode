@@ -66,6 +66,12 @@ router.post("/startProject", async (req, res) => {
 
 Project: ${projectDescription}
 
+DO NOT DO ANY OF THE FOLLOWING OR INCLUDE THE FOLLOWING IN THE STEPS:
+- tell the user to create new files, because the current setup doesn't require them to do these files
+
+THINGS TO CONSIDER: 
+- break down the steps into the smallest possible, assuming the user is a beginner programmer
+
 Example format:
 [
   {
@@ -125,9 +131,9 @@ Example format:
 // Analyze current step
 router.post("/analyzeStep", async (req, res) => {
   try {
-    const { projectId, stepId, code } = req.body;
+    const { projectId, stepId, code, language } = req.body;
 
-    if (!projectId || !stepId || !code) {
+    if (!projectId || !stepId || !code || !language) {
       return res.status(400).json({ error: "Missing required parameters" });
     }
 
@@ -139,13 +145,13 @@ router.post("/analyzeStep", async (req, res) => {
     const currentStep = project.steps[project.currentStep];
 
     // Use Gemini to analyze the code
-    const prompt = `Analyze the following code for step ${
+    const prompt = `Analyze the following ${language} code for step ${
       currentStep.id
     } of the project.\n\nStep Instruction: ${
       currentStep.instruction
     }\nLine Ranges: ${currentStep.lineRanges.join(
       "-"
-    )}\n\nCode:\n${code}\n\nProvide feedback as a JSON array of objects, where each object has:\n- line: number (line number being analyzed)\n- correct: boolean (whether the code is correct for this line)\n- suggestion: string (optional suggestion if incorrect)\n\nDO NOT include any additional text or markdown outside of the JSON array.\n\nFormat the response as a JSON array.`;
+    )}\n\n${language.charAt(0).toUpperCase() + language.slice(1)} Code:\n${code}\n\nProvide feedback as a JSON array of objects, where each object has:\n- line: number (line number being analyzed)\n- correct: boolean (whether the code is correct for this line)\n- suggestion: string (optional suggestion if incorrect)\n\nAnalyze this as ${language} code specifically. DO NOT include any additional text or markdown outside of the JSON array.\n\nFormat the response as a JSON array.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();

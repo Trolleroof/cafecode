@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2, BookOpen } from 'lucide-react';
+import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2, BookOpen, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Editor from 'react-simple-code-editor';
 import { highlight, languages } from 'prismjs/components/prism-core';
@@ -80,6 +80,13 @@ export default function IDEPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // Debug step completion
+  useEffect(() => {
+    if (guidedProject) {
+      console.log(`Step ${guidedProject.currentStep + 1} completion status:`, isStepComplete);
+    }
+  }, [isStepComplete, guidedProject]);
 
   useEffect(() => {
     const initPyodide = async () => {
@@ -339,7 +346,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
 
     if (guidedProject) {
       try {
-        const response = await fetch('/api/guided/chat', {
+        const response = await fetch('http://localhost:8000/api/guided/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -362,7 +369,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
       }
     } else {
       try {
-        const response = await fetch('/api/guided/simple-chat', {
+        const response = await fetch('http://localhost:8000/api/guided/simple-chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -385,10 +392,22 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
   };
 
   const handleHint = async () => {
+    // Check if guided project is active
+    if (!guidedProject) {
+      const message: ChatMessage = {
+        type: 'assistant',
+        content: '💡 To get AI hints and suggestions, please click the "Start Guided Project" button above. This will enable step-by-step guidance with AI-powered hints and fixes!'
+      };
+      setChatMessages(prev => [...prev, message]);
+      return;
+    }
+
     setIsAssistantTyping(true);
     try {
-      setChatMessages(prev => [...prev, { type: 'system', content: 'Generating hint...' }]);
+      setChatMessages(prev => [...prev, { type: 'system', content: 'Generating step-specific hint...' }]);
 
+      const currentStep = guidedProject.steps[guidedProject.currentStep];
+      
       const response = await fetch('http://localhost:8000/api/hint', {
         method: 'POST',
         headers: {
@@ -397,13 +416,16 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         body: JSON.stringify({
           code: code,
           language: selectedLanguage,
+          stepInstruction: currentStep.instruction,
+          lineRanges: currentStep.lineRanges,
+          stepId: currentStep.id
         }),
       });
 
       const result = await response.json();
 
       if (result.success && result.hint) {
-        let hintMessageContent = `💡 AI Hint: ${result.hint.hint_text}`;
+        let hintMessageContent = `💡 Step ${currentStep.id} Hint: ${result.hint.hint_text}`;
         if (result.hint.line_number) {
           hintMessageContent += ` (Line: ${result.hint.line_number})`;
           setHintedLine(result.hint.line_number);
@@ -433,6 +455,16 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
   };
 
   const handleSuggestFix = async () => {
+    // Check if guided project is active
+    if (!guidedProject) {
+      const message: ChatMessage = {
+        type: 'assistant',
+        content: '🔧 To get AI-powered code fixes and suggestions, please click the "Start Guided Project" button above. This will enable step-by-step guidance with AI-powered analysis and fixes!'
+      };
+      setChatMessages(prev => [...prev, message]);
+      return;
+    }
+
     setIsAssistantTyping(true);
     try {
       setIsFixing(true);
@@ -496,7 +528,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           content:
             '💡 Here is a suggested fix for your code:\n\n' +
             (fixResult.fixed_code
-              ? `\${selectedLanguage}\n${fixResult.fixed_code}\n\\n`
+              ? `\`\`\`${selectedLanguage}\n${fixResult.fixed_code}\n\`\`\`\n`
               : '') +
             (fixResult.explanation
               ? `**Explanation:**\n${fixResult.explanation}`
@@ -509,7 +541,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           type: 'assistant',
           content:
             '💡 Here is a suggested fix for your code:\n\n' +
-            `\${selectedLanguage}\n${fixResult.code}\n\\n` +
+            `\`\`\`${selectedLanguage}\n${fixResult.code}\n\`\`\`\n` +
             (fixResult.explanation
               ? `**Explanation:**\n${fixResult.explanation}`
               : '')
@@ -598,7 +630,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
 
   const handleStartGuidedProject = async (description: string) => {
     try {
-      const response = await fetch('/api/guided/startProject', {
+      const response = await fetch('http://localhost:8000/api/guided/startProject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectDescription: description })
@@ -627,17 +659,18 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
   };
 
   const handleAnalyzeStep = async () => {
-    if (!guidedProject) return;
+    if (!guidedProject || isStepComplete) return;
 
     setIsAssistantTyping(true);
     try {
-      const response = await fetch('/api/guided/analyzeStep', {
+      const response = await fetch('http://localhost:8000/api/guided/analyzeStep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: guidedProject.projectId,
           stepId: guidedProject.steps[guidedProject.currentStep].id,
-          code
+          code,
+          language: selectedLanguage
         })
       });
 
@@ -651,20 +684,22 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
 
       // Check if all feedback items are correct
       const allCorrect = data.feedback.every((f: any) => f.correct);
-      if (allCorrect) {
-        setIsStepComplete(true); // Enable "Next Step" button
-      }
+      setIsStepComplete(allCorrect);
 
     } catch (error) {
       console.error('Error analyzing step:', error);
-      // Handle error
+      const errorMessage: ChatMessage = {
+        type: 'system',
+        content: 'Sorry, I had trouble analyzing your code. Please try again.'
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsAssistantTyping(false);
     }
   };
 
   const handleNextStep = () => {
-    if (!guidedProject) return;
+    if (!guidedProject || !isStepComplete) return;
 
     const nextStep = guidedProject.currentStep + 1;
     if (nextStep < guidedProject.steps.length) {
@@ -693,11 +728,61 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
     }
   };
 
+  const handlePreviousStep = () => {
+    if (!guidedProject) return;
+
+    const previousStep = guidedProject.currentStep - 1;
+    console.log('Previous step requested:', { currentStep: guidedProject.currentStep, previousStep });
+    
+    if (previousStep >= 0) {
+      console.log('Going to previous step:', previousStep + 1);
+      setGuidedProject({
+        ...guidedProject,
+        currentStep: previousStep
+      });
+      setStepFeedback([]);
+      setIsStepComplete(false); // Reset for the previous step
+      
+      // Add previous step message to chat
+      const previousStepMessage: ChatMessage = {
+        type: 'assistant',
+        content: `Let's go back to step ${previousStep + 1}:\n\n${guidedProject.steps[previousStep].instruction}\n\nYou can review and modify your code for this step.`
+      };
+      setChatMessages(prev => [...prev, previousStepMessage]);
+    } 
+  };
+
+  const handleExitGuidedProject = () => {
+    setGuidedProject(null);
+    setStepFeedback([]);
+    setIsStepComplete(false);
+    
+    // Add exit message to chat
+    const exitMessage: ChatMessage = {
+      type: 'assistant',
+      content: '👋 You\'ve exited the guided project. You can start a new one anytime by clicking "Start Guided Project"!'
+    };
+    setChatMessages(prev => [...prev, exitMessage]);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white">
       {/* Top Bar */}
       <div className="flex items-center justify-between py-2 px-4 bg-gray-800 shadow-md">
-        <h1 className="text-xl font-bold text-blue-400">Bolt IDE</h1>
+        <div className="flex items-center space-x-4">
+          <h1 className="text-xl font-bold text-blue-400">Bolt IDE</h1>
+          {guidedProject && (
+            <div className="flex items-center space-x-2 bg-gray-700 px-3 py-1 rounded-md">
+              <span className="text-sm text-gray-300">Step {guidedProject.currentStep + 1} of {guidedProject.steps.length}</span>
+              <div className="w-24 bg-gray-600 rounded-full h-2">
+                <div 
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${((guidedProject.currentStep + 1) / guidedProject.steps.length) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+        </div>
         <div className="flex items-center space-x-4">
           <select
             value={selectedLanguage}
@@ -718,13 +803,24 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
             {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
             Run
           </button>
-          <button
-            onClick={() => setIsGuidedModalOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
-          >
-            <BookOpen className="h-4 w-4" />
-            <span>Start Guided Project</span>
-          </button>
+          
+          {guidedProject ? (
+            <button
+              onClick={handleExitGuidedProject}
+              className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
+            >
+              <X className="h-4 w-4" />
+              <span>Exit Project</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsGuidedModalOpen(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span>Start Guided Project</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -743,6 +839,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
               instruction={guidedProject.steps[guidedProject.currentStep].instruction}
               isComplete={isStepComplete}
               onNextStep={handleNextStep}
+              onPreviousStep={handlePreviousStep}
+              onCheckStep={handleAnalyzeStep}
               stepNumber={guidedProject.currentStep + 1}
               totalSteps={guidedProject.steps.length}
             />
@@ -792,15 +890,26 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
             <div className="flex space-x-2 mb-3">
               <button
                 onClick={handleSuggestFix}
-                className="flex items-center flex-1 px-4 py-2 bg-orange-600 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 text-white text-sm justify-center"
-                disabled={isFixing}
+                className={`flex items-center flex-1 px-4 py-2 rounded-md focus:outline-none text-white text-sm justify-center ${
+                  isFixing || code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''
+                    ? 'bg-gray-500 cursor-not-allowed opacity-50'
+                    : 'bg-orange-600 hover:bg-orange-700 focus:ring-2 focus:ring-orange-500'
+                }`}
+                disabled={isFixing || code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''}
+                title={code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === '' ? 'Add some code first to get AI suggestions' : 'Get AI suggestions to fix your code'}
               >
                 {isFixing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertCircle className="mr-2 h-4 w-4" />}
                 Suggest Fix
               </button>
               <button
                 onClick={handleHint}
-                className="flex items-center flex-1 px-4 py-2 bg-yellow-600 rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white text-sm justify-center"
+                className={`flex items-center flex-1 px-4 py-2 rounded-md focus:outline-none text-white text-sm justify-center ${
+                  code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''
+                    ? 'bg-gray-500 cursor-not-allowed opacity-50'
+                    : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-2 focus:ring-yellow-500'
+                }`}
+                disabled={code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''}
+                title={code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === '' ? 'Add some code first to get hints' : 'Get AI hints for your code'}
               >
                 <Lightbulb className="mr-2 h-4 w-4" />
                 Get Hint
@@ -828,7 +937,6 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         </div>
       </div>
 
-      {/* Add these components before the editor */}
       <ProjectDescriptionModal
         isOpen={isGuidedModalOpen}
         onClose={() => setIsGuidedModalOpen(false)}
