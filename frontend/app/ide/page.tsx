@@ -3,17 +3,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2, BookOpen, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Editor from 'react-simple-code-editor';
-import { highlight, languages } from 'prismjs/components/prism-core';
-import 'prismjs/components/prism-clike';
-import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-python';
-import 'prismjs/components/prism-markup'; // For HTML
-import 'prismjs/themes/prism-tomorrow.css'; // Or any other Prism theme you prefer
+import MonacoEditor from '@/components/MonacoEditor';
 import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
 import GuidedStepPopup from '@/components/GuidedStepPopup';
 import TypingIndicator from '@/components/TypingIndicator';
-
 
 const supportedLanguages = [
   { id: 'javascript', name: 'JavaScript', extension: '.js' },
@@ -76,6 +69,15 @@ export default function IDEPage() {
   const [isStepComplete, setIsStepComplete] = useState(false);
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const [showRunTooltip, setShowRunTooltip] = useState(false);
+  
+  // Interactive input state
+  const [isWaitingForInput, setIsWaitingForInput] = useState(false);
+  const [inputPrompt, setInputPrompt] = useState('');
+  const [inputValue, setInputValue] = useState('');
+  const [pendingInputs, setPendingInputs] = useState<string[]>([]);
+  const [currentPythonCode, setCurrentPythonCode] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -124,6 +126,22 @@ export default function IDEPage() {
     setOutput('');
     setHintedLine(null);
     setHighlightedLine(null);
+    
+    // Reset input state when changing languages
+    setIsWaitingForInput(false);
+    setInputPrompt('');
+    setInputValue('');
+    setPendingInputs([]);
+    setCurrentPythonCode('');
+  };
+
+  // Cleanup function for input state
+  const resetInputState = () => {
+    setIsWaitingForInput(false);
+    setInputPrompt('');
+    setInputValue('');
+    setPendingInputs([]);
+    setCurrentPythonCode('');
   };
 
   const executeJavaScript = (code: string) => {
@@ -165,38 +183,167 @@ export default function IDEPage() {
       return '❌ Python runtime is not ready yet. Please wait a moment and try again.';
     }
 
-    let capturedOutput = '';
-    const originalStdout = pyodide.runPython("import sys; sys.stdout");
+    // Check if code contains input() calls
+    const inputMatches = code.match(/input\([^)]*\)/g);
+    if (!inputMatches) {
+      // No input() calls, execute normally
+      let capturedOutput = '';
+      const originalStdout = pyodide.runPython("import sys; sys.stdout");
+
+      try {
+        pyodide.setStdout({ write: (msg: any) => {
+          let textMsg = '';
+          if (typeof msg === 'string') {
+            textMsg = msg;
+          } else if (msg instanceof Uint8Array) {
+            textMsg = new TextDecoder().decode(msg);
+          } else {
+            textMsg = String(msg);
+          }
+          capturedOutput += textMsg;
+          return msg.length || 0;
+        } });
+
+        await pyodide.runPythonAsync(code);
+        return capturedOutput;
+      } catch (error: any) {
+        return `❌ Python Error: ${error.message}`;
+      } finally {
+        pyodide.setStdout(originalStdout);
+      }
+    } else {
+      // Has input() calls, handle interactively
+      return await executePythonWithInput(code);
+    }
+  };
+
+  const executePythonWithInput = async (code: string): Promise<string> => {
+    if (!pyodide) {
+      return '❌ Python runtime is not ready yet.';
+    }
 
     try {
-      // Redirect Python's stdout to our JavaScript variable, handling byte arrays
-      pyodide.setStdout({ write: (msg: any) => {
-        let textMsg = '';
-        if (typeof msg === 'string') {
-          textMsg = msg;
-        } else if (msg instanceof Uint8Array) {
-          // Use TextDecoder to convert Uint8Array to string
-          textMsg = new TextDecoder().decode(msg);
-        } else {
-          // Fallback for other unexpected types (should ideally not happen with direct Pyodide output)
-          textMsg = String(msg);
-        }
-        capturedOutput += textMsg;
-        return msg.length || 0; // Return the original length of the message/buffer
-      } });
-
-      // Execute the code
-      await pyodide.runPythonAsync(code);
-
-      console.log('Final capturedOutput before return:', capturedOutput);
-
-      // Return the captured output, preserving newlines
-      return capturedOutput;
+      // Store the original code and prepare for interactive execution
+      setCurrentPythonCode(code);
+      setPendingInputs([]);
+      setIsWaitingForInput(true);
+      
+      // Extract all input() calls to prepare prompts
+      const inputMatches = code.match(/input\([^)]*\)/g) || [];
+      const prompts: string[] = [];
+      
+      for (const match of inputMatches) {
+        // Extract the prompt from input("prompt") or input()
+        const promptMatch = match.match(/input\(["']([^"']*)["']\)/);
+        prompts.push(promptMatch ? promptMatch[1] : '');
+      }
+      
+      setPendingInputs(prompts);
+      
+      // Show the first prompt
+      if (prompts.length > 0) {
+        setInputPrompt(prompts[0]);
+        setInputValue('');
+        setOutput(prev => prev + (prompts[0] || 'Enter input: '));
+        
+        // Focus the input field
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 100);
+      }
+      
+      // Return a placeholder - actual execution will happen after inputs
+      return '⏳ Waiting for input...\n';
     } catch (error: any) {
-      return `❌ Python Error: ${error.message}`;
-    } finally {
-      // Restore original stdout to avoid side effects
-      pyodide.setStdout(originalStdout);
+      return `❌ Error setting up interactive input: ${error.message}`;
+    }
+  };
+
+  const handleInputSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() && pendingInputs.length > 0) return;
+
+    const currentInput = inputValue;
+    setInputValue('');
+    
+    // Add the input to the output
+    // setOutput(prev => prev + currentInput + '\n');
+    
+    // Store this input for Python execution
+    const updatedInputs = [...pendingInputs];
+    
+    // Replace the current input() call with the user's input
+    let modifiedCode = currentPythonCode;
+    const inputMatches = currentPythonCode.match(/input\([^)]*\)/g) || [];
+    
+    if (inputMatches.length > 0) {
+      try {
+        // Replace the first input() call with the user's input
+        const firstInputMatch = inputMatches[0];
+        if (firstInputMatch) {
+          const escapedInput = currentInput.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          modifiedCode = modifiedCode.replace(firstInputMatch, `"${escapedInput}"`);
+        }
+        
+        // Remove the first prompt from pending inputs
+        updatedInputs.shift();
+        setPendingInputs(updatedInputs);
+        
+        if (updatedInputs.length > 0) {
+          // More inputs needed
+          setInputPrompt(updatedInputs[0]);
+          setOutput(prev => prev + (updatedInputs[0] || 'Enter input: '));
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 100);
+        } else {
+          // All inputs provided, execute the modified code
+          setIsWaitingForInput(false);
+          setInputPrompt('');
+          
+          // Execute the modified code
+          let capturedOutput = '';
+          const originalStdout = pyodide.runPython("import sys; sys.stdout");
+
+          try {
+            pyodide.setStdout({ write: (msg: any) => {
+              let textMsg = '';
+              if (typeof msg === 'string') {
+                textMsg = msg;
+              } else if (msg instanceof Uint8Array) {
+                textMsg = new TextDecoder().decode(msg);
+              } else {
+                textMsg = String(msg);
+              }
+              capturedOutput += textMsg;
+              return msg.length || 0;
+            } });
+
+            await pyodide.runPythonAsync(modifiedCode);
+            
+            // Add the final output
+            setOutput(prev => prev + capturedOutput);
+            setExecutionStatus(capturedOutput.includes('❌') ? 'error' : 'success');
+          } catch (error: any) {
+            const errorOutput = `❌ Python Error: ${error.message}`;
+            setOutput(prev => prev + errorOutput);
+            setExecutionStatus('error');
+          } finally {
+            try {
+              pyodide.setStdout(originalStdout);
+            } catch (stdoutError) {
+              console.warn('Error restoring stdout:', stdoutError);
+            }
+            setIsRunning(false);
+          }
+        }
+      } catch (error: any) {
+        const errorOutput = `❌ Error processing input: ${error.message}`;
+        setOutput(prev => prev + errorOutput);
+        setExecutionStatus('error');
+        setIsWaitingForInput(false);
+        setIsRunning(false);
+      }
     }
   };
 
@@ -229,23 +376,11 @@ export default function IDEPage() {
     return output;
   };
 
-  const handleCodeChange = (newCode: string) => {
+  const handleCodeChange = (value: string | undefined) => {
+    const newCode = value || '';
     setCode(newCode);
     setExecutionStatus('idle');
     setOutput('');
-    setHintedLine(null);
-  };
-
-  // Simplified highlightCode function without line numbers
-  const highlightCode = (code: string, language: string) => {
-    let langObj: any;
-    if (languages[language as keyof typeof languages]) {
-      langObj = languages[language as keyof typeof languages];
-    } else {
-      langObj = languages.clike; // Fallback to clike if language not found
-    }
-
-    return highlight(code, langObj, language);
   };
 
   const handleRunCode = async () => {
@@ -279,6 +414,31 @@ export default function IDEPage() {
       setIsRunning(false);
     }
   };
+
+  // Add keyboard event listener for Ctrl+Enter
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+        event.preventDefault();
+        console.log("hello")
+        if (!isRunning && !isPyodideLoading) {
+          handleRunCode();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isRunning, isPyodideLoading, handleRunCode]);
+
+  // Cleanup input state on unmount
+  useEffect(() => {
+    return () => {
+      resetInputState();
+    };
+  }, []);
 
   const handleTranslateError = async () => {
     if (!output.startsWith('❌')) return;
@@ -428,7 +588,6 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         let hintMessageContent = `💡 Step ${currentStep.id} Hint: ${result.hint.hint_text}`;
         if (result.hint.line_number) {
           hintMessageContent += ` (Line: ${result.hint.line_number})`;
-          setHintedLine(result.hint.line_number);
         }
         if (result.hint.detailed_explanation) {
           hintMessageContent += `\n\n${result.hint.detailed_explanation}`;
@@ -445,7 +604,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           { type: 'system', content: `Failed to get hint: ${result.error || 'Unknown error'}` }
         ]);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error generating hint:', error);
       const errorMessage: ChatMessage = { type: 'system', content: 'Sorry, I ran into an issue getting you a hint.' };
       setChatMessages(prev => [...prev, errorMessage]);
@@ -562,70 +721,6 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
       setIsFixing(false);
       setIsAssistantTyping(false);
     }
-  };
-
-  // Custom editor wrapper component with line numbers - FIXED VERSION
-  const CodeEditorWithLineNumbers = () => {
-    const lineCount = code.split('\n').length;
-    const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
-    const editorContainerRef = useRef<HTMLDivElement>(null);
-    
-    // useEffect to manage cursor position after code changes
-    useEffect(() => {
-      const textarea = editorContainerRef.current?.querySelector('textarea');
-      if (textarea) {
-        // Set cursor to the end of the text
-        const len = textarea.value.length;
-        textarea.setSelectionRange(len, len);
-      }
-    }, [code]); // Re-run this effect whenever 'code' changes
-
-    return (
-      <div 
-        ref={editorContainerRef}
-        className="flex h-full relative"
-      >
-        {/* Line numbers column */}
-        <div 
-          className="flex-shrink-0 bg-gray-700 text-gray-400 text-right pr-3 pl-2 py-2 select-none" 
-          style={{ fontFamily: '"Fira code", "Fira Mono", monospace', fontSize: 14, lineHeight: '1.5' }}
-        >
-          {lineNumbers.map(num => (
-            <div 
-              key={num} 
-              className={`${num === highlightedLine ? 'text-blue-400 bg-blue-900/30' : ''} ${num === hintedLine ? 'text-yellow-400 bg-yellow-900/30' : ''}`}
-              style={{ minWidth: '30px', height: '21px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}
-            >
-              {num}
-            </div>
-          ))}
-        </div>
-        
-        {/* Code editor */}
-        <div className="flex-1 relative">
-          <Editor
-            value={code}
-            onValueChange={handleCodeChange}
-            highlight={code => highlightCode(code, selectedLanguage)}
-            padding={10}
-            className="h-full font-mono text-sm overflow-auto"
-            style={{
-              fontFamily: '"Fira code", "Fira Mono", monospace',
-              fontSize: 14,
-              lineHeight: '1.5',
-            }}
-            textareaId="codeEditor"
-            autoFocus={true} // Keep autoFocus for initial focus
-            onSelect={(e) => {
-              // Only update highlighted line, do not interfere with default selection behavior
-              const textarea = e.target as HTMLTextAreaElement;
-              const lineNumber = (textarea.value.substring(0, textarea.selectionStart).match(/\n/g) || []).length + 1;
-              setHighlightedLine(lineNumber);
-            }}
-          />
-        </div>
-      </div>
-    );
   };
 
   const handleStartGuidedProject = async (description: string) => {
@@ -797,11 +892,19 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           </select>
           <button
             onClick={handleRunCode}
-            className="flex items-center px-4 py-2 bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            onMouseEnter={() => setShowRunTooltip(true)}
+            onMouseLeave={() => setShowRunTooltip(false)}
+            className="relative flex items-center px-4 py-2 bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
             disabled={isRunning || isPyodideLoading}
           >
             {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
             Run
+            {showRunTooltip && (
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                Ctrl+Enter
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+              </div>
+            )}
           </button>
           
           {guidedProject ? (
@@ -832,7 +935,12 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
             <span className="text-sm font-semibold">{selectedLanguage.toUpperCase()} Code</span>
           </div>
           <div className="flex-1 overflow-auto">
-            <CodeEditorWithLineNumbers />
+            <MonacoEditor
+              language={selectedLanguage}
+              value={code}
+              onChange={handleCodeChange}
+              theme="vs-dark"
+            />
           </div>
           {guidedProject && (
             <GuidedStepPopup
@@ -855,6 +963,29 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
             <pre className="flex-1 bg-gray-900 p-3 rounded-md overflow-auto text-sm text-gray-200">
               {isPyodideLoading && selectedLanguage === 'python' ? 'Loading Python runtime (Pyodide)...' : output}
             </pre>
+            
+            {/* Interactive Input Field */}
+            {isWaitingForInput && (
+              <form onSubmit={handleInputSubmit} className="mt-3 flex items-center space-x-2">
+                <span className="text-green-400 font-mono">$</span>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm"
+                  placeholder="Enter your input..."
+                  ref={inputRef}
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                >
+                  Enter
+                </button>
+              </form>
+            )}
+            
             {executionStatus === 'error' && output.startsWith('❌') && (
               <button
                 onClick={handleTranslateError}
