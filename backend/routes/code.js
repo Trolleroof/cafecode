@@ -11,7 +11,8 @@ const analysisSchema = Joi.object({
     'html', 'css', 'typescript'
   ).required(),
   error_message: Joi.string().max(1000).optional(),
-  context: Joi.string().max(500).optional()
+  context: Joi.string().max(500).optional(),
+  projectFiles: Joi.array().items(Joi.object()).optional()
 });
 
 const fixSchema = Joi.object({
@@ -21,7 +22,8 @@ const fixSchema = Joi.object({
     'html', 'css', 'typescript'
   ).required(),
   error_message: Joi.string().min(1).max(1000).required(),
-  line_number: Joi.number().integer().min(1).optional()
+  line_number: Joi.number().integer().min(1).optional(),
+  projectFiles: Joi.array().items(Joi.object()).optional()
 });
 
 // Middleware to validate request body
@@ -164,7 +166,8 @@ router.get('/docs', (req, res) => {
           code: 'string (required) - The code to analyze',
           language: 'string (required) - Programming language (python, javascript, java, cpp, c, html, css, typescript)',
           error_message: 'string (optional) - Error message if available',
-          context: 'string (optional) - Additional context about the code'
+          context: 'string (optional) - Additional context about the code',
+          projectFiles: 'array (optional) - Array of project files for context'
         }
       },
       fix: {
@@ -175,7 +178,8 @@ router.get('/docs', (req, res) => {
           code: 'string (required) - The code to fix',
           language: 'string (required) - Programming language',
           error_message: 'string (required) - The error message to fix',
-          line_number: 'number (optional) - Line number where error occurs'
+          line_number: 'number (optional) - Line number where error occurs',
+          projectFiles: 'array (optional) - Array of project files for context'
         }
       },
       health: {

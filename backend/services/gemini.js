@@ -47,7 +47,33 @@ class GeminiService {
     }
   }
 
-  createAnalysisPrompt(code, language, errorMessage = null, context = null) {
+  // Helper function to create project context from files
+  createProjectContext(projectFiles) {
+    if (!projectFiles || !Array.isArray(projectFiles)) {
+      return '';
+    }
+
+    const formatFiles = (files, indent = 0) => {
+      return files.map(file => {
+        const prefix = '  '.repeat(indent);
+        if (file.type === 'folder') {
+          const children = file.children ? formatFiles(file.children, indent + 1) : [];
+          return `${prefix}📁 ${file.name}/\n${children.join('')}`;
+        } else {
+          const preview = file.content ? 
+            (file.content.length > 200 ? file.content.substring(0, 200) + '...' : file.content) : 
+            '[empty]';
+          return `${prefix}📄 ${file.name} (${file.language || 'unknown'})\n${prefix}   Content: ${preview}\n`;
+        }
+      }).join('');
+    };
+
+    return `\n\nProject Context - Available Files:\n${formatFiles(projectFiles)}`;
+  }
+
+  createAnalysisPrompt(code, language, errorMessage = null, context = null, projectFiles = null) {
+    const projectContext = this.createProjectContext(projectFiles);
+    
     return `
 You are an expert code analyzer. Analyze the following ${language} code and provide a comprehensive analysis.
 
@@ -58,6 +84,7 @@ ${code}
 
 ${errorMessage ? `Error message: ${errorMessage}` : ''}
 ${context ? `Context: ${context}` : ''}
+${projectContext}
 
 Please provide your analysis in the following JSON format:
 {
@@ -96,12 +123,15 @@ Focus on:
 4. Code style and best practices
 5. Security vulnerabilities
 6. Readability improvements
+7. Integration with other project files (if relevant)
 
 Be specific about line numbers when possible and provide actionable suggestions.
 `;
   }
 
-  createFixPrompt(code, language, errorMessage, lineNumber = null) {
+  createFixPrompt(code, language, errorMessage, lineNumber = null, projectFiles = null) {
+    const projectContext = this.createProjectContext(projectFiles);
+    
     return `
 You are an expert code fixer. Fix the following ${language} code that has an error.
 
@@ -112,6 +142,7 @@ ${code}
 
 Error message: ${errorMessage}
 ${lineNumber ? `Error occurs at line: ${lineNumber}` : ''}
+${projectContext}
 
 Please provide your fix in the following JSON format:
 {
@@ -135,10 +166,13 @@ Requirements:
 4. Provide clear explanations for each change
 5. Ensure the fixed code follows best practices
 6. Maintain proper formatting and indentation
+7. Consider how this code integrates with other project files
 `;
   }
 
-  createHintPrompt(code, language, stepInstruction = null, lineRanges = null, stepId = null) {
+  createHintPrompt(code, language, stepInstruction = null, lineRanges = null, stepId = null, projectFiles = null) {
+    const projectContext = this.createProjectContext(projectFiles);
+    
     const stepContext = stepInstruction && lineRanges && stepId 
       ? `Your goal is to help a beginner programmer complete a specific step in a guided project.
 
@@ -150,7 +184,8 @@ Hinting Logic:
 1. Analyze the user's code against the Current Step Information.
 2. If the code correctly implements the step's instructions, your hint should be a confirmation message, like "Looks like you've got it! Your variables are declared correctly. You can click 'Check Step' to verify and move on."
 3. If the code is incorrect or incomplete for the current step, provide a small, actionable hint to guide the user toward the correct solution for THIS STEP ONLY.
-4. DO NOT give hints about future steps (like getting user input) or general best practices that are not relevant to the current instruction. Your entire focus is on the current step.`
+4. DO NOT give hints about future steps (like getting user input) or general best practices that are not relevant to the current instruction. Your entire focus is on the current step.
+5. Consider the project context and other files when providing hints.`
       : 'You are an expert programming assistant. Provide a general, helpful hint for the following code.';
 
     return `
@@ -160,6 +195,8 @@ Code:
 \`\`\`${language}
 ${code}
 \`\`\`
+
+${projectContext}
 
 Please provide your hint in the following JSON format:
 {
@@ -173,6 +210,7 @@ Requirements for hints:
 - Keep the hint concise and actionable in simple terms.
 - Avoid directly giving the solution.
 - Focus ONLY on the current step if one is provided.
+- Consider the broader project context when relevant.
 `;
   }
 
@@ -231,7 +269,8 @@ Requirements for hints:
         request.code,
         request.language,
         request.error_message,
-        request.context
+        request.context,
+        request.projectFiles
       );
 
       const result = await this.model.generateContent(prompt);
@@ -289,7 +328,8 @@ Requirements for hints:
         request.code,
         request.language,
         request.error_message,
-        request.line_number
+        request.line_number,
+        request.projectFiles
       );
 
       const result = await this.model.generateContent(prompt);
@@ -328,17 +368,21 @@ Requirements for hints:
     }
   }
 
-  async translateText(text, targetLanguage = 'English') {
+  async translateText(text, projectFiles = null, targetLanguage = 'English') {
     try {
       if (!this.isInitialized) {
         throw new Error('Gemini service not initialized');
       }
+
+      const projectContext = this.createProjectContext(projectFiles);
 
       const prompt = `
 You are an expert programming assistant. Your task is to translate programming error messages into plain, easy-to-understand English for beginners, and provide actionable suggestions for fixing them. Ensure the output is directly usable and well-structured, without any markdown formatting that might interfere with client-side rendering (e.g., no bolding with **).
 
 Error message:
 ${text}
+
+${projectContext}
 
 Please provide your response in the following JSON format:
 {
@@ -363,6 +407,7 @@ Requirements:
 5.  Keep the explanation concise but informative.
 6.  Focus on helping beginners understand and fix the error efficiently.
 7.  Crucially, ensure the \`translated_text\` field contains plain text without any markdown characters (like \`**\` for bolding), as the frontend will handle formatting.
+8.  Consider the project context when providing suggestions.
 `;
 
       const result = await this.model.generateContent(prompt);
@@ -375,7 +420,6 @@ Requirements:
 
       const cleanResponse = this.extractJsonFromResponse(responseText);
       const translationData = this.robustJsonParse(cleanResponse);
-      const executionTime = (Date.now() - startTime) / 1000;
 
       return {
         success: true,
@@ -408,7 +452,8 @@ Requirements:
         request.language,
         request.stepInstruction,
         request.lineRanges,
-        request.stepId
+        request.stepId,
+        request.projectFiles
       );
 
       const result = await this.model.generateContent(prompt);

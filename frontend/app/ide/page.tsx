@@ -332,6 +332,21 @@ export default function IDEPage() {
     setOutput('');
   };
 
+  // Helper function to serialize files for AI context
+  const serializeFilesForAI = (files: FileNode[]): any[] => {
+    const serialize = (nodes: FileNode[]): any[] => {
+      return nodes.map(node => ({
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        content: node.type === 'file' ? node.content : undefined,
+        language: node.language,
+        children: node.children ? serialize(node.children) : undefined
+      }));
+    };
+    return serialize(files);
+  };
+
   const executeJavaScript = (code: string) => {
     const logs: string[] = [];
     const errors: string[] = [];
@@ -623,7 +638,10 @@ export default function IDEPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: errorMessage }),
+        body: JSON.stringify({ 
+          text: errorMessage,
+          projectFiles: serializeFilesForAI(files)
+        }),
       });
 
       const result = await response.json();
@@ -684,6 +702,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
             projectId: guidedProject.projectId,
             currentStep: guidedProject.currentStep,
             history: [...chatMessages, userMessage],
+            projectFiles: serializeFilesForAI(files),
           }),
         });
         const data = await response.json();
@@ -705,6 +724,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             history: [...chatMessages, userMessage],
+            projectFiles: serializeFilesForAI(files),
           }),
         });
         const data = await response.json();
@@ -749,7 +769,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           language: selectedFile?.language || 'javascript',
           stepInstruction: currentStep.instruction,
           lineRanges: currentStep.lineRanges,
-          stepId: currentStep.id
+          stepId: currentStep.id,
+          projectFiles: serializeFilesForAI(files)
         }),
       });
 
@@ -812,7 +833,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         body: JSON.stringify({
           code: selectedFile?.content || '',
           language: selectedFile?.language || 'javascript',
-          context: 'IDE analysis for fix suggestion'
+          context: 'IDE analysis for fix suggestion',
+          projectFiles: serializeFilesForAI(files)
         }),
       });
 
@@ -841,7 +863,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           code: selectedFile?.content || '',
           language: selectedFile?.language || 'javascript',
           error_message: firstError.message,
-          line_number: firstError.line_number
+          line_number: firstError.line_number,
+          projectFiles: serializeFilesForAI(files)
         }),
       });
 
@@ -899,7 +922,10 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
       const response = await fetch('http://localhost:8000/api/guided/startProject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectDescription: description })
+        body: JSON.stringify({ 
+          projectDescription: description,
+          projectFiles: serializeFilesForAI(files)
+        })
       });
 
       if (!response.ok) {
@@ -936,7 +962,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           projectId: guidedProject.projectId,
           stepId: guidedProject.steps[guidedProject.currentStep].id,
           code: selectedFile?.content || '',
-          language: selectedFile?.language || 'javascript'
+          language: selectedFile?.language || 'javascript',
+          projectFiles: serializeFilesForAI(files)
         })
       });
 
