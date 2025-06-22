@@ -1,3 +1,5 @@
+const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -29,6 +31,14 @@ const nextConfig = {
         https: false,
         zlib: false,
       };
+    }
+
+    // Monaco Editor webpack plugin setup
+    if (!isServer) {
+      config.plugins.push(new MonacoWebpackPlugin({
+        languages: ['javascript', 'python', 'html', 'css', 'json'],
+        filename: 'static/[name].worker.js',
+      }));
     }
 
     return config;
