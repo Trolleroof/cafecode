@@ -311,25 +311,27 @@ export default function FileExplorer({
             </div>
           </div>
         ) : (
-          files.map((file) => (
-            <FileTreeNode
-              key={file.id}
-              node={file}
-              level={0}
-              onSelect={onFileSelect}
-              onDelete={onFileDelete}
-              onFileMove={onFileMove}
-              selectedFileId={selectedFileId}
-              onCreateFile={handleCreateFile}
-              onCreateFolder={handleCreateFolder}
-            />
-          ))
-        )}
-        
-        {isDragOver && files.length > 0 && (
-          <div className="p-4 text-center text-green-400 text-sm">
-            Drop here to move to root folder
-          </div>
+          <>
+            {files.map((file) => (
+              <FileTreeNode
+                key={file.id}
+                node={file}
+                level={0}
+                onSelect={onFileSelect}
+                onDelete={onFileDelete}
+                onFileMove={onFileMove}
+                selectedFileId={selectedFileId}
+                onCreateFile={handleCreateFile}
+                onCreateFolder={handleCreateFolder}
+              />
+            ))}
+            
+            {isDragOver && (
+              <div className="p-4 text-center text-green-400 text-sm">
+                Drop here to move to root folder
+              </div>
+            )}
+          </>
         )}
       </div>
 
