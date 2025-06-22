@@ -1026,8 +1026,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
     const jsFile = files.find(f => f.name.endsWith('.js'));
     
     return {
-      css: cssFile?.content || '',
-      js: jsFile?.content || ''
+      cssContent: cssFile?.content || '',
+      jsContent: jsFile?.content || ''
     };
   };
 
