@@ -317,11 +317,11 @@ export default function FileExplorer({
               node={file}
               level={0}
               onSelect={onFileSelect}
-              onDelete={onDelete}
+              onDelete={onFileDelete}
               onFileMove={onFileMove}
               selectedFileId={selectedFileId}
               onCreateFile={handleCreateFile}
-              onCreateFolder={onCreateFolder}
+              onCreateFolder={handleCreateFolder}
             />
           ))
         )}
