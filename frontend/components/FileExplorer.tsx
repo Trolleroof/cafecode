@@ -73,7 +73,6 @@ const FileTreeNode: React.FC<{
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Only remove drag over state if we're actually leaving this element
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragOver(false);
     }
@@ -191,14 +190,12 @@ export default function FileExplorer({
   const [createType, setCreateType] = useState<'file' | 'folder'>('file');
   const [createParentId, setCreateParentId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
-  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleCreate = () => {
     if (newName.trim()) {
-      // Add appropriate extension for files if not provided
       let finalName = newName.trim();
       if (createType === 'file' && !finalName.includes('.')) {
-        finalName += '.js'; // Default to JavaScript file
+        finalName += '.js';
       }
       
       onFileCreate(createParentId, createType, finalName);
@@ -221,24 +218,8 @@ export default function FileExplorer({
     setShowCreateDialog(true);
   };
 
-  // Root drop area handlers
-  const handleRootDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setIsDragOver(true);
-  };
-
-  const handleRootDragLeave = (e: React.DragEvent) => {
-    // Only remove drag over state if we're actually leaving the root area
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDragOver(false);
-    }
-  };
-
   const handleRootDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(false);
-    
     const draggedId = e.dataTransfer.getData('text/plain');
     if (draggedId) {
       onFileMove(draggedId, null);
@@ -284,11 +265,8 @@ export default function FileExplorer({
       </div>
       
       <div 
-        className={`overflow-y-auto h-full transition-colors ${
-          isDragOver ? 'bg-green-600/10 border-2 border-green-500 border-dashed' : ''
-        }`}
-        onDragOver={handleRootDragOver}
-        onDragLeave={handleRootDragLeave}
+        className="overflow-y-auto h-full"
+        onDragOver={(e) => e.preventDefault()}
         onDrop={handleRootDrop}
       >
         {files.length === 0 ? (
@@ -311,27 +289,19 @@ export default function FileExplorer({
             </div>
           </div>
         ) : (
-          <>
-            {files.map((file) => (
-              <FileTreeNode
-                key={file.id}
-                node={file}
-                level={0}
-                onSelect={onFileSelect}
-                onDelete={onFileDelete}
-                onFileMove={onFileMove}
-                selectedFileId={selectedFileId}
-                onCreateFile={handleCreateFile}
-                onCreateFolder={handleCreateFolder}
-              />
-            ))}
-            
-            {isDragOver && (
-              <div className="p-4 text-center text-green-400 text-sm">
-                Drop here to move to root folder
-              </div>
-            )}
-          </>
+          files.map((file) => (
+            <FileTreeNode
+              key={file.id}
+              node={file}
+              level={0}
+              onSelect={onFileSelect}
+              onDelete={onFileDelete}
+              onFileMove={onFileMove}
+              selectedFileId={selectedFileId}
+              onCreateFile={handleCreateFile}
+              onCreateFolder={handleCreateFolder}
+            />
+          ))
         )}
       </div>
 
@@ -358,7 +328,6 @@ export default function FileExplorer({
               autoFocus
             />
             
-            {/* Quick suggestions */}
             <div className="mb-4">
               <p className="text-gray-400 text-sm mb-2">Quick suggestions:</p>
               <div className="flex flex-wrap gap-2">
