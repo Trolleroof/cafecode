@@ -96,11 +96,21 @@ button:hover {
     name: 'script.js',
     type: 'file',
     content: `function greet() {
+    console.log('Button clicked!');
     alert('Hello from JavaScript!');
+    console.log('Alert shown successfully');
 }
 
 // Add more JavaScript functionality here
-console.log('Script loaded successfully!');`,
+console.log('Script loaded successfully!');
+
+// Example of different console methods
+console.warn('This is a warning message');
+console.error('This is an error message for testing');
+
+// Example with objects
+const user = { name: 'John', age: 30 };
+console.log('User object:', user);`,
     language: 'javascript'
   },
   {
@@ -531,8 +541,12 @@ export default function IDEPage() {
     const jsFile = files.find(f => f.name.endsWith('.js'));
     
     setShowPreview(true);
-    setOutput('🌐 HTML preview is now displayed in the preview panel');
+    setOutput('🌐 HTML preview is now displayed in the preview panel\n📝 Console logs from the preview will appear here:');
     setExecutionStatus('success');
+  };
+
+  const handleConsoleLogFromIframe = (message: string) => {
+    setOutput(prev => prev + '\n' + message);
   };
 
   const handleRunFile = async (file: FileNode) => {
@@ -1108,6 +1122,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
             {showPreview && selectedFile?.name.endsWith('.html') ? (
               <HTMLPreview 
                 htmlContent={selectedFile.content || ''} 
+                onConsoleLog={handleConsoleLogFromIframe}
                 {...getRelatedFiles()}
               />
             ) : selectedFile ? (

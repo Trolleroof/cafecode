@@ -6,9 +6,10 @@ interface HTMLPreviewProps {
   htmlContent: string;
   cssContent?: string;
   jsContent?: string;
+  onConsoleLog?: (message: string) => void;
 }
 
-export default function HTMLPreview({ htmlContent, cssContent, jsContent }: HTMLPreviewProps) {
+export default function HTMLPreview({ htmlContent, cssContent, jsContent, onConsoleLog }: HTMLPreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
@@ -26,11 +27,63 @@ export default function HTMLPreview({ htmlContent, cssContent, jsContent }: HTML
           );
         }
         
-        // Inject JavaScript if provided
-        if (jsContent) {
+        // Inject console log capture script and user JavaScript
+        if (jsContent || onConsoleLog) {
+          const consoleScript = onConsoleLog ? `
+            // Override console.log to capture messages
+            (function() {
+              const originalLog = console.log;
+              const originalError = console.error;
+              const originalWarn = console.warn;
+              
+              console.log = function(...args) {
+                originalLog.apply(console, args);
+                const message = args.map(arg => 
+                  typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ');
+                window.parent.postMessage({
+                  type: 'console.log',
+                  message: message
+                }, '*');
+              };
+              
+              console.error = function(...args) {
+                originalError.apply(console, args);
+                const message = args.map(arg => 
+                  typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ');
+                window.parent.postMessage({
+                  type: 'console.error',
+                  message: message
+                }, '*');
+              };
+              
+              console.warn = function(...args) {
+                originalWarn.apply(console, args);
+                const message = args.map(arg => 
+                  typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ');
+                window.parent.postMessage({
+                  type: 'console.warn',
+                  message: message
+                }, '*');
+              };
+              
+              // Capture uncaught errors
+              window.addEventListener('error', function(event) {
+                window.parent.postMessage({
+                  type: 'console.error',
+                  message: 'Uncaught Error: ' + event.message + ' at line ' + event.lineno
+                }, '*');
+              });
+            })();
+          ` : '';
+          
+          const fullScript = consoleScript + (jsContent || '');
+          
           styledHtml = styledHtml.replace(
             '</body>',
-            `<script>${jsContent}</script></body>`
+            `<script>${fullScript}</script></body>`
           );
         }
         
@@ -39,7 +92,28 @@ export default function HTMLPreview({ htmlContent, cssContent, jsContent }: HTML
         doc.close();
       }
     }
-  }, [htmlContent, cssContent, jsContent]);
+  }, [htmlContent, cssContent, jsContent, onConsoleLog]);
+
+  // Set up message listener for console logs from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type && onConsoleLog) {
+        const { type, message } = event.data;
+        if (type === 'console.log') {
+          onConsoleLog(`[HTML Console]: ${message}`);
+        } else if (type === 'console.error') {
+          onConsoleLog(`[HTML Error]: ${message}`);
+        } else if (type === 'console.warn') {
+          onConsoleLog(`[HTML Warning]: ${message}`);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [onConsoleLog]);
 
   return (
     <div className="h-full bg-white">
