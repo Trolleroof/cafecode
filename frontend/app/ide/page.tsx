@@ -1,29 +1,126 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2, BookOpen, X } from 'lucide-react';
+import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2, BookOpen, X, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import MonacoEditor from '@/components/MonacoEditor';
 import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
 import GuidedStepPopup from '@/components/GuidedStepPopup';
 import TypingIndicator from '@/components/TypingIndicator';
+import FileExplorer from '@/components/FileExplorer';
+import RunDropdown from '@/components/RunDropdown';
+import HTMLPreview from '@/components/HTMLPreview';
+
+interface FileNode {
+  id: string;
+  name: string;
+  type: 'file' | 'folder';
+  content?: string;
+  children?: FileNode[];
+  language?: string;
+}
 
 const supportedLanguages = [
   { id: 'javascript', name: 'JavaScript', extension: '.js' },
   { id: 'python', name: 'Python', extension: '.py' },
-  { id: 'html', name: 'HTML', extension: '.html' }
+  { id: 'html', name: 'HTML', extension: '.html' },
+  { id: 'css', name: 'CSS', extension: '.css' }
 ];
 
-const defaultCode = {
-  javascript: `// Your first JavaScript function`,
+const defaultFiles: FileNode[] = [
+  {
+    id: '1',
+    name: 'index.html',
+    type: 'file',
+    content: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Project</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to My Project</h1>
+        <p>This is a sample HTML file. Edit me to get started!</p>
+        <button onclick="greet()">Click Me</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>`,
+    language: 'html'
+  },
+  {
+    id: '2',
+    name: 'style.css',
+    type: 'file',
+    content: `body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+}
 
-  python: `# Your first Python function`,
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
 
-  html: `<!Insert HTML Here>
-<html>
+h1 {
+    color: #333;
+    text-align: center;
+}
 
-</html>`
-};
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #0056b3;
+}`,
+    language: 'css'
+  },
+  {
+    id: '3',
+    name: 'script.js',
+    type: 'file',
+    content: `function greet() {
+    alert('Hello from JavaScript!');
+}
+
+// Add more JavaScript functionality here
+console.log('Script loaded successfully!');`,
+    language: 'javascript'
+  },
+  {
+    id: '4',
+    name: 'main.py',
+    type: 'file',
+    content: `# Python script example
+def greet(name):
+    return f"Hello, {name}!"
+
+def main():
+    name = input("Enter your name: ")
+    message = greet(name)
+    print(message)
+
+if __name__ == "__main__":
+    main()`,
+    language: 'python'
+  }
+];
 
 type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
 
@@ -45,8 +142,8 @@ interface ChatMessage {
 }
 
 export default function IDEPage() {
-  const [selectedLanguage, setSelectedLanguage] = useState(supportedLanguages[0].id);
-  const [code, setCode] = useState(defaultCode.javascript);
+  const [files, setFiles] = useState<FileNode[]>(defaultFiles);
+  const [selectedFile, setSelectedFile] = useState<FileNode | null>(defaultFiles[0]);
   const [pyodide, setPyodide] = useState<any>(null);
   const [isPyodideLoading, setIsPyodideLoading] = useState(true);
   const router = useRouter();
@@ -70,6 +167,7 @@ export default function IDEPage() {
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const [showRunTooltip, setShowRunTooltip] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   
   // Interactive input state
   const [isWaitingForInput, setIsWaitingForInput] = useState(false);
@@ -119,29 +217,109 @@ export default function IDEPage() {
     initPyodide();
   }, []);
 
-  const handleLanguageChange = (langId: string) => {
-    setSelectedLanguage(langId);
-    setCode(defaultCode[langId as keyof typeof defaultCode]);
-    setExecutionStatus('idle');
-    setOutput('');
-    setHintedLine(null);
-    setHighlightedLine(null);
-    
-    // Reset input state when changing languages
-    setIsWaitingForInput(false);
-    setInputPrompt('');
-    setInputValue('');
-    setPendingInputs([]);
-    setCurrentPythonCode('');
+  const getLanguageFromFileName = (fileName: string): string => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'js':
+        return 'javascript';
+      case 'py':
+        return 'python';
+      case 'html':
+        return 'html';
+      case 'css':
+        return 'css';
+      default:
+        return 'javascript';
+    }
   };
 
-  // Cleanup function for input state
-  const resetInputState = () => {
-    setIsWaitingForInput(false);
-    setInputPrompt('');
-    setInputValue('');
-    setPendingInputs([]);
-    setCurrentPythonCode('');
+  const handleFileSelect = (file: FileNode) => {
+    setSelectedFile(file);
+    setShowPreview(false);
+  };
+
+  const handleFileCreate = (parentId: string | null, type: 'file' | 'folder', name: string) => {
+    const newFile: FileNode = {
+      id: Date.now().toString(),
+      name,
+      type,
+      content: type === 'file' ? '' : undefined,
+      children: type === 'folder' ? [] : undefined,
+      language: type === 'file' ? getLanguageFromFileName(name) : undefined
+    };
+
+    if (parentId) {
+      // Add to specific folder
+      const updateFiles = (nodes: FileNode[]): FileNode[] => {
+        return nodes.map(node => {
+          if (node.id === parentId && node.type === 'folder') {
+            return {
+              ...node,
+              children: [...(node.children || []), newFile]
+            };
+          } else if (node.children) {
+            return {
+              ...node,
+              children: updateFiles(node.children)
+            };
+          }
+          return node;
+        });
+      };
+      setFiles(updateFiles(files));
+    } else {
+      // Add to root
+      setFiles([...files, newFile]);
+    }
+
+    if (type === 'file') {
+      setSelectedFile(newFile);
+    }
+  };
+
+  const handleFileDelete = (fileId: string) => {
+    const deleteFromFiles = (nodes: FileNode[]): FileNode[] => {
+      return nodes.filter(node => {
+        if (node.id === fileId) {
+          return false;
+        }
+        if (node.children) {
+          node.children = deleteFromFiles(node.children);
+        }
+        return true;
+      });
+    };
+
+    setFiles(deleteFromFiles(files));
+    if (selectedFile?.id === fileId) {
+      setSelectedFile(files[0] || null);
+    }
+  };
+
+  const handleCodeChange = (value: string | undefined) => {
+    if (selectedFile) {
+      const newCode = value || '';
+      const updatedFile = { ...selectedFile, content: newCode };
+      setSelectedFile(updatedFile);
+      
+      // Update in files array
+      const updateFiles = (nodes: FileNode[]): FileNode[] => {
+        return nodes.map(node => {
+          if (node.id === selectedFile.id) {
+            return updatedFile;
+          } else if (node.children) {
+            return {
+              ...node,
+              children: updateFiles(node.children)
+            };
+          }
+          return node;
+        });
+      };
+      setFiles(updateFiles(files));
+    }
+    setExecutionStatus('idle');
+    setOutput('');
   };
 
   const executeJavaScript = (code: string) => {
@@ -347,62 +525,38 @@ export default function IDEPage() {
     }
   };
 
-  const executeHTML = (code: string) => {
-    // For HTML, we'll show a preview message and extract any console.log statements
-    const logs: string[] = [];
+  const executeHTML = (file: FileNode) => {
+    // Find related CSS and JS files
+    const cssFile = files.find(f => f.name.endsWith('.css'));
+    const jsFile = files.find(f => f.name.endsWith('.js'));
     
-    // Extract JavaScript from script tags
-    const scriptMatches = code.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
-    if (scriptMatches) {
-      scriptMatches.forEach(script => {
-        const jsCode = script.replace(/<script[^>]*>|<\/script>/gi, '');
-        const consoleMatches = jsCode.match(/console\.log\([^)]+\)/g);
-        if (consoleMatches) {
-          consoleMatches.forEach(logStatement => {
-            const content = logStatement.match(/console\.log\(["']([^"']+)["']\)/);
-            if (content) {
-              logs.push(content[1]);
-            }
-          });
-        }
-      });
-    }
-    
-    let output = '🌐 HTML page would be rendered in browser\n';
-    if (logs.length > 0) {
-      output += '📝 Console output:\n' + logs.join('\n');
-    }
-    
-    return output;
+    setShowPreview(true);
+    setOutput('🌐 HTML preview is now displayed in the preview panel');
+    setExecutionStatus('success');
   };
 
-  const handleCodeChange = (value: string | undefined) => {
-    const newCode = value || '';
-    setCode(newCode);
-    setExecutionStatus('idle');
-    setOutput('');
-  };
-
-  const handleRunCode = async () => {
+  const handleRunFile = async (file: FileNode) => {
     setExecutionStatus('running');
     setIsRunning(true);
-    setOutput('🚀 Running code...\n');
+    setOutput('🚀 Running ' + file.name + '...\n');
     
     let result = '';
 
     try {
-      switch (selectedLanguage) {
-        case 'javascript':
-          result = executeJavaScript(code);
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      
+      switch (extension) {
+        case 'js':
+          result = executeJavaScript(file.content || '');
           break;
-        case 'python':
-          result = await executePython(code);
+        case 'py':
+          result = await executePython(file.content || '');
           break;
         case 'html':
-          result = executeHTML(code);
-          break;
+          executeHTML(file);
+          return; // Early return for HTML
         default:
-          result = `${selectedLanguage} execution not implemented yet`;
+          result = `${extension} execution not implemented yet`;
       }
       
       setOutput(result);
@@ -420,9 +574,8 @@ export default function IDEPage() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault();
-        console.log("hello")
-        if (!isRunning && !isPyodideLoading) {
-          handleRunCode();
+        if (!isRunning && !isPyodideLoading && selectedFile) {
+          handleRunFile(selectedFile);
         }
       }
     };
@@ -431,12 +584,16 @@ export default function IDEPage() {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isRunning, isPyodideLoading, handleRunCode]);
+  }, [isRunning, isPyodideLoading, selectedFile]);
 
   // Cleanup input state on unmount
   useEffect(() => {
     return () => {
-      resetInputState();
+      setIsWaitingForInput(false);
+      setInputPrompt('');
+      setInputValue('');
+      setPendingInputs([]);
+      setCurrentPythonCode('');
     };
   }, []);
 
@@ -506,7 +663,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
 
     if (guidedProject) {
       try {
-        const response = await fetch('http://localhost:8000/api/guided/chat', {
+        const response = await fetch('http://localhost:8000/api/guided/project-chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -574,8 +731,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          code: code,
-          language: selectedLanguage,
+          code: selectedFile?.content || '',
+          language: selectedFile?.language || 'javascript',
           stepInstruction: currentStep.instruction,
           lineRanges: currentStep.lineRanges,
           stepId: currentStep.id
@@ -639,8 +796,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: code,
-          language: selectedLanguage,
+          code: selectedFile?.content || '',
+          language: selectedFile?.language || 'javascript',
           context: 'IDE analysis for fix suggestion'
         }),
       });
@@ -667,8 +824,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: code,
-          language: selectedLanguage,
+          code: selectedFile?.content || '',
+          language: selectedFile?.language || 'javascript',
           error_message: firstError.message,
           line_number: firstError.line_number
         }),
@@ -687,7 +844,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           content:
             '💡 Here is a suggested fix for your code:\n\n' +
             (fixResult.fixed_code
-              ? `\`\`\`${selectedLanguage}\n${fixResult.fixed_code}\n\`\`\`\n`
+              ? `\`\`\`${selectedFile?.language}\n${fixResult.fixed_code}\n\`\`\`\n`
               : '') +
             (fixResult.explanation
               ? `**Explanation:**\n${fixResult.explanation}`
@@ -700,7 +857,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           type: 'assistant',
           content:
             '💡 Here is a suggested fix for your code:\n\n' +
-            `\`\`\`${selectedLanguage}\n${fixResult.code}\n\`\`\`\n` +
+            `\`\`\`${selectedFile?.language}\n${fixResult.code}\n\`\`\`\n` +
             (fixResult.explanation
               ? `**Explanation:**\n${fixResult.explanation}`
               : '')
@@ -764,8 +921,8 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         body: JSON.stringify({
           projectId: guidedProject.projectId,
           stepId: guidedProject.steps[guidedProject.currentStep].id,
-          code,
-          language: selectedLanguage
+          code: selectedFile?.content || '',
+          language: selectedFile?.language || 'javascript'
         })
       });
 
@@ -860,12 +1017,26 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
     setChatMessages(prev => [...prev, exitMessage]);
   };
 
+  const getRelatedFiles = () => {
+    if (!selectedFile || selectedFile.name.split('.').pop()?.toLowerCase() !== 'html') {
+      return {};
+    }
+    
+    const cssFile = files.find(f => f.name.endsWith('.css'));
+    const jsFile = files.find(f => f.name.endsWith('.js'));
+    
+    return {
+      css: cssFile?.content || '',
+      js: jsFile?.content || ''
+    };
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white">
       {/* Top Bar */}
       <div className="flex items-center justify-between py-2 px-4 bg-gray-800 shadow-md">
         <div className="flex items-center space-x-4">
-          <h1 className="text-xl font-bold text-blue-400">Bolt IDE</h1>
+          <h1 className="text-xl font-bold text-blue-400">CodeCraft IDE</h1>
           {guidedProject && (
             <div className="flex items-center space-x-2 bg-gray-700 px-3 py-1 rounded-md">
               <span className="text-sm text-gray-300">Step {guidedProject.currentStep + 1} of {guidedProject.steps.length}</span>
@@ -879,33 +1050,11 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           )}
         </div>
         <div className="flex items-center space-x-4">
-          <select
-            value={selectedLanguage}
-            onChange={(e) => handleLanguageChange(e.target.value)}
-            className="px-3 py-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {supportedLanguages.map((lang) => (
-              <option key={lang.id} value={lang.id}>
-                {lang.name}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={handleRunCode}
-            onMouseEnter={() => setShowRunTooltip(true)}
-            onMouseLeave={() => setShowRunTooltip(false)}
-            className="relative flex items-center px-4 py-2 bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-            disabled={isRunning || isPyodideLoading}
-          >
-            {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-            Run
-            {showRunTooltip && (
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
-                Ctrl+Enter
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-              </div>
-            )}
-          </button>
+          <RunDropdown 
+            files={files} 
+            onRunFile={handleRunFile} 
+            isRunning={isRunning || isPyodideLoading} 
+          />
           
           {guidedProject ? (
             <button
@@ -929,18 +1078,53 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
+        {/* File Explorer */}
+        <div className="w-64 border-r border-gray-700">
+          <FileExplorer
+            files={files}
+            onFileSelect={handleFileSelect}
+            onFileCreate={handleFileCreate}
+            onFileDelete={handleFileDelete}
+            selectedFileId={selectedFile?.id || null}
+          />
+        </div>
+
         {/* Code Editor */}
         <div className="flex-1 flex flex-col bg-gray-850 border-r border-gray-700 h-full relative">
           <div className="flex justify-between items-center py-1 px-2 bg-gray-700">
-            <span className="text-sm font-semibold">{selectedLanguage.toUpperCase()} Code</span>
+            <span className="text-sm font-semibold">
+              {selectedFile ? selectedFile.name : 'No file selected'}
+            </span>
+            {showPreview && (
+              <button
+                onClick={() => setShowPreview(false)}
+                className="text-sm px-2 py-1 bg-gray-600 rounded hover:bg-gray-500"
+              >
+                Show Code
+              </button>
+            )}
           </div>
           <div className="flex-1 overflow-auto">
-            <MonacoEditor
-              language={selectedLanguage}
-              value={code}
-              onChange={handleCodeChange}
-              theme="vs-dark"
-            />
+            {showPreview && selectedFile?.name.endsWith('.html') ? (
+              <HTMLPreview 
+                htmlContent={selectedFile.content || ''} 
+                {...getRelatedFiles()}
+              />
+            ) : selectedFile ? (
+              <MonacoEditor
+                language={selectedFile.language || 'javascript'}
+                value={selectedFile.content || ''}
+                onChange={handleCodeChange}
+                theme="vs-dark"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400">
+                <div className="text-center">
+                  <Code2 className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p>Select a file to start coding</p>
+                </div>
+              </div>
+            )}
           </div>
           {guidedProject && (
             <GuidedStepPopup
@@ -961,7 +1145,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
           <div className="h-[400px] flex flex-col bg-gray-800 p-4 overflow-auto text-sm border-b border-gray-700">
             <h2 className="text-lg font-semibold mb-2">Output</h2>
             <pre className="flex-1 bg-gray-900 p-3 rounded-md overflow-auto text-sm text-gray-200">
-              {isPyodideLoading && selectedLanguage === 'python' ? 'Loading Python runtime (Pyodide)...' : output}
+              {isPyodideLoading && selectedFile?.language === 'python' ? 'Loading Python runtime (Pyodide)...' : output}
             </pre>
             
             {/* Interactive Input Field */}
@@ -1022,12 +1206,12 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
               <button
                 onClick={handleSuggestFix}
                 className={`flex items-center flex-1 px-4 py-2 rounded-md focus:outline-none text-white text-sm justify-center ${
-                  isFixing || code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''
+                  isFixing || !selectedFile?.content?.trim()
                     ? 'bg-gray-500 cursor-not-allowed opacity-50'
                     : 'bg-orange-600 hover:bg-orange-700 focus:ring-2 focus:ring-orange-500'
                 }`}
-                disabled={isFixing || code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''}
-                title={code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === '' ? 'Add some code first to get AI suggestions' : 'Get AI suggestions to fix your code'}
+                disabled={isFixing || !selectedFile?.content?.trim()}
+                title={!selectedFile?.content?.trim() ? 'Add some code first to get AI suggestions' : 'Get AI suggestions to fix your code'}
               >
                 {isFixing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertCircle className="mr-2 h-4 w-4" />}
                 Suggest Fix
@@ -1035,12 +1219,12 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
               <button
                 onClick={handleHint}
                 className={`flex items-center flex-1 px-4 py-2 rounded-md focus:outline-none text-white text-sm justify-center ${
-                  code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''
+                  !selectedFile?.content?.trim()
                     ? 'bg-gray-500 cursor-not-allowed opacity-50'
                     : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-2 focus:ring-yellow-500'
                 }`}
-                disabled={code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''}
-                title={code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === '' ? 'Add some code first to get hints' : 'Get AI hints for your code'}
+                disabled={!selectedFile?.content?.trim()}
+                title={!selectedFile?.content?.trim() ? 'Add some code first to get hints' : 'Get AI hints for your code'}
               >
                 <Lightbulb className="mr-2 h-4 w-4" />
                 Get Hint
