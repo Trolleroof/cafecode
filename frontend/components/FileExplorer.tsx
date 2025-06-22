@@ -17,6 +17,7 @@ interface FileExplorerProps {
   onFileSelect: (file: FileNode) => void;
   onFileCreate: (parentId: string | null, type: 'file' | 'folder', name: string) => void;
   onFileDelete: (fileId: string) => void;
+  onFileMove: (fileId: string, newParentId: string | null) => void;
   selectedFileId: string | null;
 }
 
@@ -41,12 +42,14 @@ const FileTreeNode: React.FC<{
   level: number;
   onSelect: (file: FileNode) => void;
   onDelete: (fileId: string) => void;
+  onFileMove: (fileId: string, newParentId: string | null) => void;
   selectedFileId: string | null;
   onCreateFile: (parentId: string) => void;
   onCreateFolder: (parentId: string) => void;
-}> = ({ node, level, onSelect, onDelete, selectedFileId, onCreateFile, onCreateFolder }) => {
+}> = ({ node, level, onSelect, onDelete, onFileMove, selectedFileId, onCreateFile, onCreateFolder }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [showActions, setShowActions] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleClick = () => {
     if (node.type === 'file') {
@@ -56,16 +59,53 @@ const FileTreeNode: React.FC<{
     }
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', node.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (node.type === 'folder') {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only remove drag over state if we're actually leaving this element
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    if (node.type === 'folder') {
+      const draggedId = e.dataTransfer.getData('text/plain');
+      if (draggedId && draggedId !== node.id) {
+        onFileMove(draggedId, node.id);
+      }
+    }
+  };
+
   return (
     <div>
       <div
-        className={`flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-700 rounded ${
+        className={`flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-700 rounded transition-colors ${
           selectedFileId === node.id ? 'bg-blue-600' : ''
-        }`}
+        } ${isDragOver && node.type === 'folder' ? 'bg-green-600/30 border border-green-500' : ''}`}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={handleClick}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
+        draggable={true}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         {node.type === 'folder' ? (
           isExpanded ? (
@@ -125,6 +165,7 @@ const FileTreeNode: React.FC<{
               level={level + 1}
               onSelect={onSelect}
               onDelete={onDelete}
+              onFileMove={onFileMove}
               selectedFileId={selectedFileId}
               onCreateFile={onCreateFile}
               onCreateFolder={onCreateFolder}
@@ -141,12 +182,14 @@ export default function FileExplorer({
   onFileSelect,
   onFileCreate,
   onFileDelete,
+  onFileMove,
   selectedFileId,
 }: FileExplorerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createType, setCreateType] = useState<'file' | 'folder'>('file');
   const [createParentId, setCreateParentId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleCreate = () => {
     if (newName.trim()) {
@@ -166,6 +209,30 @@ export default function FileExplorer({
     setCreateType('folder');
     setCreateParentId(parentId);
     setShowCreateDialog(true);
+  };
+
+  // Root drop area handlers
+  const handleRootDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setIsDragOver(true);
+  };
+
+  const handleRootDragLeave = (e: React.DragEvent) => {
+    // Only remove drag over state if we're actually leaving the root area
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleRootDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const draggedId = e.dataTransfer.getData('text/plain');
+    if (draggedId) {
+      onFileMove(draggedId, null);
+    }
   };
 
   return (
@@ -190,7 +257,14 @@ export default function FileExplorer({
         </div>
       </div>
       
-      <div className="overflow-y-auto">
+      <div 
+        className={`overflow-y-auto h-full transition-colors ${
+          isDragOver ? 'bg-green-600/10 border-2 border-green-500 border-dashed' : ''
+        }`}
+        onDragOver={handleRootDragOver}
+        onDragLeave={handleRootDragLeave}
+        onDrop={handleRootDrop}
+      >
         {files.map((file) => (
           <FileTreeNode
             key={file.id}
@@ -198,11 +272,18 @@ export default function FileExplorer({
             level={0}
             onSelect={onFileSelect}
             onDelete={onFileDelete}
+            onFileMove={onFileMove}
             selectedFileId={selectedFileId}
             onCreateFile={handleCreateFile}
             onCreateFolder={handleCreateFolder}
           />
         ))}
+        
+        {isDragOver && (
+          <div className="p-4 text-center text-green-400 text-sm">
+            Drop here to move to root folder
+          </div>
+        )}
       </div>
 
       {showCreateDialog && (
