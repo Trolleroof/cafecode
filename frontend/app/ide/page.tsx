@@ -306,6 +306,79 @@ export default function IDEPage() {
     }
   };
 
+  // Helper function to find a node by ID in the file tree
+  const findNodeById = (nodes: FileNode[], id: string): FileNode | null => {
+    for (const node of nodes) {
+      if (node.id === id) {
+        return node;
+      }
+      if (node.children) {
+        const found = findNodeById(node.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Helper function to remove a node by ID from the file tree
+  const removeNodeById = (nodes: FileNode[], id: string): FileNode[] => {
+    return nodes.filter(node => {
+      if (node.id === id) {
+        return false;
+      }
+      if (node.children) {
+        node.children = removeNodeById(node.children, id);
+      }
+      return true;
+    });
+  };
+
+  // Helper function to check if a node is a descendant of another node
+  const isDescendant = (parentId: string, childId: string, nodes: FileNode[]): boolean => {
+    const parent = findNodeById(nodes, parentId);
+    if (!parent || !parent.children) return false;
+    
+    return findNodeById(parent.children, childId) !== null;
+  };
+
+  const handleFileMove = (draggedId: string, targetId: string | null) => {
+    // Prevent moving a file/folder into itself or its descendants
+    if (draggedId === targetId) return;
+    if (targetId && isDescendant(draggedId, targetId, files)) return;
+
+    // Find the dragged node
+    const draggedNode = findNodeById(files, draggedId);
+    if (!draggedNode) return;
+
+    // Remove the dragged node from its current location
+    const filesWithoutDragged = removeNodeById(files, draggedId);
+
+    // Add the dragged node to the new location
+    if (targetId === null) {
+      // Move to root
+      setFiles([...filesWithoutDragged, draggedNode]);
+    } else {
+      // Move to a specific folder
+      const updateFiles = (nodes: FileNode[]): FileNode[] => {
+        return nodes.map(node => {
+          if (node.id === targetId && node.type === 'folder') {
+            return {
+              ...node,
+              children: [...(node.children || []), draggedNode]
+            };
+          } else if (node.children) {
+            return {
+              ...node,
+              children: updateFiles(node.children)
+            };
+          }
+          return node;
+        });
+      };
+      setFiles(updateFiles(filesWithoutDragged));
+    }
+  };
+
   const handleCodeChange = (value: string | undefined) => {
     if (selectedFile) {
       const newCode = value || '';
@@ -1126,6 +1199,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
             onFileSelect={handleFileSelect}
             onFileCreate={handleFileCreate}
             onFileDelete={handleFileDelete}
+            onFileMove={handleFileMove}
             selectedFileId={selectedFile?.id || null}
           />
         </div>
