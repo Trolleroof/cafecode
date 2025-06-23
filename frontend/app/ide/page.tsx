@@ -186,6 +186,7 @@ export default function IDEPage() {
   const [pendingInputs, setPendingInputs] = useState<string[]>([]);
   const [currentPythonCode, setCurrentPythonCode] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isFileExplorerCollapsed, setIsFileExplorerCollapsed] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -265,7 +266,7 @@ export default function IDEPage() {
           if (node.id === parentId && node.type === 'folder') {
             return {
               ...node,
-              children: [...(node.children || []), newFile]
+              children: [...(node.children || []), newFile],
             };
           } else if (node.children) {
             return {
@@ -306,10 +307,77 @@ export default function IDEPage() {
     }
   };
 
+  const handleFileMove = (fileId: string, newParentId: string | null) => {
+    // Find the file to move
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const node of nodes) {
+        if (node.id === fileId) {
+          return node;
+        }
+        if (node.children) {
+          const found = findFile(node.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    // Remove file from its current location
+    const removeFile = (nodes: FileNode[]): FileNode[] => {
+      return nodes.filter(node => {
+        if (node.id === fileId) {
+          return false;
+        }
+        if (node.children) {
+          node.children = removeFile(node.children);
+        }
+        return true;
+      });
+    };
+
+    // Add file to new location
+    const addFile = (nodes: FileNode[], fileToMove: FileNode): FileNode[] => {
+      return nodes.map(node => {
+        if (node.id === newParentId && node.type === 'folder') {
+          return {
+            ...node,
+            children: [...(node.children || []), { ...fileToMove }],
+          };
+        }
+        if (node.children) {
+          return {
+            ...node,
+            children: addFile(node.children, fileToMove)
+          };
+        }
+        return node;
+      });
+    };
+
+    const fileToMove = findFile(files);
+    if (!fileToMove) return;
+
+    // Remove from current location
+    let updatedFiles = removeFile(files);
+
+    if (newParentId === null) {
+      // Moving to root
+      updatedFiles = [...updatedFiles, { ...fileToMove }];
+    } else {
+      // Moving to a specific folder
+      updatedFiles = addFile(updatedFiles, fileToMove);
+    }
+
+    setFiles(updatedFiles);
+  };
+
   const handleCodeChange = (value: string | undefined) => {
     if (selectedFile) {
       const newCode = value || '';
-      const updatedFile = { ...selectedFile, content: newCode };
+      const updatedFile = { 
+        ...selectedFile, 
+        content: newCode
+      };
       setSelectedFile(updatedFile);
       
       // Update in files array
@@ -350,34 +418,124 @@ export default function IDEPage() {
   const executeJavaScript = (code: string) => {
     const logs: string[] = [];
     const errors: string[] = [];
-    
-    // Create a custom console for capturing output
+    const warnings: string[] = [];
+
     const customConsole = {
       log: (...args: any[]) => {
-        logs.push(args.map(arg => 
-          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-        ).join(' '));
+        logs.push(args.map(arg => String(arg)).join(' '));
       },
       error: (...args: any[]) => {
         errors.push(args.map(arg => String(arg)).join(' '));
       },
       warn: (...args: any[]) => {
-        logs.push('⚠️ ' + args.map(arg => String(arg)).join(' '));
+        warnings.push(args.map(arg => String(arg)).join(' '));
       }
     };
 
     try {
-      // Create a function that executes the code with our custom console
-      const executeCode = new Function('console', code);
-      executeCode(customConsole);
+      // Use a safer approach to execute code with custom console
+      const codeWithConsole = `
+        (function() {
+          const console = {
+            log: function(...args) { window.customConsoleLog(args); },
+            error: function(...args) { window.customConsoleError(args); },
+            warn: function(...args) { window.customConsoleWarn(args); }
+          };
+          ${code}
+        })();
+      `;
+      
+      // Set up global console handlers
+      (window as any).customConsoleLog = (args: any[]) => {
+        logs.push(args.map(arg => String(arg)).join(' '));
+      };
+      (window as any).customConsoleError = (args: any[]) => {
+        errors.push(args.map(arg => String(arg)).join(' '));
+      };
+      (window as any).customConsoleWarn = (args: any[]) => {
+        warnings.push(args.map(arg => String(arg)).join(' '));
+      };
+      
+      // Execute the code
+      eval(codeWithConsole);
+      
+      // Clean up global handlers
+      delete (window as any).customConsoleLog;
+      delete (window as any).customConsoleError;
+      delete (window as any).customConsoleWarn;
+      
+      // Build output with proper formatting
+      let output = '';
       
       if (errors.length > 0) {
-        return `❌ Errors:\n${errors.join('\n')}\n\n📝 Output:\n${logs.join('\n')}`;
+        output += `❌ JavaScript Errors:\n`;
+        errors.forEach((error, index) => {
+          output += `${index + 1}. ${error}\n`;
+        });
+        output += '\n';
       }
       
-      return logs.length > 0 ? logs.join('\n') : '✅ Code executed successfully (no output)';
-    } catch (error) {
-      return `❌ Runtime Error: ${error}`;
+      if (warnings.length > 0) {
+        output += `⚠️ JavaScript Warnings:\n`;
+        warnings.forEach((warning, index) => {
+          output += `${index + 1}. ${warning}\n`;
+        });
+        output += '\n';
+      }
+      
+      if (logs.length > 0) {
+        output += `📝 Console Output:\n${logs.join('\n')}`;
+      } else if (errors.length === 0 && warnings.length === 0) {
+        output += '✅ Code executed successfully (no output)';
+      }
+      
+      return output;
+    } catch (error: any) {
+      // Enhanced error parsing for JavaScript
+      let errorMessage = `❌ JavaScript Runtime Error: ${error.message}`;
+      
+      // Try to extract line number from error stack
+      if (error.stack) {
+        const stackLines = error.stack.split('\n');
+        const firstStackLine = stackLines.find((line: string) => line.includes('<anonymous>'));
+        if (firstStackLine) {
+          const lineMatch = firstStackLine.match(/<anonymous>:(\d+):(\d+)/);
+          if (lineMatch) {
+            const lineNumber = parseInt(lineMatch[1]);
+            const columnNumber = parseInt(lineMatch[2]);
+            errorMessage += `\n📍 Location: Line ${lineNumber}, Column ${columnNumber}`;
+            
+            // Show the problematic line if possible
+            const codeLines = code.split('\n');
+            if (lineNumber <= codeLines.length) {
+              const problematicLine = codeLines[lineNumber - 1];
+              errorMessage += `\n🔍 Code at line ${lineNumber}: ${problematicLine}`;
+              
+              // Add a visual indicator for the error position
+              if (columnNumber <= problematicLine.length) {
+                const indicator = ' '.repeat(columnNumber - 1) + '^';
+                errorMessage += `\n${indicator} Error here`;
+              }
+            }
+          }
+        }
+      }
+      
+      // Add error type information
+      errorMessage += `\n🔧 Error Type: ${error.name || 'Error'}`;
+      
+      // Add suggestions based on common JavaScript errors
+      if (error.message.includes('Unexpected token')) {
+        errorMessage += `\n💡 Suggestion: Check for missing semicolons, brackets, or quotes`;
+      } else if (error.message.includes('Cannot read property')) {
+        errorMessage += `\n💡 Suggestion: The object might be undefined or null. Add a null check`;
+      } else if (error.message.includes('is not defined')) {
+        errorMessage += `\n💡 Suggestion: Variable or function is not declared. Check spelling and scope`;
+      } else if (error.message.includes('Unexpected end of input')) {
+        errorMessage += `\n💡 Suggestion: Missing closing bracket, parenthesis, or quote`;
+      }
+      
+      return errorMessage;
     }
   };
 
@@ -410,7 +568,43 @@ export default function IDEPage() {
         await pyodide.runPythonAsync(code);
         return capturedOutput;
       } catch (error: any) {
-        return `❌ Python Error: ${error.message}`;
+        // Enhanced error parsing for Python
+        let errorMessage = `❌ Python Error: ${error.message}`;
+        
+        // Try to extract line number from Python error
+        const lineMatch = error.message.match(/line (\d+)/);
+        if (lineMatch) {
+          const lineNumber = parseInt(lineMatch[1]);
+          errorMessage += `\n📍 Location: Line ${lineNumber}`;
+          
+          // Show the problematic line if possible
+          const codeLines = code.split('\n');
+          if (lineNumber <= codeLines.length) {
+            const problematicLine = codeLines[lineNumber - 1];
+            errorMessage += `\n🔍 Code at line ${lineNumber}: ${problematicLine}`;
+          }
+        }
+        
+        // Add error type information
+        const errorTypeMatch = error.message.match(/^([^:]+):/);
+        if (errorTypeMatch) {
+          errorMessage += `\n🔧 Error Type: ${errorTypeMatch[1]}`;
+        }
+        
+        // Add suggestions based on common Python errors
+        if (error.message.includes('IndentationError')) {
+          errorMessage += `\n💡 Suggestion: Check your indentation. Python uses spaces or tabs consistently`;
+        } else if (error.message.includes('SyntaxError')) {
+          errorMessage += `\n💡 Suggestion: Check for missing colons, parentheses, or quotes`;
+        } else if (error.message.includes('NameError')) {
+          errorMessage += `\n💡 Suggestion: Variable or function is not defined. Check spelling and scope`;
+        } else if (error.message.includes('TypeError')) {
+          errorMessage += `\n💡 Suggestion: Check data types and function arguments`;
+        } else if (error.message.includes('AttributeError')) {
+          errorMessage += `\n💡 Suggestion: Object doesn't have the specified attribute or method`;
+        }
+        
+        return errorMessage;
       } finally {
         pyodide.setStdout(originalStdout);
       }
@@ -455,8 +649,8 @@ export default function IDEPage() {
         }, 100);
       }
       
-      // Return a placeholder - actual execution will happen after inputs
-      return '⏳ Waiting for input...\n';
+      // Return empty string instead of waiting message
+      return '';
     } catch (error: any) {
       return `❌ Error setting up interactive input: ${error.message}`;
     }
@@ -469,8 +663,8 @@ export default function IDEPage() {
     const currentInput = inputValue;
     setInputValue('');
     
-    // Add the input to the output
-    // setOutput(prev => prev + currentInput + '\n');
+    // Add the user's input to the output
+    setOutput(prev => prev + currentInput + '\n');
     
     // Store this input for Python execution
     const updatedInputs = [...pendingInputs];
@@ -528,8 +722,43 @@ export default function IDEPage() {
             setOutput(prev => prev + capturedOutput);
             setExecutionStatus(capturedOutput.includes('❌') ? 'error' : 'success');
           } catch (error: any) {
-            const errorOutput = `❌ Python Error: ${error.message}`;
-            setOutput(prev => prev + errorOutput);
+            // Enhanced error parsing for Python interactive execution
+            let errorMessage = `❌ Python Error: ${error.message}`;
+            
+            // Try to extract line number from Python error
+            const lineMatch = error.message.match(/line (\d+)/);
+            if (lineMatch) {
+              const lineNumber = parseInt(lineMatch[1]);
+              errorMessage += `\n📍 Location: Line ${lineNumber}`;
+              
+              // Show the problematic line if possible
+              const codeLines = modifiedCode.split('\n');
+              if (lineNumber <= codeLines.length) {
+                const problematicLine = codeLines[lineNumber - 1];
+                errorMessage += `\n🔍 Code at line ${lineNumber}: ${problematicLine}`;
+              }
+            }
+            
+            // Add error type information
+            const errorTypeMatch = error.message.match(/^([^:]+):/);
+            if (errorTypeMatch) {
+              errorMessage += `\n🔧 Error Type: ${errorTypeMatch[1]}`;
+            }
+            
+            // Add suggestions based on common Python errors
+            if (error.message.includes('IndentationError')) {
+              errorMessage += `\n💡 Suggestion: Check your indentation. Python uses spaces or tabs consistently`;
+            } else if (error.message.includes('SyntaxError')) {
+              errorMessage += `\n💡 Suggestion: Check for missing colons, parentheses, or quotes`;
+            } else if (error.message.includes('NameError')) {
+              errorMessage += `\n💡 Suggestion: Variable or function is not defined. Check spelling and scope`;
+            } else if (error.message.includes('TypeError')) {
+              errorMessage += `\n💡 Suggestion: Check data types and function arguments`;
+            } else if (error.message.includes('AttributeError')) {
+              errorMessage += `\n💡 Suggestion: Object doesn't have the specified attribute or method`;
+            }
+            
+            setOutput(prev => prev + errorMessage);
             setExecutionStatus('error');
           } finally {
             try {
@@ -1120,19 +1349,22 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* File Explorer */}
-        <div className="w-64 border-r border-gray-700">
+        <div className={`${isFileExplorerCollapsed ? 'w-12' : 'w-64'} transition-all duration-300 border-r border-gray-700`}>
           <FileExplorer
             files={files}
             onFileSelect={handleFileSelect}
             onFileCreate={handleFileCreate}
             onFileDelete={handleFileDelete}
+            onFileMove={handleFileMove}
             selectedFileId={selectedFile?.id || null}
+            isCollapsed={isFileExplorerCollapsed}
+            onToggleCollapse={() => setIsFileExplorerCollapsed(!isFileExplorerCollapsed)}
           />
         </div>
 
         {/* Code Editor */}
-        <div className="flex-1 flex flex-col bg-gray-850 border-r border-gray-700 h-full relative">
-          <div className="flex justify-between items-center py-1 px-2 bg-gray-700">
+        <div className="flex-1 flex flex-col h-full relative min-w-0" style={{ background: 'rgb(30, 30, 30)' }}>
+          <div className="flex justify-between items-center py-1 px-1 bg-gray-700">
             <span className="text-sm font-semibold">
               {selectedFile ? selectedFile.name : 'No file selected'}
             </span>
@@ -1145,7 +1377,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
               </button>
             )}
           </div>
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto p-4">
             {showPreview && selectedFile?.name.endsWith('.html') ? (
               <HTMLPreview 
                 htmlContent={selectedFile.content || ''} 
@@ -1182,7 +1414,7 @@ ${result.translation.common_causes && result.translation.common_causes.length > 
         </div>
 
         {/* Output and Chat Area */}
-        <div className="w-[450px] flex flex-col">
+        <div className="w-[450px] flex flex-col min-w-0">
           {/* Output Window */}
           <div className="h-[400px] flex flex-col bg-gray-800 p-4 overflow-auto text-sm border-b border-gray-700">
             <h2 className="text-lg font-semibold mb-2">Output</h2>
