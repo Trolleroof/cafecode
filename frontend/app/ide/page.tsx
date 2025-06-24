@@ -506,8 +506,12 @@ export default function IDEPage() {
     }
   };
 
-  // Guided project functionality
+  // 1. Add a loading state for starting guided project
+  const [isStartingProject, setIsStartingProject] = useState(false);
+
+  // 2. Update handleStartGuidedProject to set loading state
   const handleStartGuidedProject = async (description: string) => {
+    setIsStartingProject(true);
     try {
       const response = await fetch('/api/guided/startProject', {
         method: 'POST',
@@ -542,11 +546,39 @@ export default function IDEPage() {
         content: 'I\'m ready to help you with your project! Let\'s start by creating some files and writing code together. What would you like to build?',
         timestamp: new Date()
       }]);
+    } finally {
+      setIsStartingProject(false);
     }
   };
 
   const handleCheckStep = async () => {
-    if (!guidedProject || !selectedFile) return;
+    if (!guidedProject) return;
+
+    const currentStep = guidedProject.steps[guidedProject.currentStep];
+    let requiredFileName = null;
+    // Try to extract the required file name from the instruction
+    const fileCreateMatch = currentStep.instruction.match(/create (an? |the )?(html|css|js|javascript|python)? ?file called ['"]?([\w\-.]+)['"]?/i);
+    if (fileCreateMatch) {
+      requiredFileName = fileCreateMatch[3];
+    }
+
+    // If the step is a file creation step, check if the file exists
+    if (requiredFileName) {
+      const allFiles = getAllFiles(files);
+      const fileExists = allFiles.some(f => f.name.toLowerCase() === requiredFileName.toLowerCase());
+      if (!fileExists) {
+        setStepComplete(false);
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: `🚩 Please create the file \`${requiredFileName}\` before proceeding to the next step. Use the "+ New File" button in the file explorer.`,
+          timestamp: new Date()
+        }]);
+        return;
+      }
+    }
+
+    // For all other steps, require a file to be selected
+    if (!selectedFile) return;
 
     try {
       const response = await fetch('/api/guided/analyzeStep', {
@@ -662,18 +694,26 @@ export default function IDEPage() {
           </div>
         );
       } else {
-        // Regular text with inline code formatting
+        // Regular text with inline code and bold formatting
+        // First, handle bold (**text**)
+        const boldSplit = part.split(/(\*\*[^*]+\*\*)/g);
         return (
           <div key={index} className="whitespace-pre-wrap">
-            {part.split(/(`[^`]+`)/g).map((segment, i) => {
-              if (segment.startsWith('`') && segment.endsWith('`')) {
-                return (
-                  <code key={i} className="bg-[#094074] px-2 py-1 rounded text-sm font-mono text-[#5adbff]">
-                    {segment.slice(1, -1)}
-                  </code>
-                );
+            {boldSplit.map((segment, i) => {
+              if (/^\*\*[^*]+\*\*$/.test(segment)) {
+                return <strong key={i}>{segment.slice(2, -2)}</strong>;
               }
-              return segment;
+              // Then, handle inline code
+              return segment.split(/(`[^`]+`)/g).map((sub, j) => {
+                if (sub.startsWith('`') && sub.endsWith('`')) {
+                  return (
+                    <code key={j} className="bg-[#094074] px-2 py-1 rounded text-sm font-mono text-[#5adbff]">
+                      {sub.slice(1, -1)}
+                    </code>
+                  );
+                }
+                return sub;
+              });
             })}
           </div>
         );
@@ -948,9 +988,9 @@ export default function IDEPage() {
         </ResizablePanelGroup>
       </div>
 
-      {/* Guided Step Popup - Moved slightly to the left */}
+      {/* Guided Step Popup - Only show when guidedProject is active */}
       {guidedProject && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-8 md:right-16 lg:left-16 lg:right-1/4 z-50">
+        <div className="fixed bottom-4 left-4 right-4 md:left-16 md:right-16 lg:left-1/3 lg:right-1/3 max-w-xl mx-auto z-50">
           <div className="bg-[#094074] border-2 border-[#5adbff] rounded-2xl shadow-2xl p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex-1">
@@ -1018,6 +1058,7 @@ export default function IDEPage() {
         isOpen={showProjectModal}
         onClose={() => setShowProjectModal(false)}
         onSubmit={handleStartGuidedProject}
+        isStartingProject={isStartingProject}
       />
     </div>
   );
