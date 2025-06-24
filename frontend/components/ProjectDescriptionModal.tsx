@@ -23,8 +23,6 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
   const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  if (!isOpen) return null;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (description.trim()) {
@@ -64,6 +62,8 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
       return () => clearInterval(interval);
     }
   }, [loading, isLoaded]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
