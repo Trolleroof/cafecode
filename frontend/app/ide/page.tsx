@@ -755,7 +755,7 @@ export default function IDEPage() {
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         <ResizablePanelGroup direction="horizontal" className="flex-1">
           {/* File Explorer */}
           <ResizablePanel 
@@ -780,7 +780,7 @@ export default function IDEPage() {
 
           {/* Editor and Preview */}
           <ResizablePanel defaultSize={isExplorerCollapsed ? 70 : 50} minSize={30}>
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full relative">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-[#3c6997] bg-[#3c6997]">
                   <TabsList className="bg-[#094074] border border-[#3c6997]">
@@ -868,6 +868,78 @@ export default function IDEPage() {
                   </div>
                 </TabsContent>
               </Tabs>
+
+              {/* Guided Step Popup - Positioned within the editor panel */}
+              {guidedProject && (
+                <div className="absolute bottom-4 left-4 right-4 z-10">
+                  <div className="bg-[#094074] border-2 border-[#5adbff] rounded-xl shadow-2xl p-4 max-w-2xl mx-auto">
+                    <div className="flex flex-col space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-[#5adbff] rounded-full flex items-center justify-center text-xs font-bold text-[#094074]">
+                            {guidedProject.currentStep + 1}
+                          </div>
+                          <h3 className="font-bold text-[#5adbff] text-sm">
+                            Step {guidedProject.currentStep + 1} of {guidedProject.steps.length}
+                          </h3>
+                        </div>
+                        <button
+                          onClick={() => setGuidedProject(null)}
+                          className="text-[#5adbff] hover:text-[#ffdd4a] transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      
+                      <div className="bg-[#3c6997] rounded-lg p-3 border border-[#5adbff]">
+                        <p className="text-sm text-white leading-relaxed">
+                          {guidedProject.steps[guidedProject.currentStep]?.instruction}
+                        </p>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        <Button
+                          onClick={handlePreviousStep}
+                          variant="outline"
+                          size="sm"
+                          disabled={guidedProject.currentStep === 0}
+                          className="border-[#5adbff] text-[#5adbff] hover:bg-[#5adbff] hover:text-[#094074] text-xs px-3 py-1"
+                        >
+                          <ArrowLeft className="mr-1 h-3 w-3" />
+                          Previous
+                        </Button>
+                        
+                        <Button
+                          onClick={handleCheckStep}
+                          className="bg-[#ffdd4a] hover:bg-[#ff960d] text-[#094074] hover:text-white font-semibold text-xs px-3 py-1"
+                        >
+                          <Search className="mr-1 h-3 w-3" />
+                          Check Step
+                        </Button>
+                        
+                        <Button
+                          onClick={handleNextStep}
+                          disabled={!stepComplete}
+                          className="bg-[#ff960d] hover:bg-[#ffdd4a] disabled:opacity-50 disabled:cursor-not-allowed text-white hover:text-[#094074] font-semibold text-xs px-3 py-1"
+                        >
+                          {stepComplete ? (
+                            <>
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                              Next Step
+                            </>
+                          ) : (
+                            <>
+                              <X className="mr-1 h-3 w-3" />
+                              Complete Step
+                            </>
+                          )}
+                          <ArrowRight className="ml-1 h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </ResizablePanel>
 
@@ -987,71 +1059,6 @@ export default function IDEPage() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
-
-      {/* Guided Step Popup - Only show when guidedProject is active */}
-      {guidedProject && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-16 md:right-16 lg:left-1/3 lg:right-1/3 max-w-xl mx-auto z-50">
-          <div className="bg-[#094074] border-2 border-[#5adbff] rounded-2xl shadow-2xl p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-6 h-6 bg-[#5adbff] rounded-full flex items-center justify-center text-xs font-bold text-[#094074]">
-                    {guidedProject.currentStep + 1}
-                  </div>
-                  <h3 className="font-bold text-[#5adbff]">
-                    Step {guidedProject.currentStep + 1} of {guidedProject.steps.length}
-                  </h3>
-                </div>
-                <div className="bg-[#3c6997] rounded-lg p-3 border border-[#5adbff]">
-                  <p className="text-sm text-white leading-relaxed">
-                    {guidedProject.steps[guidedProject.currentStep]?.instruction}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-                <Button
-                  onClick={handlePreviousStep}
-                  variant="outline"
-                  size="sm"
-                  disabled={guidedProject.currentStep === 0}
-                  className="border-[#5adbff] text-[#5adbff] hover:bg-[#5adbff] hover:text-[#094074] flex-1 sm:flex-none"
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Previous
-                </Button>
-                
-                <Button
-                  onClick={handleCheckStep}
-                  className="bg-[#ffdd4a] hover:bg-[#ff960d] text-[#094074] hover:text-white font-semibold flex-1 sm:flex-none"
-                >
-                  <Search className="mr-2 h-4 w-4" />
-                  Check Step
-                </Button>
-                
-                <Button
-                  onClick={handleNextStep}
-                  disabled={!stepComplete}
-                  className="bg-[#ff960d] hover:bg-[#ffdd4a] disabled:opacity-50 disabled:cursor-not-allowed text-white hover:text-[#094074] font-semibold flex-1 sm:flex-none"
-                >
-                  {stepComplete ? (
-                    <>
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Next Step
-                    </>
-                  ) : (
-                    <>
-                      <X className="mr-2 h-4 w-4" />
-                      Complete Step
-                    </>
-                  )}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Project Description Modal */}
       <ProjectDescriptionModal
