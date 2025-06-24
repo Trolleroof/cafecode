@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
 // Color palette as CSS variables
@@ -21,6 +21,7 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   if (!isOpen) return null;
 
@@ -38,10 +39,31 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
     setDescription('');
     setIsLoading(false);
     setIsLoaded(false);
+    setProgress(0);
     onClose();
   };
 
   const loading = isLoading || isStartingProject;
+
+  // Animated progress bar effect
+  useEffect(() => {
+    if (loading && !isLoaded) {
+      setProgress(0);
+      const interval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 99) {
+            clearInterval(interval);
+            return 99;
+          }
+          // Gradually slow down the progress as it approaches 99%
+          const increment = prev < 50 ? 8 : prev < 80 ? 4 : 2;
+          return Math.min(prev + increment, 99);
+        });
+      }, 150);
+
+      return () => clearInterval(interval);
+    }
+  }, [loading, isLoaded]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -54,12 +76,15 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
           minWidth: 280,
         }}
       >
-        <button
-          onClick={handleClose}
-          className="absolute top-3 right-3 p-1 text-gray-300 hover:text-white transition-colors"
-        >
-          <X className="h-6 w-6" />
-        </button>
+        {/* Only show X button when not loading/loaded */}
+        {!loading && !isLoaded && (
+          <button
+            onClick={handleClose}
+            className="absolute top-3 right-3 p-1 text-gray-300 hover:text-white transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        )}
 
         {loading ? (
           <div className="text-center py-8">
@@ -73,12 +98,20 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold mb-2" style={{ color: COLORS.vividSkyBlue }}>Loading in Progress</h2>
-              <p className="text-gray-200">Setting up your project, please wait...</p>
+              <h2 className="text-xl font-semibold mb-2" style={{ color: COLORS.vividSkyBlue }}>Setting Up Your Project</h2>
+              <p className="text-gray-200">Creating guided steps and preparing your workspace...</p>
             </div>
-            <div className="w-full rounded-full h-2" style={{ background: COLORS.lapisLazuli }}>
-              <div className="h-2 rounded-full animate-pulse" style={{ width: '60%', background: COLORS.vividSkyBlue }}></div>
+            <div className="w-full rounded-full h-3" style={{ background: COLORS.lapisLazuli }}>
+              <div 
+                className="h-3 rounded-full transition-all duration-300 ease-out" 
+                style={{ 
+                  width: `${progress}%`, 
+                  background: `linear-gradient(90deg, ${COLORS.vividSkyBlue} 0%, ${COLORS.mustard} 100%)`,
+                  boxShadow: `0 0 10px ${COLORS.vividSkyBlue}40`
+                }}
+              ></div>
             </div>
+            <div className="mt-2 text-sm text-gray-300">{progress}%</div>
           </div>
         ) : isLoaded ? (
           <div className="text-center py-8">
@@ -91,8 +124,8 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold mb-2" style={{ color: COLORS.mustard }}>Project Loaded</h2>
-              <p className="text-gray-200">Your project has been successfully loaded and is ready to go!</p>
+              <h2 className="text-xl font-semibold mb-2" style={{ color: COLORS.mustard }}>Project Ready!</h2>
+              <p className="text-gray-200">Your guided project has been set up successfully. Let's start coding!</p>
             </div>
             <button
               onClick={handleClose}

@@ -15,7 +15,8 @@ import {
   ArrowLeft,
   Search,
   Copy,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -108,6 +109,7 @@ export default function IDEPage() {
   const [guidedProject, setGuidedProject] = useState<GuidedProject | null>(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [stepComplete, setStepComplete] = useState(false);
+  const [isCheckingStep, setIsCheckingStep] = useState(false);
 
   // UI state
   const [activeTab, setActiveTab] = useState('editor');
@@ -554,41 +556,72 @@ export default function IDEPage() {
   const handleCheckStep = async () => {
     if (!guidedProject) return;
 
-    const currentStep = guidedProject.steps[guidedProject.currentStep];
-    let requiredFileName = null;
-    // Try to extract the required file name from the instruction
-    const fileCreateMatch = currentStep.instruction.match(/create (an? |the )?(html|css|js|javascript|python)? ?file called ['"]?([\w\-.]+)['"]?/i);
-    if (fileCreateMatch) {
-      requiredFileName = fileCreateMatch[3];
-    }
+    setIsCheckingStep(true);
 
-    // If the step is a file creation step, check if the file exists
-    if (requiredFileName) {
-      const allFiles = getAllFiles(files);
-      const fileExists = allFiles.some(f => f.name.toLowerCase() === requiredFileName.toLowerCase());
-      if (!fileExists) {
+    try {
+      const currentStep = guidedProject.steps[guidedProject.currentStep];
+      let requiredFileName = null;
+      let requiredFolderName = null;
+      
+      // Try to extract the required file or folder name from the instruction
+      const fileCreateMatch = currentStep.instruction.match(/create (an? |the )?(html|css|js|javascript|python)? ?file called ['"]?([\w\-.]+)['"]?/i);
+      const folderCreateMatch = currentStep.instruction.match(/create (an? |the )?folder called ['"]?([\w\-.]+)['"]?/i);
+      
+      if (fileCreateMatch) {
+        requiredFileName = fileCreateMatch[3];
+      } else if (folderCreateMatch) {
+        requiredFolderName = folderCreateMatch[2];
+      }
+
+      // If the step is a file creation step, check if the file exists
+      if (requiredFileName) {
+        const allFiles = getAllFiles(files);
+        const fileExists = allFiles.some(f => f.name.toLowerCase() === requiredFileName.toLowerCase());
+        if (!fileExists) {
+          setStepComplete(false);
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: `🚩 Please create the file \`${requiredFileName}\` before proceeding to the next step. Use the "+ New File" button in the file explorer.`,
+            timestamp: new Date()
+          }]);
+          return;
+        }
+      }
+
+      // If the step is a folder creation step, check if the folder exists
+      if (requiredFolderName) {
+        const allFolders = files.filter(f => f.type === 'folder');
+        const folderExists = allFolders.some(f => f.name.toLowerCase() === requiredFolderName.toLowerCase());
+        if (!folderExists) {
+          setStepComplete(false);
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: `🚩 Please create the folder \`${requiredFolderName}\` before proceeding to the next step. Use the "+ New Folder" button in the file explorer.`,
+            timestamp: new Date()
+          }]);
+          return;
+        }
+      }
+
+      // For all other steps, require a file to be selected
+      if (!selectedFile && !requiredFileName && !requiredFolderName) {
         setStepComplete(false);
         setChatMessages(prev => [...prev, {
           type: 'assistant',
-          content: `🚩 Please create the file \`${requiredFileName}\` before proceeding to the next step. Use the "+ New File" button in the file explorer.`,
+          content: '🚩 Please select a file to check your progress on this step.',
           timestamp: new Date()
         }]);
         return;
       }
-    }
 
-    // For all other steps, require a file to be selected
-    if (!selectedFile) return;
-
-    try {
       const response = await fetch('/api/guided/analyzeStep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: guidedProject.projectId,
           stepId: guidedProject.steps[guidedProject.currentStep].id,
-          code: selectedFile.content || '',
-          language: selectedFile.language || 'plaintext',
+          code: selectedFile?.content || '',
+          language: selectedFile?.language || 'plaintext',
           projectFiles: files
         })
       });
@@ -613,6 +646,8 @@ export default function IDEPage() {
         content: 'Great work! Your code looks good for this step. You can proceed to the next one!',
         timestamp: new Date()
       }]);
+    } finally {
+      setIsCheckingStep(false);
     }
   };
 
@@ -751,6 +786,19 @@ export default function IDEPage() {
             <span className="hidden sm:inline">Start Guided Project</span>
             <span className="sm:hidden">Guide</span>
           </Button>
+
+          {/* Stop Guided Project Button */}
+          {guidedProject && (
+            <Button
+              onClick={() => setGuidedProject(null)}
+              variant="outline"
+              className="border-[#ff960d] text-[#ff960d] hover:bg-[#ff960d] hover:text-white"
+            >
+              <X className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Stop Guide</span>
+              <span className="sm:hidden">Stop</span>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -883,12 +931,6 @@ export default function IDEPage() {
                             Step {guidedProject.currentStep + 1} of {guidedProject.steps.length}
                           </h3>
                         </div>
-                        <button
-                          onClick={() => setGuidedProject(null)}
-                          className="text-[#5adbff] hover:text-[#ffdd4a] transition-colors"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
                       </div>
                       
                       <div className="bg-[#3c6997] rounded-lg p-3 border border-[#5adbff]">
@@ -903,7 +945,7 @@ export default function IDEPage() {
                           variant="outline"
                           size="sm"
                           disabled={guidedProject.currentStep === 0}
-                          className="border-[#5adbff] text-[#5adbff] hover:bg-[#5adbff] hover:text-[#094074] text-xs px-3 py-1"
+                          className="bg-[#3c6997] border-[#5adbff] text-[#5adbff] hover:bg-[#5adbff] hover:text-[#094074] text-xs px-3 py-1 font-semibold"
                         >
                           <ArrowLeft className="mr-1 h-3 w-3" />
                           Previous
@@ -911,10 +953,20 @@ export default function IDEPage() {
                         
                         <Button
                           onClick={handleCheckStep}
-                          className="bg-[#ffdd4a] hover:bg-[#ff960d] text-[#094074] hover:text-white font-semibold text-xs px-3 py-1"
+                          disabled={isCheckingStep}
+                          className="bg-[#ffdd4a] hover:bg-[#ff960d] text-[#094074] hover:text-white font-semibold text-xs px-3 py-1 min-w-[90px] flex items-center justify-center"
                         >
-                          <Search className="mr-1 h-3 w-3" />
-                          Check Step
+                          {isCheckingStep ? (
+                            <>
+                              <Loader2 className="animate-spin h-3 w-3 mr-1" />
+                              Checking...
+                            </>
+                          ) : (
+                            <>
+                              <Search className="mr-1 h-3 w-3" />
+                              Check Step
+                            </>
+                          )}
                         </Button>
                         
                         <Button
