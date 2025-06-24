@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { File, Folder, FolderOpen, Plus, X, FileText, Code, Globe, Search, ChevronLeft, ChevronRight, MoreVertical, GripVertical, Filter, Menu } from 'lucide-react';
+import { File, Folder, FolderOpen, Plus, X, FileText, Code, Globe, Search, Menu, GripVertical } from 'lucide-react';
 
 interface FileNode {
   id: string;
@@ -29,15 +29,15 @@ const getFileIcon = (fileName: string) => {
   const extension = fileName.split('.').pop()?.toLowerCase();
   switch (extension) {
     case 'html':
-      return <Globe className="h-4 w-4 text-orange-500 flex-shrink-0" />;
+      return <Globe className="h-4 w-4 text-[#ff960d] flex-shrink-0" />;
     case 'css':
-      return <FileText className="h-4 w-4 text-blue-500 flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-[#5adbff] flex-shrink-0" />;
     case 'js':
-      return <Code className="h-4 w-4 text-yellow-500 flex-shrink-0" />;
+      return <Code className="h-4 w-4 text-[#ffdd4a] flex-shrink-0" />;
     case 'py':
-      return <Code className="h-4 w-4 text-green-500 flex-shrink-0" />;
+      return <Code className="h-4 w-4 text-[#ffdd4a] flex-shrink-0" />;
     default:
-      return <File className="h-4 w-4 text-gray-400 flex-shrink-0" />;
+      return <File className="h-4 w-4 text-[#5adbff] flex-shrink-0" />;
   }
 };
 
@@ -77,8 +77,6 @@ const FileTreeNode: React.FC<{
   const [isExpanded, setIsExpanded] = useState(true);
   const [showActions, setShowActions] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isDragOverTop, setIsDragOverTop] = useState(false);
-  const [isDragOverBottom, setIsDragOverBottom] = useState(false);
 
   // Don't render if we've exceeded max depth
   if (level > maxDepth) {
@@ -119,7 +117,7 @@ const FileTreeNode: React.FC<{
   }
 
   const handleDragStart = (e: React.DragEvent) => {
-    if (onDragStart) {
+    if (onDragStart && onMove) {
       onDragStart(node.id);
       e.dataTransfer.setData('text/plain', node.id);
       e.dataTransfer.effectAllowed = 'move';
@@ -128,69 +126,41 @@ const FileTreeNode: React.FC<{
 
   const handleDragEnd = (e: React.DragEvent) => {
     setIsDragOver(false);
-    setIsDragOverTop(false);
-    setIsDragOverBottom(false);
     if (onDragEnd) {
       onDragEnd();
     }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    
-    if (draggedFileId === node.id) return; // Can't drop on itself
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const height = rect.height;
-    
-    setIsDragOver(true);
-    setIsDragOverTop(y < height / 3);
-    setIsDragOverBottom(y > (height * 2) / 3);
+    if (onMove && draggedFileId && draggedFileId !== node.id && node.type === 'folder') {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setIsDragOver(true);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Only clear if we're leaving the element entirely
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragOver(false);
-      setIsDragOverTop(false);
-      setIsDragOverBottom(false);
     }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    setIsDragOverTop(false);
-    setIsDragOverBottom(false);
     
-    if (draggedFileId && draggedFileId !== node.id && onDrop) {
+    if (draggedFileId && draggedFileId !== node.id && onDrop && node.type === 'folder') {
       onDrop(node.id);
     }
   };
 
-  const canDrop = draggedFileId && draggedFileId !== node.id;
-
   return (
     <div>
-      {/* Top drop zone */}
-      {canDrop && (
-        <div
-          className={`h-1 transition-colors duration-200 ${
-            isDragOverTop ? 'bg-blue-500' : 'bg-transparent'
-          }`}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onDragLeave={handleDragLeave}
-        />
-      )}
-      
       <div
-        className={`flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-gray-700 rounded group relative ${
-          selectedFileId === node.id ? 'bg-blue-600' : ''
+        className={`flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-[#3c6997] rounded group relative ${
+          selectedFileId === node.id ? 'bg-[#5adbff] text-[#094074]' : 'text-[#5adbff]'
         } ${
-          isDragOver ? 'bg-blue-800 border-2 border-blue-500' : ''
+          isDragOver ? 'bg-[#5adbff]/20 border-2 border-[#5adbff] border-dashed' : ''
         }`}
         style={{ paddingLeft: `${Math.min(level * 16 + 8, 200)}px` }}
         onClick={handleClick}
@@ -206,21 +176,21 @@ const FileTreeNode: React.FC<{
         {/* Drag handle */}
         {onMove && (
           <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
-            <GripVertical className="h-3 w-3 text-gray-500 flex-shrink-0" />
+            <GripVertical className="h-3 w-3 text-[#5adbff]/50 flex-shrink-0" />
           </div>
         )}
         
         {node.type === 'folder' ? (
           isExpanded ? (
-            <FolderOpen className="h-4 w-4 text-blue-400 flex-shrink-0" />
+            <FolderOpen className="h-4 w-4 text-[#ffdd4a] flex-shrink-0" />
           ) : (
-            <Folder className="h-4 w-4 text-blue-400 flex-shrink-0" />
+            <Folder className="h-4 w-4 text-[#ffdd4a] flex-shrink-0" />
           )
         ) : (
           getFileIcon(node.name)
         )}
         <span 
-          className="text-sm text-gray-200 flex-1 min-w-0 truncate"
+          className="text-sm flex-1 min-w-0 truncate"
           title={node.name}
         >
           {node.name}
@@ -235,20 +205,20 @@ const FileTreeNode: React.FC<{
                     e.stopPropagation();
                     onCreateFile(node.id);
                   }}
-                  className="p-1 hover:bg-gray-600 rounded"
+                  className="p-1 hover:bg-[#094074] rounded"
                   title="New File"
                 >
-                  <Plus className="h-3 w-3 text-gray-400" />
+                  <Plus className="h-3 w-3 text-[#5adbff]" />
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onCreateFolder(node.id);
                   }}
-                  className="p-1 hover:bg-gray-600 rounded"
+                  className="p-1 hover:bg-[#094074] rounded"
                   title="New Folder"
                 >
-                  <Folder className="h-3 w-3 text-gray-400" />
+                  <Folder className="h-3 w-3 text-[#5adbff]" />
                 </button>
               </>
             )}
@@ -257,26 +227,14 @@ const FileTreeNode: React.FC<{
                 e.stopPropagation();
                 onDelete(node.id);
               }}
-              className="p-1 hover:bg-red-600 rounded"
+              className="p-1 hover:bg-[#ff960d] rounded"
               title="Delete"
             >
-              <X className="h-3 w-3 text-gray-400" />
+              <X className="h-3 w-3 text-[#5adbff]" />
             </button>
           </div>
         )}
       </div>
-      
-      {/* Bottom drop zone */}
-      {canDrop && (
-        <div
-          className={`h-1 transition-colors duration-200 ${
-            isDragOverBottom ? 'bg-blue-500' : 'bg-transparent'
-          }`}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onDragLeave={handleDragLeave}
-        />
-      )}
       
       {node.type === 'folder' && isExpanded && node.children && (
         <div>
@@ -361,24 +319,24 @@ export default function FileExplorer({
 
   if (isCollapsed) {
     return (
-      <div className="h-full bg-gray-800 border-r border-gray-700 flex flex-col w-12">
-        <div className="flex items-center justify-center p-2 border-b border-gray-700">
+      <div className="h-full bg-[#094074] border-r border-[#3c6997] flex flex-col w-12">
+        <div className="flex items-center justify-center p-2 border-b border-[#3c6997]">
           <button
             onClick={onToggleCollapse}
-            className="p-1.5 hover:bg-gray-700 rounded transition-colors duration-200"
+            className="p-1.5 hover:bg-[#3c6997] rounded transition-colors duration-200"
             title="Expand Explorer"
           >
-            <Menu className="h-4 w-4 text-gray-400 hover:text-gray-200" />
+            <Menu className="h-4 w-4 text-[#5adbff] hover:text-[#ffdd4a]" />
           </button>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center space-y-2">
-          <div className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-700 transition-colors duration-200">
-            <File className="h-5 w-5 text-gray-400" />
+          <div className="p-2 rounded-lg bg-[#3c6997]/50 hover:bg-[#3c6997] transition-colors duration-200">
+            <File className="h-5 w-5 text-[#5adbff]" />
           </div>
           <div className="text-center">
-            <div className="w-1 h-1 bg-gray-500 rounded-full mx-auto mb-1"></div>
-            <div className="w-1 h-1 bg-gray-500 rounded-full mx-auto mb-1"></div>
-            <div className="w-1 h-1 bg-gray-500 rounded-full mx-auto"></div>
+            <div className="w-1 h-1 bg-[#5adbff] rounded-full mx-auto mb-1"></div>
+            <div className="w-1 h-1 bg-[#5adbff] rounded-full mx-auto mb-1"></div>
+            <div className="w-1 h-1 bg-[#5adbff] rounded-full mx-auto"></div>
           </div>
         </div>
       </div>
@@ -386,84 +344,89 @@ export default function FileExplorer({
   }
 
   return (
-    <div className="h-full bg-gray-800 border-r border-gray-700 flex flex-col min-w-0">
+    <div className="h-full bg-[#094074] border-r border-[#3c6997] flex flex-col min-w-0">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-gray-700 flex-shrink-0">
+      <div className="flex items-center justify-between p-3 border-b border-[#3c6997] flex-shrink-0">
         <div className="flex items-center gap-2">
           <button
             onClick={onToggleCollapse}
-            className="p-1 hover:bg-gray-700 rounded"
+            className="p-1 hover:bg-[#3c6997] rounded"
             title="Collapse Explorer"
           >
-            <Menu className="h-4 w-4 text-gray-400" />
+            <Menu className="h-4 w-4 text-[#5adbff]" />
           </button>
-          <h3 className="text-sm font-semibold text-gray-200">Explorer</h3>
+          <h3 className="text-sm font-semibold text-[#5adbff]">Explorer</h3>
         </div>
         <div className="flex gap-1">
           <button
             onClick={() => handleCreateFile(null)}
-            className="p-1 hover:bg-gray-700 rounded"
+            className="p-1 hover:bg-[#3c6997] rounded"
             title="New File"
           >
-            <Plus className="h-4 w-4 text-gray-400" />
+            <Plus className="h-4 w-4 text-[#5adbff]" />
           </button>
           <button
             onClick={() => handleCreateFolder(null)}
-            className="p-1 hover:bg-gray-700 rounded"
+            className="p-1 hover:bg-[#3c6997] rounded"
             title="New Folder"
           >
-            <Folder className="h-4 w-4 text-gray-400" />
+            <Folder className="h-4 w-4 text-[#5adbff]" />
           </button>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div className="p-2 border-b border-gray-700 flex-shrink-0">
+      <div className="p-2 border-b border-[#3c6997] flex-shrink-0">
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#5adbff]/70" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search files..."
-            className="w-full pl-8 pr-3 py-1 bg-gray-700 text-white text-sm border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-8 pr-3 py-1 bg-[#3c6997] text-white text-sm border border-[#5adbff]/30 rounded focus:outline-none focus:ring-2 focus:ring-[#5adbff] focus:border-transparent"
           />
         </div>
       </div>
-
-      {/* Search Filters */}
-     
       
       {/* File Tree */}
       <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-2">
         <div className="min-w-max">
-          {files.map((file) => (
-            <FileTreeNode
-              key={file.id}
-              node={file}
-              level={0}
-              onSelect={onFileSelect}
-              onDelete={onFileDelete}
-              onMove={onFileMove}
-              selectedFileId={selectedFileId}
-              onCreateFile={handleCreateFile}
-              onCreateFolder={handleCreateFolder}
-              searchTerm={searchTerm}
-              searchFilter={searchFilter}
-              draggedFileId={draggedFileId}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-              onDrop={handleDrop}
-            />
-          ))}
+          {files.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-center p-4">
+              <File className="h-8 w-8 text-[#5adbff]/50 mb-2" />
+              <p className="text-[#5adbff]/70 text-sm">No files yet</p>
+              <p className="text-[#5adbff]/50 text-xs mt-1">Create your first file to get started</p>
+            </div>
+          ) : (
+            files.map((file) => (
+              <FileTreeNode
+                key={file.id}
+                node={file}
+                level={0}
+                onSelect={onFileSelect}
+                onDelete={onFileDelete}
+                onMove={onFileMove}
+                selectedFileId={selectedFileId}
+                onCreateFile={handleCreateFile}
+                onCreateFolder={handleCreateFolder}
+                searchTerm={searchTerm}
+                searchFilter={searchFilter}
+                draggedFileId={draggedFileId}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDrop={handleDrop}
+              />
+            ))
+          )}
         </div>
       </div>
 
       {/* Create Dialog */}
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-4 rounded-lg border border-gray-600 min-w-[300px]">
-            <h4 className="text-white mb-3">
+          <div className="bg-[#094074] p-4 rounded-lg border border-[#5adbff] min-w-[300px]">
+            <h4 className="text-[#5adbff] mb-3 font-semibold">
               Create New {createType === 'file' ? 'File' : 'Folder'}
             </h4>
             <input
@@ -471,20 +434,20 @@ export default function FileExplorer({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={createType === 'file' ? 'filename.html' : 'folder-name'}
-              className="w-full px-3 py-2 bg-gray-700 text-white border border-gray-600 rounded mb-3"
+              className="w-full px-3 py-2 bg-[#3c6997] text-white border border-[#5adbff] rounded mb-3 focus:outline-none focus:ring-2 focus:ring-[#5adbff]"
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               autoFocus
             />
             <div className="flex gap-2">
               <button
                 onClick={handleCreate}
-                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-3 py-1 bg-[#5adbff] text-[#094074] rounded hover:bg-[#ffdd4a] font-semibold"
               >
                 Create
               </button>
               <button
                 onClick={() => setShowCreateDialog(false)}
-                className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                className="px-3 py-1 bg-[#3c6997] text-[#5adbff] rounded hover:bg-[#ff960d] hover:text-white"
               >
                 Cancel
               </button>
