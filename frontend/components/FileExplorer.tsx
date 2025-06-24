@@ -41,6 +41,12 @@ const getFileIcon = (fileName: string) => {
   }
 };
 
+// Helper function to validate file extensions
+const isValidFileExtension = (fileName: string): boolean => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  return ['py', 'css', 'html'].includes(extension || '');
+};
+
 const FileTreeNode: React.FC<{
   node: FileNode;
   level: number;
@@ -284,6 +290,12 @@ export default function FileExplorer({
 
   const handleCreate = () => {
     if (newName.trim()) {
+      // Validate file extension for files
+      if (createType === 'file' && !isValidFileExtension(newName.trim())) {
+        alert('Only .py (Python), .css (CSS), and .html (HTML) files are allowed!');
+        return;
+      }
+      
       onFileCreate(createParentId, createType, newName.trim());
       setShowCreateDialog(false);
       setNewName('');
@@ -429,6 +441,11 @@ export default function FileExplorer({
             <h4 className="text-[#5adbff] mb-3 font-semibold">
               Create New {createType === 'file' ? 'File' : 'Folder'}
             </h4>
+            {createType === 'file' && (
+              <p className="text-[#5adbff]/70 text-xs mb-2">
+                Allowed extensions: .py, .css, .html
+              </p>
+            )}
             <input
               type="text"
               value={newName}

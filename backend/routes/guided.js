@@ -83,30 +83,37 @@ router.post("/startProject", async (req, res) => {
     const projectId = uuidv4();
     const projectContext = createProjectContext(projectFiles);
 
-    // Use Gemini to generate steps
+    // Enhanced prompt for guided projects
     const prompt = `Create a step-by-step guide for the following project. Format the response as a JSON array of steps, where each step has:
 - id: string (step number)
-- instruction: string (clear, concise instruction)
+- instruction: string (clear, concise instruction for beginners)
 - lineRanges: number[] (array of line numbers where code should be written)
 
 Project: ${projectDescription}
 
 ${projectContext}
 
-DO NOT DO ANY OF THE FOLLOWING OR INCLUDE THE FOLLOWING IN THE STEPS:
-- tell the user to create new files, because the current setup doesn't require them to do these files
-
-THINGS TO CONSIDER: 
-- break down the steps into the smallest possible, assuming the user is a beginner programmer
+IMPORTANT GUIDELINES:
+- Break down the steps into the smallest possible parts, assuming the user is a complete beginner
+- For HTML projects, encourage creating separate style.css and main.js files for styling and scripting
+- Guide users to link CSS and JavaScript files properly in HTML
+- Use very simple, beginner-friendly language
+- Each step should be achievable in 2-3 lines of code maximum
 - Consider the existing project files when creating steps
+- If no files exist, start with creating the basic file structure
 - Reference specific files when relevant to the instructions
 
 Example format:
 [
   {
     "id": "1",
-    "instruction": "Create a function that adds two numbers",
-    "lineRanges": [1, 3]
+    "instruction": "Create an HTML file called 'index.html' and add the basic HTML structure with head and body tags",
+    "lineRanges": [1, 10]
+  },
+  {
+    "id": "2", 
+    "instruction": "Create a CSS file called 'style.css' for styling your webpage",
+    "lineRanges": [1, 5]
   }
 ]`;
 
@@ -148,7 +155,7 @@ Example format:
     // Send initial chat message
     const welcomeMessage = {
       type: "assistant",
-      content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nI'll help you write the code in the specified line ranges. Feel free to ask questions at any time!`,
+      content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nI'll help you write the code step by step. Feel free to ask questions at any time!`,
     };
 
     res.json({ projectId, steps, welcomeMessage });
@@ -301,12 +308,14 @@ router.post("/project-chat", async (req, res) => {
 // Simple chat for non-guided users
 router.post("/simple-chat", async (req, res) => {
   try {
-    const { history, projectFiles } = req.body;
+    const { history, projectFiles, guidedProject, currentCode, currentLanguage } = req.body;
     if (!history) {
       return res.status(400).json({ error: "Missing required parameters" });
     }
 
     const projectContext = createProjectContext(projectFiles);
+    const guidedContext = guidedProject ? `\n\nCurrent Guided Project: ${guidedProject.steps[guidedProject.currentStep]?.instruction || 'No active step'}` : '';
+    const codeContext = currentCode ? `\n\nCurrent Code (${currentLanguage}):\n${currentCode}` : '';
 
     // Format chat history for Gemini
     const chatHistory = history
@@ -316,10 +325,21 @@ router.post("/simple-chat", async (req, res) => {
       .join("\n");
 
     const prompt = `
-    You are a helpful coding assistant. Keep your responses very short and concise. 
-    If the user asks for more help, encourage them to click the 'Start Guided Project' button for a step-by-step experience. 
-    Do not provide detailed help unless the guided project is started.
-    Consider the user's project files when providing context-aware responses.\n\nChat history:\n${chatHistory}\n\nRespond as a JSON object with a 'content' field.${projectContext}`;
+    You are a helpful coding assistant designed specifically for beginners. Your responses should be:
+    - Very simple and easy to understand
+    - Encouraging and supportive
+    - Focused on practical, actionable advice
+    - Using beginner-friendly language without complex jargon
+    
+    ${guidedProject ? 'The user is currently working on a guided project. Provide context-aware help related to their current step.' : 'If the user asks for detailed help, encourage them to click the "Start Guided Project" button for a step-by-step experience.'}
+    
+    Consider the user's project files and current code when providing context-aware responses.
+    
+    Chat history:\n${chatHistory}
+    
+    ${projectContext}${guidedContext}${codeContext}
+    
+    Respond as a JSON object with a 'content' field.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();

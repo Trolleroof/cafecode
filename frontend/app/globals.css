@@ -296,53 +296,15 @@
   box-shadow: 0 0 30px rgba(20, 184, 166, 0.3);
 }
 
-/* IDE Editor Specific Styles for Line Number Alignment - REMOVED, using Prism.js line-numbers plugin now */
-/*
-.ide-editor pre {
-  all: unset;
-  display: block;
+/* Monaco Editor Line Highlighting */
+.highlighted-code-line {
+  background-color: rgba(255, 221, 74, 0.2) !important; /* #ffdd4a with opacity */
+  border-left: 3px solid #ffdd4a !important;
 }
 
-.ide-editor code {
-  font-family: '"Fira code", "Fira Mono", monospace';
-  font-size: 14px;
-}
-
-.ide-editor .token-line {
-  display: flex;
-  align-items: baseline;
-  white-space: pre-wrap;
-}
-
-.ide-editor .line-number {
-  min-width: 3em;
-  text-align: right;
-  padding-right: 0.5em;
-  user-select: none;
-  color: #6B7280;
-}
-
-.ide-editor .code-line {
-  flex-grow: 1;
-  white-space: pre-wrap;
-}
-
-.ide-editor .highlighted-line {
-  background-color: rgba(99, 102, 241, 0.2);
-}
-
-.ide-editor .hinted-line {
-  background-color: rgba(251, 191, 36, 0.2);
-}
-*/
-
-/* Basic styles for Prism.js line-numbers plugin */
-.line-numbers .line-numbers-rows {
-  border-right-color: #4A5568 !important; /* Darker gray for line number separator */
-}
-
-.line-numbers-rows > span:before {
-  color: #6B7280 !important; /* Gray color for line numbers */
+.highlighted-code-line-glyph {
+  background-color: #ffdd4a !important;
+  width: 4px !important;
 }
 
 /* Ensure proper white-space and font for code editor */
@@ -352,11 +314,6 @@
   word-wrap: normal !important;
   font-family: '"Fira code", "Fira Mono", monospace' !important;
   font-size: 14px !important;
-}
-
-/* Custom highlighting for active/hinted lines with line-numbers plugin */
-.line-highlight {
-  background-color: rgba(99, 102, 241, 0.2) !important; /* Blue for highlighted line */
 }
 
 .token.comment {

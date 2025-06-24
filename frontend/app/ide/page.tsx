@@ -66,6 +66,24 @@ const getLanguageFromFileName = (fileName: string): string => {
   }
 };
 
+// Helper function to recursively find all files in the file tree
+const getAllFiles = (files: FileNode[]): FileNode[] => {
+  const allFiles: FileNode[] = [];
+  
+  const traverse = (nodes: FileNode[]) => {
+    nodes.forEach(node => {
+      if (node.type === 'file') {
+        allFiles.push(node);
+      } else if (node.children) {
+        traverse(node.children);
+      }
+    });
+  };
+  
+  traverse(files);
+  return allFiles;
+};
+
 export default function IDEPage() {
   // File management state - Start with empty files array
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -73,6 +91,7 @@ export default function IDEPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string[]>([]);
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
+  const [highlightedLines, setHighlightedLines] = useState<number[]>([]);
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -100,9 +119,15 @@ export default function IDEPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
+  // Clear highlighted lines when file changes or code is modified
+  useEffect(() => {
+    setHighlightedLines([]);
+  }, [selectedFile?.id]);
+
   // File operations
   const handleFileSelect = (file: FileNode) => {
     setSelectedFile(file);
+    setHighlightedLines([]); // Clear highlights when switching files
   };
 
   const handleFileCreate = (parentId: string | null, type: 'file' | 'folder', name: string) => {
@@ -227,6 +252,9 @@ export default function IDEPage() {
       };
       
       setFiles(updateFileInTree(files));
+      
+      // Clear highlights when code is modified
+      setHighlightedLines([]);
     }
   };
 
@@ -301,7 +329,10 @@ export default function IDEPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           history: [...chatMessages, userMessage],
-          projectFiles: files 
+          projectFiles: files,
+          guidedProject: guidedProject,
+          currentCode: selectedFile?.content || '',
+          currentLanguage: selectedFile?.language || 'plaintext'
         })
       });
 
@@ -363,9 +394,14 @@ export default function IDEPage() {
       const result = await response.json();
       
       if (result.success && result.hint) {
+        // Highlight the line if specified
+        if (result.hint.line_number) {
+          setHighlightedLines([result.hint.line_number]);
+        }
+        
         setChatMessages(prev => [...prev, {
           type: 'assistant',
-          content: `💡 **Hint**: ${result.hint.hint_text}\n\n${result.hint.detailed_explanation ? `**Details**: ${result.hint.detailed_explanation}` : ''}`,
+          content: `💡 **Hint**: ${result.hint.hint_text}\n\n${result.hint.detailed_explanation ? `**Details**: ${result.hint.detailed_explanation}` : ''}${result.hint.line_number ? `\n\n*Check line ${result.hint.line_number} in your code (highlighted in yellow)*` : ''}`,
           timestamp: new Date()
         }]);
       }
@@ -405,10 +441,16 @@ export default function IDEPage() {
 
       const result = await response.json();
       
-      if (result.success && result.fixed_code) {
+      if (result.success && result.fixed_code && result.fixes_applied) {
+        // Highlight lines that were fixed
+        const fixedLines = result.fixes_applied.map((fix: any) => fix.line_number).filter((line: number) => line);
+        if (fixedLines.length > 0) {
+          setHighlightedLines(fixedLines);
+        }
+        
         setChatMessages(prev => [...prev, {
           type: 'assistant',
-          content: `🔧 **Code Fix Suggestions**:\n\n\`\`\`${selectedFile.language}\n${result.fixed_code}\n\`\`\`\n\n**Explanation**: ${result.explanation}\n\n**Confidence**: ${result.confidence_score}%`,
+          content: `🔧 **Code Fix Suggestions**:\n\n\`\`\`${selectedFile.language}\n${result.fixed_code}\n\`\`\`\n\n**Explanation**: ${result.explanation}\n\n**Confidence**: ${result.confidence_score}%${fixedLines.length > 0 ? `\n\n*Fixed lines are highlighted in yellow in your editor*` : ''}`,
           timestamp: new Date()
         }]);
       }
@@ -678,8 +720,11 @@ export default function IDEPage() {
           {/* File Explorer */}
           <ResizablePanel 
             defaultSize={isExplorerCollapsed ? 0 : 20} 
-            minSize={isExplorerCollapsed ? 0 : 15}
-            maxSize={isExplorerCollapsed ? 0 : 35}
+            minSize={0}
+            maxSize={35}
+            collapsible={true}
+            onCollapse={() => setIsExplorerCollapsed(true)}
+            onExpand={() => setIsExplorerCollapsed(false)}
           >
             <FileExplorer
               files={files}
@@ -728,6 +773,7 @@ export default function IDEPage() {
                       value={selectedFile.content || ''}
                       onChange={handleCodeChange}
                       theme="vs-dark"
+                      highlightedLines={highlightedLines}
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
@@ -744,6 +790,8 @@ export default function IDEPage() {
                   {selectedFile?.language === 'html' ? (
                     <HTMLPreview 
                       htmlContent={selectedFile.content || ''} 
+                      cssContent={getAllFiles(files).find(f => f.language === 'css')?.content}
+                      jsContent={getAllFiles(files).find(f => f.language === 'javascript')?.content}
                       onConsoleLog={(message) => setOutput(prev => [...prev, message])}
                     />
                   ) : (
@@ -794,13 +842,7 @@ export default function IDEPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-[#5adbff]">AI Assistant</h3>
-                    <p className="text-xs text-[#5adbff]/70">Always here to help</p>
                   </div>
-                </div>
-                
-                <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-[#ffdd4a] rounded-full animate-pulse"></div>
-                  <span className="text-xs text-[#ffdd4a]">Online</span>
                 </div>
               </div>
 
@@ -906,9 +948,9 @@ export default function IDEPage() {
         </ResizablePanelGroup>
       </div>
 
-      {/* Guided Step Popup */}
+      {/* Guided Step Popup - Moved slightly to the left */}
       {guidedProject && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-16 md:right-16 lg:left-1/4 lg:right-1/4 z-50">
+        <div className="fixed bottom-4 left-4 right-4 md:left-8 md:right-16 lg:left-16 lg:right-1/4 z-50">
           <div className="bg-[#094074] border-2 border-[#5adbff] rounded-2xl shadow-2xl p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex-1">

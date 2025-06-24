@@ -174,7 +174,7 @@ Requirements:
     const projectContext = this.createProjectContext(projectFiles);
     
     const stepContext = stepInstruction && lineRanges && stepId 
-      ? `Your goal is to help a beginner programmer complete a specific step in a guided project.
+      ? `Your goal is to help a complete beginner programmer complete a specific step in a guided project.
 
 Current Step Information:
 - Step ${stepId}: ${stepInstruction}
@@ -182,11 +182,13 @@ Current Step Information:
 
 Hinting Logic:
 1. Analyze the user's code against the Current Step Information.
-2. If the code correctly implements the step's instructions, your hint should be a confirmation message, like "Looks like you've got it! Your variables are declared correctly. You can click 'Check Step' to verify and move on."
-3. If the code is incorrect or incomplete for the current step, provide a small, actionable hint to guide the user toward the correct solution for THIS STEP ONLY.
-4. DO NOT give hints about future steps (like getting user input) or general best practices that are not relevant to the current instruction. Your entire focus is on the current step.
-5. Consider the project context and other files when providing hints.`
-      : 'You are an expert programming assistant. Provide a general, helpful hint for the following code.';
+2. If the code correctly implements the step's instructions, your hint should be a confirmation message, like "Looks like you've got it! Your code is correct. You can click 'Check Step' to verify and move on."
+3. If the code is incorrect or incomplete for the current step, provide a very simple, actionable hint to guide the user toward the correct solution for THIS STEP ONLY.
+4. Use extremely simple language suitable for someone who has never programmed before.
+5. DO NOT give hints about future steps or general best practices that are not relevant to the current instruction.
+6. Your entire focus is on the current step.
+7. Consider the project context and other files when providing hints.`
+      : 'You are an expert programming assistant. Provide a general, helpful hint for the following code using very simple, beginner-friendly language.';
 
     return `
 ${stepContext}
@@ -200,17 +202,19 @@ ${projectContext}
 
 Please provide your hint in the following JSON format:
 {
-  "hint_text": "A concise and helpful hint, suitable for a beginner. ${stepInstruction ? 'Your hint should be a confirmation if the code is correct, or a small tip if it is incorrect.' : ''}",
+  "hint_text": "A very simple and helpful hint, suitable for a complete beginner. ${stepInstruction ? 'Your hint should be a confirmation if the code is correct, or a very simple tip if it is incorrect.' : ''}",
   "line_number": number or null, // The specific line number the hint refers to (null if general)
   "suggestion_type": "syntax|logic|best_practice|performance|security|readability",
-  "detailed_explanation": "An optional detailed explanation if the hint needs more context."
+  "detailed_explanation": "An optional detailed explanation if the hint needs more context, but keep it simple."
 }
 
 Requirements for hints:
-- Keep the hint concise and actionable in simple terms.
+- Keep the hint extremely simple and actionable in very basic terms.
+- Avoid technical jargon completely.
 - Avoid directly giving the solution.
 - Focus ONLY on the current step if one is provided.
 - Consider the broader project context when relevant.
+- Assume the user knows almost nothing about programming.
 `;
   }
 
@@ -377,7 +381,7 @@ Requirements for hints:
       const projectContext = this.createProjectContext(projectFiles);
 
       const prompt = `
-You are an expert programming assistant. Your task is to translate programming error messages into plain, easy-to-understand English for beginners, and provide actionable suggestions for fixing them. Ensure the output is directly usable and well-structured, without any markdown formatting that might interfere with client-side rendering (e.g., no bolding with **).
+You are an expert programming assistant. Your task is to translate programming error messages into plain, easy-to-understand English for complete beginners, and provide actionable suggestions for fixing them. Ensure the output is directly usable and well-structured, without any markdown formatting that might interfere with client-side rendering (e.g., no bolding with **).
 
 Error message:
 ${text}
@@ -386,28 +390,29 @@ ${projectContext}
 
 Please provide your response in the following JSON format:
 {
-  "translated_text": "A clear, concise, and easy-to-understand explanation of the error message, suitable for a beginner. Avoid markdown bolding.",
+  "translated_text": "A clear, concise, and extremely easy-to-understand explanation of the error message, suitable for someone who has never programmed before. Avoid all technical jargon and use very simple language.",
   "error_type": "syntax|runtime|logic|type|reference|etc",
   "severity": "low|medium|high|critical",
   "suggestions": [
-    "Specific, actionable suggestion 1 to fix the error.",
-    "Specific, actionable suggestion 2 to fix the error."
+    "Specific, actionable suggestion 1 to fix the error, explained in very simple terms.",
+    "Specific, actionable suggestion 2 to fix the error, explained in very simple terms."
   ],
   "common_causes": [
-    "Common reason 1 why this error occurs.",
-    "Common reason 2 why this error occurs."
+    "Common reason 1 why this error occurs, explained simply.",
+    "Common reason 2 why this error occurs, explained simply."
   ]
 }
 
 Requirements:
-1.  Explain the error in simple, non-technical terms, focusing on clarity.
-2.  Identify the type and severity of the error.
-3.  Provide specific, actionable suggestions for fixing the error.
-4.  List common causes of this type of error to aid understanding.
-5.  Keep the explanation concise but informative.
-6.  Focus on helping beginners understand and fix the error efficiently.
-7.  Crucially, ensure the \`translated_text\` field contains plain text without any markdown characters (like \`**\` for bolding), as the frontend will handle formatting.
-8.  Consider the project context when providing suggestions.
+1. Explain the error in extremely simple, non-technical terms, focusing on clarity for beginners.
+2. Identify the type and severity of the error.
+3. Provide specific, actionable suggestions for fixing the error using beginner-friendly language.
+4. List common causes of this type of error to aid understanding.
+5. Keep the explanation concise but informative.
+6. Focus on helping complete beginners understand and fix the error efficiently.
+7. Crucially, ensure the \`translated_text\` field contains plain text without any markdown characters (like \`**\` for bolding), as the frontend will handle formatting.
+8. Consider the project context when providing suggestions.
+9. Assume the user knows almost nothing about programming.
 `;
 
       const result = await this.model.generateContent(prompt);
