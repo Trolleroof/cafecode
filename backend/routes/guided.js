@@ -47,37 +47,73 @@ function robustJsonParse(jsonString) {
   }
 }
 
+// Helper function to create project context from files
+const createProjectContext = (projectFiles) => {
+  if (!projectFiles || !Array.isArray(projectFiles)) {
+    return '';
+  }
+
+  const formatFiles = (files, indent = 0) => {
+    return files.map(file => {
+      const prefix = '  '.repeat(indent);
+      if (file.type === 'folder') {
+        const children = file.children ? formatFiles(file.children, indent + 1) : [];
+        return `${prefix}📁 ${file.name}/\n${children.join('')}`;
+      } else {
+        const preview = file.content ? 
+          (file.content.length > 100 ? file.content.substring(0, 100) + '...' : file.content) : 
+          '[empty]';
+        return `${prefix}📄 ${file.name} (${file.language || 'unknown'})\n${prefix}   Content: ${preview}\n`;
+      }
+    }).join('');
+  };
+
+  return `\n\nProject Structure and Files:\n${formatFiles(projectFiles)}`;
+};
+
 // Start a new guided project
 router.post("/startProject", async (req, res) => {
   try {
-    const { projectDescription } = req.body;
+    const { projectDescription, projectFiles } = req.body;
 
     if (!projectDescription) {
       return res.status(400).json({ error: "Project description is required" });
     }
 
     const projectId = uuidv4();
+    const projectContext = createProjectContext(projectFiles);
 
-    // Use Gemini to generate steps
+    // Enhanced prompt for guided projects
     const prompt = `Create a step-by-step guide for the following project. Format the response as a JSON array of steps, where each step has:
 - id: string (step number)
-- instruction: string (clear, concise instruction)
+- instruction: string (clear, concise instruction for beginners)
 - lineRanges: number[] (array of line numbers where code should be written)
 
 Project: ${projectDescription}
 
-DO NOT DO ANY OF THE FOLLOWING OR INCLUDE THE FOLLOWING IN THE STEPS:
-- tell the user to create new files, because the current setup doesn't require them to do these files
+${projectContext}
 
-THINGS TO CONSIDER: 
-- break down the steps into the smallest possible, assuming the user is a beginner programmer
+IMPORTANT GUIDELINES:
+- Break down the steps into the smallest possible parts, assuming the user is a complete beginner
+- For HTML projects, encourage creating separate style.css and main.js files for styling and scripting
+- Guide users to link CSS and JavaScript files properly in HTML
+- Use very simple, beginner-friendly language
+- Each step should be achievable in 2-3 lines of code maximum
+- Consider the existing project files when creating steps
+- If no files exist, start with creating the basic file structure
+- Reference specific files when relevant to the instructions
 
 Example format:
 [
   {
     "id": "1",
-    "instruction": "Create a function that adds two numbers",
-    "lineRanges": [1, 3]
+    "instruction": "Create an HTML file called 'index.html' and add the basic HTML structure with head and body tags",
+    "lineRanges": [1, 10]
+  },
+  {
+    "id": "2", 
+    "instruction": "Create a CSS file called 'style.css' for styling your webpage",
+    "lineRanges": [1, 5]
   }
 ]`;
 
@@ -113,12 +149,13 @@ Example format:
       description: projectDescription,
       steps,
       currentStep: 0,
+      projectFiles: projectFiles || []
     });
 
     // Send initial chat message
     const welcomeMessage = {
       type: "assistant",
-      content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nI'll help you write the code in the specified line ranges. Feel free to ask questions at any time!`,
+      content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nI'll help you write the code step by step. Feel free to ask questions at any time!`,
     };
 
     res.json({ projectId, steps, welcomeMessage });
@@ -131,7 +168,7 @@ Example format:
 // Analyze current step
 router.post("/analyzeStep", async (req, res) => {
   try {
-    const { projectId, stepId, code, language } = req.body;
+    const { projectId, stepId, code, language, projectFiles } = req.body;
 
     if (!projectId || !stepId || !code || !language) {
       return res.status(400).json({ error: "Missing required parameters" });
@@ -143,6 +180,7 @@ router.post("/analyzeStep", async (req, res) => {
     }
 
     const currentStep = project.steps[project.currentStep];
+    const projectContext = createProjectContext(projectFiles || project.projectFiles);
 
     // Use Gemini to analyze the code
     const prompt = `Analyze the following ${language} code for step ${
@@ -151,7 +189,7 @@ router.post("/analyzeStep", async (req, res) => {
       currentStep.instruction
     }\nLine Ranges: ${currentStep.lineRanges.join(
       "-"
-    )}\n\n${language.charAt(0).toUpperCase() + language.slice(1)} Code:\n${code}\n\nProvide feedback as a JSON array of objects, where each object has:\n- line: number (line number being analyzed)\n- correct: boolean (whether the code is correct for this line)\n- suggestion: string (optional suggestion if incorrect)\n\nAnalyze this as ${language} code specifically. DO NOT include any additional text or markdown outside of the JSON array.\n\nFormat the response as a JSON array.`;
+    )}\n\n${language.charAt(0).toUpperCase() + language.slice(1)} Code:\n${code}\n\nProvide feedback as a JSON array of objects, where each object has:\n- line: number (line number being analyzed)\n- correct: boolean (whether the code is correct for this line)\n- suggestion: string (optional suggestion if incorrect)\n\nAnalyze this as ${language} code specifically. DO NOT include any additional text or markdown outside of the JSON array.\n\nFormat the response as a JSON array.${projectContext}`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
@@ -208,7 +246,7 @@ router.post("/analyzeStep", async (req, res) => {
 // Project-specific chat
 router.post("/project-chat", async (req, res) => {
   try {
-    const { projectId, currentStep, history } = req.body;
+    const { projectId, currentStep, history, projectFiles } = req.body;
 
     if (!projectId || !history) {
       return res.status(400).json({ error: "Missing required parameters" });
@@ -219,6 +257,8 @@ router.post("/project-chat", async (req, res) => {
       return res.status(404).json({ error: "Project not found" });
     }
 
+    const projectContext = createProjectContext(projectFiles || project.projectFiles);
+
     // Format chat history for Gemini
     const chatHistory = history
       .map(
@@ -226,7 +266,7 @@ router.post("/project-chat", async (req, res) => {
       )
       .join("\n");
 
-    const prompt = `You are a helpful coding assistant guiding a user through a project.\nCurrent step: ${project.steps[currentStep].instruction}\n\nChat history:\n${chatHistory}\n\nProvide a helpful, encouraging response that:\n1. Addresses the user's question\n2. Provides relevant guidance for the current step\n3. Uses markdown formatting for code blocks and important points\n4. Keeps the response concise and clear\n\nDO NOT include any additional text or markdown outside of the JSON object.\n\nFormat your response as a JSON object with a 'content' field.`;
+    const prompt = `You are a helpful coding assistant guiding a user through a project.\nCurrent step: ${project.steps[currentStep].instruction}\n\nChat history:\n${chatHistory}\n\nProvide a helpful, encouraging response that:\n1. Addresses the user's question\n2. Provides relevant guidance for the current step\n3. Uses markdown formatting for code blocks and important points\n4. Keeps the response concise and clear\n5. Consider the project context and files when providing guidance\n\nDO NOT include any additional text or markdown outside of the JSON object.\n\nFormat your response as a JSON object with a 'content' field.${projectContext}`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
@@ -268,10 +308,14 @@ router.post("/project-chat", async (req, res) => {
 // Simple chat for non-guided users
 router.post("/simple-chat", async (req, res) => {
   try {
-    const { history } = req.body;
+    const { history, projectFiles, guidedProject, currentCode, currentLanguage } = req.body;
     if (!history) {
       return res.status(400).json({ error: "Missing required parameters" });
     }
+
+    const projectContext = createProjectContext(projectFiles);
+    const guidedContext = guidedProject ? `\n\nCurrent Guided Project: ${guidedProject.steps[guidedProject.currentStep]?.instruction || 'No active step'}` : '';
+    const codeContext = currentCode ? `\n\nCurrent Code (${currentLanguage}):\n${currentCode}` : '';
 
     // Format chat history for Gemini
     const chatHistory = history
@@ -281,9 +325,21 @@ router.post("/simple-chat", async (req, res) => {
       .join("\n");
 
     const prompt = `
-    You are a helpful coding assistant. Keep your responses very short and concise. 
-    If the user asks for more help, encourage them to click the 'Start Guided Project' button for a step-by-step experience. 
-    Do not provide detailed help unless the guided project is started.\n\nChat history:\n${chatHistory}\n\nRespond as a JSON object with a 'content' field.`;
+    You are a helpful coding assistant designed specifically for beginners. Your responses should be:
+    - Very simple and easy to understand
+    - Encouraging and supportive
+    - Focused on practical, actionable advice
+    - Using beginner-friendly language without complex jargon
+    
+    ${guidedProject ? 'The user is currently working on a guided project. Provide context-aware help related to their current step.' : 'If the user asks for detailed help, encourage them to click the "Start Guided Project" button for a step-by-step experience.'}
+    
+    Consider the user's project files and current code when providing context-aware responses.
+    
+    Chat history:\n${chatHistory}
+    
+    ${projectContext}${guidedContext}${codeContext}
+    
+    Respond as a JSON object with a 'content' field.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();

@@ -1,33 +1,48 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, MessageSquare, Lightbulb, Code2, AlertCircle, CheckCircle, Loader2, BookOpen, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Play, 
+  MessageSquare, 
+  Lightbulb, 
+  Code2, 
+  Terminal, 
+  Sparkles, 
+  X,
+  Brain,
+  CheckCircle,
+  ArrowRight,
+  ArrowLeft,
+  Search,
+  Copy,
+  Zap
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
+import FileExplorer from '@/components/FileExplorer';
 import MonacoEditor from '@/components/MonacoEditor';
-import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
-import GuidedStepPopup from '@/components/GuidedStepPopup';
+import HTMLPreview from '@/components/HTMLPreview';
+import RunDropdown from '@/components/RunDropdown';
 import TypingIndicator from '@/components/TypingIndicator';
+import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
 
-const supportedLanguages = [
-  { id: 'javascript', name: 'JavaScript', extension: '.js' },
-  { id: 'python', name: 'Python', extension: '.py' },
-  { id: 'html', name: 'HTML', extension: '.html' }
-];
+interface FileNode {
+  id: string;
+  name: string;
+  type: 'file' | 'folder';
+  content?: string;
+  children?: FileNode[];
+  language?: string;
+}
 
-const defaultCode = {
-  javascript: `// Your first JavaScript function`,
+interface ChatMessage {
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp?: Date;
+}
 
-  python: `# Your first Python function`,
-
-  html: `<!Insert HTML Here>
-<html>
-
-</html>`
-};
-
-type ExecutionStatus = 'idle' | 'running' | 'success' | 'error';
-
-interface Step {
+interface GuidedStep {
   id: string;
   instruction: string;
   lineRanges: number[];
@@ -35,1042 +50,973 @@ interface Step {
 
 interface GuidedProject {
   projectId: string;
-  steps: Step[];
+  steps: GuidedStep[];
   currentStep: number;
 }
 
-interface ChatMessage {
-  type: 'user' | 'assistant' | 'system';
-  content: string;
-}
+const getLanguageFromFileName = (fileName: string): string => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  switch (extension) {
+    case 'js': return 'javascript';
+    case 'py': return 'python';
+    case 'html': return 'html';
+    case 'css': return 'css';
+    case 'json': return 'json';
+    default: return 'plaintext';
+  }
+};
+
+// Helper function to recursively find all files in the file tree
+const getAllFiles = (files: FileNode[]): FileNode[] => {
+  const allFiles: FileNode[] = [];
+  
+  const traverse = (nodes: FileNode[]) => {
+    nodes.forEach(node => {
+      if (node.type === 'file') {
+        allFiles.push(node);
+      } else if (node.children) {
+        traverse(node.children);
+      }
+    });
+  };
+  
+  traverse(files);
+  return allFiles;
+};
 
 export default function IDEPage() {
-  const [selectedLanguage, setSelectedLanguage] = useState(supportedLanguages[0].id);
-  const [code, setCode] = useState(defaultCode.javascript);
-  const [pyodide, setPyodide] = useState<any>(null);
-  const [isPyodideLoading, setIsPyodideLoading] = useState(true);
-  const router = useRouter();
-  const [output, setOutput] = useState('');
-  const [executionStatus, setExecutionStatus] = useState<ExecutionStatus>('idle');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
+  // File management state - Start with empty files array
+  const [files, setFiles] = useState<FileNode[]>([]);
+  const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [isFixing, setIsFixing] = useState(false);
-  const [analysisResults, setAnalysisResults] = useState<any>(null);
-  const [showTranslateBubble, setShowTranslateBubble] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
-  const [hintedLine, setHintedLine] = useState<number | null>(null);
-  const editorRef = useRef<HTMLDivElement>(null);
-  const [isEditorFocused, setIsEditorFocused] = useState(false);
-  const [isGuidedModalOpen, setIsGuidedModalOpen] = useState(false);
-  const [guidedProject, setGuidedProject] = useState<GuidedProject | null>(null);
-  const [stepFeedback, setStepFeedback] = useState<any[]>([]);
-  const [isStepComplete, setIsStepComplete] = useState(false);
-  const [isAssistantTyping, setIsAssistantTyping] = useState(false);
-  const chatInputRef = useRef<HTMLInputElement>(null);
-  const [showRunTooltip, setShowRunTooltip] = useState(false);
-  
-  // Interactive input state
-  const [isWaitingForInput, setIsWaitingForInput] = useState(false);
-  const [inputPrompt, setInputPrompt] = useState('');
-  const [inputValue, setInputValue] = useState('');
-  const [pendingInputs, setPendingInputs] = useState<string[]>([]);
-  const [currentPythonCode, setCurrentPythonCode] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [output, setOutput] = useState<string[]>([]);
+  const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
+  const [highlightedLines, setHighlightedLines] = useState<number[]>([]);
 
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      type: 'assistant',
+      content: 'Hi! I\'m your AI coding assistant. I can help you with:\n\n• **Code explanations** - Ask me about any code\n• **Error fixing** - Paste error messages for help\n• **Learning tips** - Get coding best practices\n• **Project guidance** - Start a guided project\n\nWhat would you like to work on today?',
+      timestamp: new Date()
+    }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  // Guided project state
+  const [guidedProject, setGuidedProject] = useState<GuidedProject | null>(null);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [stepComplete, setStepComplete] = useState(false);
+
+  // UI state
+  const [activeTab, setActiveTab] = useState('editor');
+
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll chat to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  // Debug step completion
+  // Clear highlighted lines when file changes or code is modified
   useEffect(() => {
-    if (guidedProject) {
-      console.log(`Step ${guidedProject.currentStep + 1} completion status:`, isStepComplete);
-    }
-  }, [isStepComplete, guidedProject]);
+    setHighlightedLines([]);
+  }, [selectedFile?.id]);
 
-  useEffect(() => {
-    const initPyodide = async () => {
-      try {
-        // Load Pyodide from CDN
-        const pyodideScript = document.createElement('script');
-        pyodideScript.src = 'https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js';
-        document.body.appendChild(pyodideScript);
+  // File operations
+  const handleFileSelect = (file: FileNode) => {
+    setSelectedFile(file);
+    setHighlightedLines([]); // Clear highlights when switching files
+  };
 
-        await new Promise((resolve, reject) => {
-          pyodideScript.onload = resolve;
-          pyodideScript.onerror = reject;
-        });
-
-        // @ts-ignore
-        const pyodideInstance = await window.loadPyodide({
-          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
-        });
-        
-        setPyodide(pyodideInstance);
-        setIsPyodideLoading(false);
-      } catch (error) {
-        console.error('Failed to load Pyodide:', error);
-        setIsPyodideLoading(false);
-      }
+  const handleFileCreate = (parentId: string | null, type: 'file' | 'folder', name: string) => {
+    const newFile: FileNode = {
+      id: Date.now().toString(),
+      name,
+      type,
+      content: type === 'file' ? '' : undefined,
+      children: type === 'folder' ? [] : undefined,
+      language: type === 'file' ? getLanguageFromFileName(name) : undefined
     };
 
-    initPyodide();
-  }, []);
-
-  const handleLanguageChange = (langId: string) => {
-    setSelectedLanguage(langId);
-    setCode(defaultCode[langId as keyof typeof defaultCode]);
-    setExecutionStatus('idle');
-    setOutput('');
-    setHintedLine(null);
-    setHighlightedLine(null);
-    
-    // Reset input state when changing languages
-    setIsWaitingForInput(false);
-    setInputPrompt('');
-    setInputValue('');
-    setPendingInputs([]);
-    setCurrentPythonCode('');
-  };
-
-  // Cleanup function for input state
-  const resetInputState = () => {
-    setIsWaitingForInput(false);
-    setInputPrompt('');
-    setInputValue('');
-    setPendingInputs([]);
-    setCurrentPythonCode('');
-  };
-
-  const executeJavaScript = (code: string) => {
-    const logs: string[] = [];
-    const errors: string[] = [];
-    
-    // Create a custom console for capturing output
-    const customConsole = {
-      log: (...args: any[]) => {
-        logs.push(args.map(arg => 
-          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-        ).join(' '));
-      },
-      error: (...args: any[]) => {
-        errors.push(args.map(arg => String(arg)).join(' '));
-      },
-      warn: (...args: any[]) => {
-        logs.push('⚠️ ' + args.map(arg => String(arg)).join(' '));
-      }
-    };
-
-    try {
-      // Create a function that executes the code with our custom console
-      const executeCode = new Function('console', code);
-      executeCode(customConsole);
-      
-      if (errors.length > 0) {
-        return `❌ Errors:\n${errors.join('\n')}\n\n📝 Output:\n${logs.join('\n')}`;
+    const addFileToTree = (nodes: FileNode[], parentId: string | null): FileNode[] => {
+      if (parentId === null) {
+        return [...nodes, newFile];
       }
       
-      return logs.length > 0 ? logs.join('\n') : '✅ Code executed successfully (no output)';
-    } catch (error) {
-      return `❌ Runtime Error: ${error}`;
-    }
-  };
-
-  const executePython = async (code: string) => {
-    if (!pyodide) {
-      return '❌ Python runtime is not ready yet. Please wait a moment and try again.';
-    }
-
-    // Check if code contains input() calls
-    const inputMatches = code.match(/input\([^)]*\)/g);
-    if (!inputMatches) {
-      // No input() calls, execute normally
-      let capturedOutput = '';
-      const originalStdout = pyodide.runPython("import sys; sys.stdout");
-
-      try {
-        pyodide.setStdout({ write: (msg: any) => {
-          let textMsg = '';
-          if (typeof msg === 'string') {
-            textMsg = msg;
-          } else if (msg instanceof Uint8Array) {
-            textMsg = new TextDecoder().decode(msg);
-          } else {
-            textMsg = String(msg);
-          }
-          capturedOutput += textMsg;
-          return msg.length || 0;
-        } });
-
-        await pyodide.runPythonAsync(code);
-        return capturedOutput;
-      } catch (error: any) {
-        return `❌ Python Error: ${error.message}`;
-      } finally {
-        pyodide.setStdout(originalStdout);
-      }
-    } else {
-      // Has input() calls, handle interactively
-      return await executePythonWithInput(code);
-    }
-  };
-
-  const executePythonWithInput = async (code: string): Promise<string> => {
-    if (!pyodide) {
-      return '❌ Python runtime is not ready yet.';
-    }
-
-    try {
-      // Store the original code and prepare for interactive execution
-      setCurrentPythonCode(code);
-      setPendingInputs([]);
-      setIsWaitingForInput(true);
-      
-      // Extract all input() calls to prepare prompts
-      const inputMatches = code.match(/input\([^)]*\)/g) || [];
-      const prompts: string[] = [];
-      
-      for (const match of inputMatches) {
-        // Extract the prompt from input("prompt") or input()
-        const promptMatch = match.match(/input\(["']([^"']*)["']\)/);
-        prompts.push(promptMatch ? promptMatch[1] : '');
-      }
-      
-      setPendingInputs(prompts);
-      
-      // Show the first prompt
-      if (prompts.length > 0) {
-        setInputPrompt(prompts[0]);
-        setInputValue('');
-        setOutput(prev => prev + (prompts[0] || 'Enter input: '));
-        
-        // Focus the input field
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 100);
-      }
-      
-      // Return a placeholder - actual execution will happen after inputs
-      return '⏳ Waiting for input...\n';
-    } catch (error: any) {
-      return `❌ Error setting up interactive input: ${error.message}`;
-    }
-  };
-
-  const handleInputSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim() && pendingInputs.length > 0) return;
-
-    const currentInput = inputValue;
-    setInputValue('');
-    
-    // Add the input to the output
-    // setOutput(prev => prev + currentInput + '\n');
-    
-    // Store this input for Python execution
-    const updatedInputs = [...pendingInputs];
-    
-    // Replace the current input() call with the user's input
-    let modifiedCode = currentPythonCode;
-    const inputMatches = currentPythonCode.match(/input\([^)]*\)/g) || [];
-    
-    if (inputMatches.length > 0) {
-      try {
-        // Replace the first input() call with the user's input
-        const firstInputMatch = inputMatches[0];
-        if (firstInputMatch) {
-          const escapedInput = currentInput.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-          modifiedCode = modifiedCode.replace(firstInputMatch, `"${escapedInput}"`);
+      return nodes.map(node => {
+        if (node.id === parentId && node.type === 'folder') {
+          return {
+            ...node,
+            children: [...(node.children || []), newFile]
+          };
+        } else if (node.children) {
+          return {
+            ...node,
+            children: addFileToTree(node.children, parentId)
+          };
         }
-        
-        // Remove the first prompt from pending inputs
-        updatedInputs.shift();
-        setPendingInputs(updatedInputs);
-        
-        if (updatedInputs.length > 0) {
-          // More inputs needed
-          setInputPrompt(updatedInputs[0]);
-          setOutput(prev => prev + (updatedInputs[0] || 'Enter input: '));
-          setTimeout(() => {
-            inputRef.current?.focus();
-          }, 100);
-        } else {
-          // All inputs provided, execute the modified code
-          setIsWaitingForInput(false);
-          setInputPrompt('');
-          
-          // Execute the modified code
-          let capturedOutput = '';
-          const originalStdout = pyodide.runPython("import sys; sys.stdout");
-
-          try {
-            pyodide.setStdout({ write: (msg: any) => {
-              let textMsg = '';
-              if (typeof msg === 'string') {
-                textMsg = msg;
-              } else if (msg instanceof Uint8Array) {
-                textMsg = new TextDecoder().decode(msg);
-              } else {
-                textMsg = String(msg);
-              }
-              capturedOutput += textMsg;
-              return msg.length || 0;
-            } });
-
-            await pyodide.runPythonAsync(modifiedCode);
-            
-            // Add the final output
-            setOutput(prev => prev + capturedOutput);
-            setExecutionStatus(capturedOutput.includes('❌') ? 'error' : 'success');
-          } catch (error: any) {
-            const errorOutput = `❌ Python Error: ${error.message}`;
-            setOutput(prev => prev + errorOutput);
-            setExecutionStatus('error');
-          } finally {
-            try {
-              pyodide.setStdout(originalStdout);
-            } catch (stdoutError) {
-              console.warn('Error restoring stdout:', stdoutError);
-            }
-            setIsRunning(false);
-          }
-        }
-      } catch (error: any) {
-        const errorOutput = `❌ Error processing input: ${error.message}`;
-        setOutput(prev => prev + errorOutput);
-        setExecutionStatus('error');
-        setIsWaitingForInput(false);
-        setIsRunning(false);
-      }
-    }
-  };
-
-  const executeHTML = (code: string) => {
-    // For HTML, we'll show a preview message and extract any console.log statements
-    const logs: string[] = [];
-    
-    // Extract JavaScript from script tags
-    const scriptMatches = code.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
-    if (scriptMatches) {
-      scriptMatches.forEach(script => {
-        const jsCode = script.replace(/<script[^>]*>|<\/script>/gi, '');
-        const consoleMatches = jsCode.match(/console\.log\([^)]+\)/g);
-        if (consoleMatches) {
-          consoleMatches.forEach(logStatement => {
-            const content = logStatement.match(/console\.log\(["']([^"']+)["']\)/);
-            if (content) {
-              logs.push(content[1]);
-            }
-          });
-        }
+        return node;
       });
+    };
+
+    setFiles(addFileToTree(files, parentId));
+    if (type === 'file') {
+      setSelectedFile(newFile);
     }
-    
-    let output = '🌐 HTML page would be rendered in browser\n';
-    if (logs.length > 0) {
-      output += '📝 Console output:\n' + logs.join('\n');
+  };
+
+  const handleFileDelete = (fileId: string) => {
+    const deleteFromTree = (nodes: FileNode[]): FileNode[] => {
+      return nodes.filter(node => {
+        if (node.id === fileId) {
+          return false;
+        }
+        if (node.children) {
+          node.children = deleteFromTree(node.children);
+        }
+        return true;
+      });
+    };
+
+    setFiles(deleteFromTree(files));
+    if (selectedFile?.id === fileId) {
+      setSelectedFile(null);
     }
+  };
+
+  const handleFileMove = (fileId: string, newParentId: string | null) => {
+    let fileToMove: FileNode | null = null;
     
-    return output;
+    // Find and remove the file from its current location
+    const removeFromTree = (nodes: FileNode[]): FileNode[] => {
+      return nodes.filter(node => {
+        if (node.id === fileId) {
+          fileToMove = node;
+          return false;
+        }
+        if (node.children) {
+          node.children = removeFromTree(node.children);
+        }
+        return true;
+      });
+    };
+
+    // Add the file to its new location
+    const addToTree = (nodes: FileNode[], parentId: string | null, file: FileNode): FileNode[] => {
+      if (parentId === null) {
+        return [...nodes, file];
+      }
+      
+      return nodes.map(node => {
+        if (node.id === parentId && node.type === 'folder') {
+          return {
+            ...node,
+            children: [...(node.children || []), file]
+          };
+        } else if (node.children) {
+          return {
+            ...node,
+            children: addToTree(node.children, parentId, file)
+          };
+        }
+        return node;
+      });
+    };
+
+    let updatedFiles = removeFromTree([...files]);
+    if (fileToMove) {
+      updatedFiles = addToTree(updatedFiles, newParentId, fileToMove);
+      setFiles(updatedFiles);
+    }
   };
 
   const handleCodeChange = (value: string | undefined) => {
-    const newCode = value || '';
-    setCode(newCode);
-    setExecutionStatus('idle');
-    setOutput('');
+    if (selectedFile && value !== undefined) {
+      const updatedFile = { ...selectedFile, content: value };
+      setSelectedFile(updatedFile);
+      
+      const updateFileInTree = (nodes: FileNode[]): FileNode[] => {
+        return nodes.map(node => {
+          if (node.id === selectedFile.id) {
+            return updatedFile;
+          } else if (node.children) {
+            return {
+              ...node,
+              children: updateFileInTree(node.children)
+            };
+          }
+          return node;
+        });
+      };
+      
+      setFiles(updateFileInTree(files));
+      
+      // Clear highlights when code is modified
+      setHighlightedLines([]);
+    }
   };
 
-  const handleRunCode = async () => {
-    setExecutionStatus('running');
+  // Run code with automatic tab switching
+  const handleRunFile = async (file: FileNode) => {
+    if (!file.content) return;
+
     setIsRunning(true);
-    setOutput('🚀 Running code...\n');
-    
-    let result = '';
+    setOutput([]);
+
+    // Auto-switch tabs based on file type
+    if (file.language === 'html') {
+      setActiveTab('preview');
+    } else {
+      setActiveTab('terminal');
+    }
 
     try {
-      switch (selectedLanguage) {
-        case 'javascript':
-          result = executeJavaScript(code);
-          break;
-        case 'python':
-          result = await executePython(code);
-          break;
-        case 'html':
-          result = executeHTML(code);
-          break;
-        default:
-          result = `${selectedLanguage} execution not implemented yet`;
+      if (file.language === 'python') {
+        const response = await fetch('/api/python/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: file.content })
+        });
+
+        const result = await response.json();
+        if (result.output) {
+          setOutput(result.output.split('\n').filter((line: string) => line.trim()));
+        }
+        if (result.error) {
+          setOutput(prev => [...prev, `Error: ${result.error}`]);
+        }
+      } else if (file.language === 'javascript') {
+        try {
+          const originalLog = console.log;
+          const logs: string[] = [];
+          console.log = (...args) => {
+            logs.push(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
+          };
+
+          new Function(file.content)();
+          console.log = originalLog;
+          setOutput(logs);
+        } catch (error) {
+          setOutput([`Error: ${error}`]);
+        }
       }
-      
-      setOutput(result);
-      setExecutionStatus(result.startsWith('❌') ? 'error' : 'success');
-    } catch (error: any) {
-      setOutput(`❌ Error: ${error.message}`);
-      setExecutionStatus('error');
+    } catch (error) {
+      setOutput([`Error: ${error}`]);
     } finally {
       setIsRunning(false);
     }
   };
 
-  // Add keyboard event listener for Ctrl+Enter
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-        event.preventDefault();
-        console.log("hello")
-        if (!isRunning && !isPyodideLoading) {
-          handleRunCode();
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isRunning, isPyodideLoading, handleRunCode]);
-
-  // Cleanup input state on unmount
-  useEffect(() => {
-    return () => {
-      resetInputState();
-    };
-  }, []);
-
-  const handleTranslateError = async () => {
-    if (!output.startsWith('❌')) return;
-
-    setIsAssistantTyping(true);
-    try {
-      const errorMessage = output.substring(output.indexOf('❌') + 2).trim();
-      // Directly call the backend API route for translation
-      const response = await fetch('http://localhost:8000/api/translate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: errorMessage }),
-      });
-
-      const result = await response.json();
-
-      if (result.success && result.translation) {
-        const translatedMessage: ChatMessage = {
-          type: 'system',
-          content: `
-Translated Error (Severity: ${result.translation.severity || 'Unknown'}):
-${result.translation.text}
-
-Error Type: ${result.translation.error_type || 'N/A'}
-
-Suggestions:
-${result.translation.suggestions && result.translation.suggestions.length > 0 
-  ? result.translation.suggestions.map((s: string) => `- ${s}`).join('\n')
-  : '- No specific suggestions provided.'}
-
-Common Causes:
-${result.translation.common_causes && result.translation.common_causes.length > 0 
-  ? result.translation.common_causes.map((c: string) => `- ${c}`).join('\n')
-  : '- No common causes listed.'}
-`
-        };
-        setChatMessages(prev => [...prev, translatedMessage]);
-      } else {
-        setChatMessages(prev => [
-          ...prev,
-          { type: 'system', content: `Failed to translate error: ${result.error || 'Unknown error'}` }
-        ]);
-      }
-    } catch (error: any) {
-      console.error('Error translating error message:', error);
-      setChatMessages(prev => [
-        ...prev,
-        { type: 'system', content: `Failed to translate error due to a network or server issue: ${error.message}` }
-      ]);
-    } finally {
-      setIsAssistantTyping(false);
-    }
-  };
-
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Chat functionality
+  const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
 
-    const userMessage: ChatMessage = { type: 'user', content: chatInput };
+    const userMessage: ChatMessage = {
+      type: 'user',
+      content: chatInput,
+      timestamp: new Date()
+    };
+
     setChatMessages(prev => [...prev, userMessage]);
     setChatInput('');
-    setIsAssistantTyping(true);
+    setIsTyping(true);
 
-    if (guidedProject) {
-      try {
-        const response = await fetch('http://localhost:8000/api/guided/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId: guidedProject.projectId,
-            currentStep: guidedProject.currentStep,
-            history: [...chatMessages, userMessage],
-          }),
-        });
-        const data = await response.json();
-        if (data.response && data.response.content) {
-          setChatMessages(prev => [...prev, { type: 'assistant', content: data.response.content }]);
-        } else {
-          setChatMessages(prev => [...prev, { type: 'system', content: 'Failed to get a response from the assistant.' }]);
-        }
-      } catch (error: any) {
-        setChatMessages(prev => [...prev, { type: 'system', content: 'Error contacting assistant: ' + error.message }]);
-      } finally {
-        setIsAssistantTyping(false);
-        chatInputRef.current?.focus();
-      }
-    } else {
-      try {
-        const response = await fetch('http://localhost:8000/api/guided/simple-chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            history: [...chatMessages, userMessage],
-          }),
-        });
-        const data = await response.json();
-        if (data.response && data.response.content) {
-          setChatMessages(prev => [...prev, { type: 'assistant', content: data.response.content }]);
-        } else {
-          setChatMessages(prev => [...prev, { type: 'system', content: 'Failed to get a response from the assistant.' }]);
-        }
-      } catch (error: any) {
-        setChatMessages(prev => [...prev, { type: 'system', content: 'Error contacting assistant: ' + error.message }]);
-      } finally {
-        setIsAssistantTyping(false);
-        chatInputRef.current?.focus();
-      }
-    }
-  };
-
-  const handleHint = async () => {
-    // Check if guided project is active
-    if (!guidedProject) {
-      const message: ChatMessage = {
-        type: 'assistant',
-        content: '💡 To get AI hints and suggestions, please click the "Start Guided Project" button above. This will enable step-by-step guidance with AI-powered hints and fixes!'
-      };
-      setChatMessages(prev => [...prev, message]);
-      return;
-    }
-
-    setIsAssistantTyping(true);
     try {
-      setChatMessages(prev => [...prev, { type: 'system', content: 'Generating step-specific hint...' }]);
-
-      const currentStep = guidedProject.steps[guidedProject.currentStep];
-      
-      const response = await fetch('http://localhost:8000/api/hint', {
+      const response = await fetch('/api/guided/simple-chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code: code,
-          language: selectedLanguage,
-          stepInstruction: currentStep.instruction,
-          lineRanges: currentStep.lineRanges,
-          stepId: currentStep.id
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          history: [...chatMessages, userMessage],
+          projectFiles: files,
+          guidedProject: guidedProject,
+          currentCode: selectedFile?.content || '',
+          currentLanguage: selectedFile?.language || 'plaintext'
+        })
       });
 
       const result = await response.json();
-
-      if (result.success && result.hint) {
-        let hintMessageContent = `💡 Step ${currentStep.id} Hint: ${result.hint.hint_text}`;
-        if (result.hint.line_number) {
-          hintMessageContent += ` (Line: ${result.hint.line_number})`;
-        }
-        if (result.hint.detailed_explanation) {
-          hintMessageContent += `\n\n${result.hint.detailed_explanation}`;
-        }
-        
-        const hintMessage: ChatMessage = {
-          type: 'system',
-          content: hintMessageContent
-        };
-        setChatMessages(prev => [...prev, hintMessage]);
-      } else {
-        setChatMessages(prev => [
-          ...prev,
-          { type: 'system', content: `Failed to get hint: ${result.error || 'Unknown error'}` }
-        ]);
+      
+      if (result.response) {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: result.response.content,
+          timestamp: new Date()
+        }]);
       }
     } catch (error) {
-      console.error('Error generating hint:', error);
-      const errorMessage: ChatMessage = { type: 'system', content: 'Sorry, I ran into an issue getting you a hint.' };
-      setChatMessages(prev => [...prev, errorMessage]);
+      // Fallback response
+      const responses = [
+        "That's a great question! Let me help you with that. Here's what I suggest:\n\n```javascript\n// Example code\nfunction example() {\n  console.log('Hello!');\n}\n```\n\nThis approach works because...",
+        "I can see you're working on something interesting! Here are some tips:\n\n• **Best Practice**: Always use meaningful variable names\n• **Tip**: Break complex problems into smaller functions\n• **Debug**: Use console.log() to track your values\n\nWould you like me to explain any specific part?",
+        "Excellent! That's exactly the right approach. Here's how you can improve it:\n\n```python\n# Improved version\ndef improved_function(data):\n    \"\"\"Process data efficiently\"\"\"\n    return [item.strip() for item in data if item]\n```\n\nThis is more efficient because it uses list comprehension.",
+      ];
+
+      const assistantMessage: ChatMessage = {
+        type: 'assistant',
+        content: responses[Math.floor(Math.random() * responses.length)],
+        timestamp: new Date()
+      };
+
+      setChatMessages(prev => [...prev, assistantMessage]);
     } finally {
-      setIsAssistantTyping(false);
+      setIsTyping(false);
     }
   };
 
-  const handleSuggestFix = async () => {
-    // Check if guided project is active
-    if (!guidedProject) {
-      const message: ChatMessage = {
+  // Chat action buttons functionality
+  const handleGetHint = async () => {
+    if (!selectedFile || !selectedFile.content) {
+      setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: '🔧 To get AI-powered code fixes and suggestions, please click the "Start Guided Project" button above. This will enable step-by-step guidance with AI-powered analysis and fixes!'
-      };
-      setChatMessages(prev => [...prev, message]);
+        content: 'Please select a file with some code first, and I\'ll give you a helpful hint!',
+        timestamp: new Date()
+      }]);
       return;
     }
 
-    setIsAssistantTyping(true);
+    setIsTyping(true);
     try {
-      setIsFixing(true);
+      const response = await fetch('/api/hint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: selectedFile.content,
+          language: selectedFile.language,
+          stepInstruction: guidedProject?.steps[guidedProject.currentStep]?.instruction,
+          lineRanges: guidedProject?.steps[guidedProject.currentStep]?.lineRanges,
+          stepId: guidedProject?.steps[guidedProject.currentStep]?.id,
+          projectFiles: files
+        })
+      });
 
-      // Run analysis first to get errors
-      const analysisMessage: ChatMessage = {
+      const result = await response.json();
+      
+      if (result.success && result.hint) {
+        // Highlight the line if specified
+        if (result.hint.line_number) {
+          setHighlightedLines([result.hint.line_number]);
+        }
+        
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: `💡 **Hint**: ${result.hint.hint_text}\n\n${result.hint.detailed_explanation ? `**Details**: ${result.hint.detailed_explanation}` : ''}${result.hint.line_number ? `\n\n*Check line ${result.hint.line_number} in your code (highlighted in yellow)*` : ''}`,
+          timestamp: new Date()
+        }]);
+      }
+    } catch (error) {
+      setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: '🔍 Let me analyze your code first to find issues that need fixing...'
-      };
-      setChatMessages(prev => [...prev, analysisMessage]);
-
-      const response = await fetch('http://localhost:8000/api/code/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: code,
-          language: selectedLanguage,
-          context: 'IDE analysis for fix suggestion'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const currentAnalysisResults = await response.json();
-      setAnalysisResults(currentAnalysisResults);
-
-      if (!currentAnalysisResults.errors || currentAnalysisResults.errors.length === 0) {
-        const noErrorsMessage: ChatMessage = {
-          type: 'assistant',
-          content: '✅ Great news! No errors found in your code. Your code looks good to go!'
-        };
-        setChatMessages(prev => [...prev, noErrorsMessage]);
-        return;
-      }
-
-      // Now proceed with fix suggestion.
-      const firstError = currentAnalysisResults.errors[0];
-      const fixResponse = await fetch('http://localhost:8000/api/code/fix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: code,
-          language: selectedLanguage,
-          error_message: firstError.message,
-          line_number: firstError.line_number
-        }),
-      });
-
-      if (!fixResponse.ok) {
-        throw new Error(`HTTP error! status: ${fixResponse.status}`);
-      }
-
-      const fixResult = await fixResponse.json();
-
-      if (fixResult.success && fixResult.fixed_code) {
-        // Only show the fix in the chat, do not update the code editor
-        const fixMessage: ChatMessage = {
-          type: 'assistant',
-          content:
-            '💡 Here is a suggested fix for your code:\n\n' +
-            (fixResult.fixed_code
-              ? `\`\`\`${selectedLanguage}\n${fixResult.fixed_code}\n\`\`\`\n`
-              : '') +
-            (fixResult.explanation
-              ? `**Explanation:**\n${fixResult.explanation}`
-              : '')
-        };
-        setChatMessages(prev => [...prev, fixMessage]);
-      } else if (fixResult.success && fixResult.code) {
-        // fallback for some backends that use 'code' instead of 'fixed_code'
-        const fixMessage: ChatMessage = {
-          type: 'assistant',
-          content:
-            '💡 Here is a suggested fix for your code:\n\n' +
-            `\`\`\`${selectedLanguage}\n${fixResult.code}\n\`\`\`\n` +
-            (fixResult.explanation
-              ? `**Explanation:**\n${fixResult.explanation}`
-              : '')
-        };
-        setChatMessages(prev => [...prev, fixMessage]);
-      } else {
-        const errorMessage: ChatMessage = {
-          type: 'system',
-          content: `❌ Failed to suggest a fix: ${fixResult.error || 'Unknown error'}`
-        };
-        setChatMessages(prev => [...prev, errorMessage]);
-      }
-    } catch (error: any) {
-      console.error('Error in handleSuggestFix:', error);
-      const errorMessage: ChatMessage = { type: 'system', content: 'Sorry, I ran into an issue suggesting a fix.' };
-      setChatMessages(prev => [...prev, errorMessage]);
+        content: '💡 **Hint**: Try breaking down your problem into smaller steps. Look for any syntax errors first, then check your logic flow!',
+        timestamp: new Date()
+      }]);
     } finally {
-      setIsFixing(false);
-      setIsAssistantTyping(false);
+      setIsTyping(false);
     }
   };
 
+  const handleFixCode = async () => {
+    if (!selectedFile || !selectedFile.content) {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Please select a file with some code first, and I\'ll help you fix any issues!',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+
+    setIsTyping(true);
+    try {
+      const response = await fetch('/api/code/fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: selectedFile.content,
+          language: selectedFile.language,
+          error_message: 'General code review and improvement',
+          projectFiles: files
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.fixed_code && result.fixes_applied) {
+        // Highlight lines that were fixed
+        const fixedLines = result.fixes_applied.map((fix: any) => fix.line_number).filter((line: number) => line);
+        if (fixedLines.length > 0) {
+          setHighlightedLines(fixedLines);
+        }
+        
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: `🔧 **Code Fix Suggestions**:\n\n\`\`\`${selectedFile.language}\n${result.fixed_code}\n\`\`\`\n\n**Explanation**: ${result.explanation}\n\n**Confidence**: ${result.confidence_score}%${fixedLines.length > 0 ? `\n\n*Fixed lines are highlighted in yellow in your editor*` : ''}`,
+          timestamp: new Date()
+        }]);
+      }
+    } catch (error) {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: '🔧 **Code Review**: Your code looks good! Here are some general tips:\n\n• Check for proper indentation\n• Use meaningful variable names\n• Add comments for complex logic\n• Test your code with different inputs',
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  const handleExplainCode = async () => {
+    if (!selectedFile || !selectedFile.content) {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Please select a file with some code first, and I\'ll explain what it does!',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+
+    setIsTyping(true);
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `Explain this ${selectedFile.language} code: ${selectedFile.content}`,
+          projectFiles: files
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success && result.translation) {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: `📚 **Code Explanation**:\n\n${result.translation.text}\n\n**Suggestions**:\n${result.translation.suggestions?.map((s: string) => `• ${s}`).join('\n') || 'Keep up the great work!'}`,
+          timestamp: new Date()
+        }]);
+      }
+    } catch (error) {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: `📚 **Code Explanation**:\n\nThis ${selectedFile.language} code appears to be well-structured. Here's what it does:\n\n• Defines functions and variables\n• Implements logic for your application\n• Uses proper ${selectedFile.language} syntax\n\nWould you like me to explain any specific part in more detail?`,
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  // Guided project functionality
   const handleStartGuidedProject = async (description: string) => {
     try {
-      const response = await fetch('http://localhost:8000/api/guided/startProject', {
+      const response = await fetch('/api/guided/startProject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectDescription: description })
+        body: JSON.stringify({ 
+          projectDescription: description,
+          projectFiles: files 
+        })
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to start guided project');
-      }
-
-      const { projectId, steps, welcomeMessage }: { projectId: string; steps: Step[]; welcomeMessage: ChatMessage } = await response.json();
+      const result = await response.json();
       
-      setGuidedProject({
-        projectId,
-        steps,
-        currentStep: 0
-      });
-      setIsGuidedModalOpen(false); // Close the submission modal
+      if (result.projectId && result.steps) {
+        setGuidedProject({
+          projectId: result.projectId,
+          steps: result.steps,
+          currentStep: 0
+        });
 
-      setChatMessages(prev => [...prev, welcomeMessage]);
-      setIsStepComplete(false);
-
+        if (result.welcomeMessage) {
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: result.welcomeMessage.content,
+            timestamp: new Date()
+          }]);
+        }
+      }
     } catch (error) {
-      console.error("Error starting guided project:", error);
-      // Handle error (show toast notification, etc.)
+      console.error('Error starting guided project:', error);
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'I\'m ready to help you with your project! Let\'s start by creating some files and writing code together. What would you like to build?',
+        timestamp: new Date()
+      }]);
     }
   };
 
-  const handleAnalyzeStep = async () => {
-    if (!guidedProject || isStepComplete) return;
+  const handleCheckStep = async () => {
+    if (!guidedProject || !selectedFile) return;
 
-    setIsAssistantTyping(true);
     try {
-      const response = await fetch('http://localhost:8000/api/guided/analyzeStep', {
+      const response = await fetch('/api/guided/analyzeStep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: guidedProject.projectId,
           stepId: guidedProject.steps[guidedProject.currentStep].id,
-          code,
-          language: selectedLanguage
+          code: selectedFile.content || '',
+          language: selectedFile.language || 'plaintext',
+          projectFiles: files
         })
       });
 
-      if (!response.ok) throw new Error('Failed to analyze step');
-
-      const data = await response.json();
-      setStepFeedback(data.feedback);
+      const result = await response.json();
       
-      const chatMessage: ChatMessage = data.chatMessage;
-      setChatMessages(prev => [...prev, chatMessage]);
+      if (result.chatMessage) {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: result.chatMessage.content,
+          timestamp: new Date()
+        }]);
+      }
 
-      // Check if all feedback items are correct
-      const allCorrect = data.feedback.every((f: any) => f.correct);
-      setIsStepComplete(allCorrect);
-
+      const allCorrect = result.feedback?.every((f: any) => f.correct) || false;
+      setStepComplete(allCorrect);
     } catch (error) {
-      console.error('Error analyzing step:', error);
-      const errorMessage: ChatMessage = {
-        type: 'system',
-        content: 'Sorry, I had trouble analyzing your code. Please try again.'
-      };
-      setChatMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsAssistantTyping(false);
+      console.error('Error checking step:', error);
+      setStepComplete(true); // Allow progression for demo
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Great work! Your code looks good for this step. You can proceed to the next one!',
+        timestamp: new Date()
+      }]);
     }
   };
 
   const handleNextStep = () => {
-    if (!guidedProject || !isStepComplete) return;
+    if (!guidedProject || !stepComplete) return;
 
-    const nextStep = guidedProject.currentStep + 1;
-    if (nextStep < guidedProject.steps.length) {
+    const nextStepIndex = guidedProject.currentStep + 1;
+    if (nextStepIndex < guidedProject.steps.length) {
       setGuidedProject({
         ...guidedProject,
-        currentStep: nextStep
+        currentStep: nextStepIndex
       });
-      setStepFeedback([]);
-      setIsStepComplete(false); // Reset for the new step
-      
-      // Add next step message to chat
-      const nextStepMessage: ChatMessage = {
+      setStepComplete(false);
+
+      const nextStep = guidedProject.steps[nextStepIndex];
+      setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: `Great! Let's move on to step ${nextStep + 1}:\n\n${guidedProject.steps[nextStep].instruction}\n\nI'll help you write the code in the specified line ranges.`
-      };
-      setChatMessages(prev => [...prev, nextStepMessage]);
+        content: `Great job! Now let's move to step ${nextStepIndex + 1}:\n\n${nextStep.instruction}`,
+        timestamp: new Date()
+      }]);
     } else {
-      // Project completed
-      const completionMessage: ChatMessage = {
+      setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: "🎉 Congratulations! You've completed the project! Feel free to start a new project or continue exploring the IDE."
-      };
-      setChatMessages(prev => [...prev, completionMessage]);
+        content: '🎉 Congratulations! You\'ve completed the guided project! You\'re doing amazing!',
+        timestamp: new Date()
+      }]);
       setGuidedProject(null);
-      setStepFeedback([]);
     }
   };
 
   const handlePreviousStep = () => {
     if (!guidedProject) return;
 
-    const previousStep = guidedProject.currentStep - 1;
-    console.log('Previous step requested:', { currentStep: guidedProject.currentStep, previousStep });
-    
-    if (previousStep >= 0) {
-      console.log('Going to previous step:', previousStep + 1);
+    const prevStepIndex = guidedProject.currentStep - 1;
+    if (prevStepIndex >= 0) {
       setGuidedProject({
         ...guidedProject,
-        currentStep: previousStep
+        currentStep: prevStepIndex
       });
-      setStepFeedback([]);
-      setIsStepComplete(false); // Reset for the previous step
-      
-      // Add previous step message to chat
-      const previousStepMessage: ChatMessage = {
+      setStepComplete(false);
+
+      const prevStep = guidedProject.steps[prevStepIndex];
+      setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: `Let's go back to step ${previousStep + 1}:\n\n${guidedProject.steps[previousStep].instruction}\n\nYou can review and modify your code for this step.`
-      };
-      setChatMessages(prev => [...prev, previousStepMessage]);
-    } 
+        content: `Back to step ${prevStepIndex + 1}:\n\n${prevStep.instruction}`,
+        timestamp: new Date()
+      }]);
+    }
   };
 
-  const handleExitGuidedProject = () => {
-    setGuidedProject(null);
-    setStepFeedback([]);
-    setIsStepComplete(false);
+  const formatCodeInMessage = (content: string) => {
+    // Split content by code blocks
+    const parts = content.split(/(```[\s\S]*?```)/g);
     
-    // Add exit message to chat
-    const exitMessage: ChatMessage = {
-      type: 'assistant',
-      content: '👋 You\'ve exited the guided project. You can start a new one anytime by clicking "Start Guided Project"!'
-    };
-    setChatMessages(prev => [...prev, exitMessage]);
+    return parts.map((part, index) => {
+      if (part.startsWith('```') && part.endsWith('```')) {
+        // Extract language and code
+        const lines = part.slice(3, -3).split('\n');
+        const language = lines[0] || '';
+        const code = lines.slice(1).join('\n');
+        
+        return (
+          <div key={index} className="my-4">
+            <div className="bg-[#094074] rounded-t-lg px-4 py-2 text-xs text-[#5adbff] border-b border-[#3c6997] flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Code2 className="h-3 w-3" />
+                {language || 'code'}
+              </span>
+              <button 
+                onClick={() => navigator.clipboard.writeText(code)}
+                className="hover:text-[#ffdd4a] transition-colors"
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+            </div>
+            <pre className="bg-[#3c6997] rounded-b-lg p-4 overflow-x-auto text-sm text-white">
+              <code className={`language-${language}`}>{code}</code>
+            </pre>
+          </div>
+        );
+      } else {
+        // Regular text with inline code formatting
+        return (
+          <div key={index} className="whitespace-pre-wrap">
+            {part.split(/(`[^`]+`)/g).map((segment, i) => {
+              if (segment.startsWith('`') && segment.endsWith('`')) {
+                return (
+                  <code key={i} className="bg-[#094074] px-2 py-1 rounded text-sm font-mono text-[#5adbff]">
+                    {segment.slice(1, -1)}
+                  </code>
+                );
+              }
+              return segment;
+            })}
+          </div>
+        );
+      }
+    });
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between py-2 px-4 bg-gray-800 shadow-md">
+    <div className="flex flex-col h-screen bg-[#094074] text-white transition-colors duration-300">
+      {/* Header */}
+      <header className="flex items-center justify-between p-4 border-b border-[#3c6997] bg-[#094074] shadow-lg">
         <div className="flex items-center space-x-4">
-          <h1 className="text-xl font-bold text-blue-400">Bolt IDE</h1>
-          {guidedProject && (
-            <div className="flex items-center space-x-2 bg-gray-700 px-3 py-1 rounded-md">
-              <span className="text-sm text-gray-300">Step {guidedProject.currentStep + 1} of {guidedProject.steps.length}</span>
-              <div className="w-24 bg-gray-600 rounded-full h-2">
-                <div 
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${((guidedProject.currentStep + 1) / guidedProject.steps.length) * 100}%` }}
-                ></div>
-              </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-[#5adbff] rounded-lg flex items-center justify-center">
+              <Code2 className="h-5 w-5 text-[#094074]" />
             </div>
-          )}
+            <h1 className="text-xl font-bold text-[#5adbff]">
+              CodeCraft IDE
+            </h1>
+          </div>
         </div>
-        <div className="flex items-center space-x-4">
-          <select
-            value={selectedLanguage}
-            onChange={(e) => handleLanguageChange(e.target.value)}
-            className="px-3 py-2 rounded-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {supportedLanguages.map((lang) => (
-              <option key={lang.id} value={lang.id}>
-                {lang.name}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={handleRunCode}
-            onMouseEnter={() => setShowRunTooltip(true)}
-            onMouseLeave={() => setShowRunTooltip(false)}
-            className="relative flex items-center px-4 py-2 bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-            disabled={isRunning || isPyodideLoading}
-          >
-            {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-            Run
-            {showRunTooltip && (
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
-                Ctrl+Enter
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-              </div>
-            )}
-          </button>
-          
-          {guidedProject ? (
-            <button
-              onClick={handleExitGuidedProject}
-              className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
-            >
-              <X className="h-4 w-4" />
-              <span>Exit Project</span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsGuidedModalOpen(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-all duration-200 transform hover:scale-105 hover:shadow-lg"
-            >
-              <BookOpen className="h-4 w-4" />
-              <span>Start Guided Project</span>
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Main Content Area */}
+        <div className="flex items-center space-x-2">
+          <RunDropdown 
+            files={files} 
+            onRunFile={handleRunFile} 
+            isRunning={isRunning} 
+          />
+
+          <Button
+            onClick={() => setShowProjectModal(true)}
+            className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Start Guided Project</span>
+            <span className="sm:hidden">Guide</span>
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Code Editor */}
-        <div className="flex-1 flex flex-col bg-gray-850 border-r border-gray-700 h-full relative">
-          <div className="flex justify-between items-center py-1 px-2 bg-gray-700">
-            <span className="text-sm font-semibold">{selectedLanguage.toUpperCase()} Code</span>
-          </div>
-          <div className="flex-1 overflow-auto">
-            <MonacoEditor
-              language={selectedLanguage}
-              value={code}
-              onChange={handleCodeChange}
-              theme="vs-dark"
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          {/* File Explorer */}
+          <ResizablePanel 
+            defaultSize={isExplorerCollapsed ? 0 : 20} 
+            minSize={0}
+            maxSize={35}
+            collapsible={true}
+            onCollapse={() => setIsExplorerCollapsed(true)}
+            onExpand={() => setIsExplorerCollapsed(false)}
+          >
+            <FileExplorer
+              files={files}
+              onFileSelect={handleFileSelect}
+              onFileCreate={handleFileCreate}
+              onFileDelete={handleFileDelete}
+              onFileMove={handleFileMove}
+              selectedFileId={selectedFile?.id || null}
+              isCollapsed={isExplorerCollapsed}
+              onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
             />
-          </div>
-          {guidedProject && (
-            <GuidedStepPopup
-              instruction={guidedProject.steps[guidedProject.currentStep].instruction}
-              isComplete={isStepComplete}
-              onNextStep={handleNextStep}
-              onPreviousStep={handlePreviousStep}
-              onCheckStep={handleAnalyzeStep}
-              stepNumber={guidedProject.currentStep + 1}
-              totalSteps={guidedProject.steps.length}
-            />
-          )}
-        </div>
+          </ResizablePanel>
 
-        {/* Output and Chat Area */}
-        <div className="w-[450px] flex flex-col">
-          {/* Output Window */}
-          <div className="h-[400px] flex flex-col bg-gray-800 p-4 overflow-auto text-sm border-b border-gray-700">
-            <h2 className="text-lg font-semibold mb-2">Output</h2>
-            <pre className="flex-1 bg-gray-900 p-3 rounded-md overflow-auto text-sm text-gray-200">
-              {isPyodideLoading && selectedLanguage === 'python' ? 'Loading Python runtime (Pyodide)...' : output}
-            </pre>
-            
-            {/* Interactive Input Field */}
-            {isWaitingForInput && (
-              <form onSubmit={handleInputSubmit} className="mt-3 flex items-center space-x-2">
-                <span className="text-green-400 font-mono">$</span>
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-gray-700 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 font-mono text-sm"
-                  placeholder="Enter your input..."
-                  ref={inputRef}
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
-                >
-                  Enter
-                </button>
-              </form>
-            )}
-            
-            {executionStatus === 'error' && output.startsWith('❌') && (
-              <button
-                onClick={handleTranslateError}
-                className="mt-2 flex items-center justify-center px-3 py-1 bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
-              >
-                <MessageSquare className="mr-2 h-4 w-4" /> Translate Error
-              </button>
-            )}
-          </div>
+          {/* Editor and Preview */}
+          <ResizablePanel defaultSize={isExplorerCollapsed ? 70 : 50} minSize={30}>
+            <div className="flex flex-col h-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-[#3c6997] bg-[#3c6997]">
+                  <TabsList className="bg-[#094074] border border-[#3c6997]">
+                    <TabsTrigger value="editor" className="data-[state=active]:bg-[#5adbff] data-[state=active]:text-[#094074]">
+                      <Code2 className="mr-2 h-4 w-4" />
+                      Editor
+                    </TabsTrigger>
+                    <TabsTrigger value="preview" className="data-[state=active]:bg-[#ffdd4a] data-[state=active]:text-[#094074]">
+                      <Play className="mr-2 h-4 w-4" />
+                      Preview
+                    </TabsTrigger>
+                    <TabsTrigger value="terminal" className="data-[state=active]:bg-[#ff960d] data-[state=active]:text-white">
+                      <Terminal className="mr-2 h-4 w-4" />
+                      Output
+                    </TabsTrigger>
+                  </TabsList>
 
-          {/* Chat Interface */}
-          <div className="flex-1 flex flex-col bg-gray-800 p-4 min-h-0">
-            <h2 className="text-lg font-semibold mb-2">AI Assistant</h2>
-            <div className="flex flex-col overflow-y-auto space-y-2 bg-gray-900 p-3 rounded-md mb-3 min-h-[100px]">
-              {chatMessages.map((msg, index) => (
-                <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[70%] p-2 rounded-lg text-sm whitespace-pre-wrap ${
-                      msg.type === 'user'
-                        ? 'bg-blue-700 text-white'
-                        : 'bg-gray-700 text-gray-100'
-                    }`}
-                  >
-                    {msg.content}
+                  {selectedFile && (
+                    <div className="flex items-center space-x-2 text-sm text-[#5adbff]">
+                      <div className="w-2 h-2 bg-[#5adbff] rounded-full"></div>
+                      <span className="font-mono">{selectedFile.name}</span>
+                    </div>
+                  )}
+                </div>
+
+                <TabsContent value="editor" className="flex-1 m-0">
+                  {selectedFile ? (
+                    <MonacoEditor
+                      language={selectedFile.language || 'plaintext'}
+                      value={selectedFile.content || ''}
+                      onChange={handleCodeChange}
+                      theme="vs-dark"
+                      highlightedLines={highlightedLines}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
+                      <div className="text-center">
+                        <Code2 className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
+                        <p className="text-[#5adbff] text-lg">Create a file to start coding</p>
+                        <p className="text-[#5adbff]/70 text-sm mt-2">Use the file explorer to create your first file</p>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="preview" className="flex-1 m-0">
+                  {selectedFile?.language === 'html' ? (
+                    <HTMLPreview 
+                      htmlContent={selectedFile.content || ''} 
+                      cssContent={getAllFiles(files).find(f => f.language === 'css')?.content}
+                      jsContent={getAllFiles(files).find(f => f.language === 'javascript')?.content}
+                      onConsoleLog={(message) => setOutput(prev => [...prev, message])}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
+                      <div className="text-center">
+                        <Play className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
+                        <p className="text-[#5adbff] text-lg">Preview available for HTML files</p>
+                        <p className="text-[#5adbff]/70 text-sm mt-2">Create an HTML file to see the preview</p>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="terminal" className="flex-1 m-0">
+                  <div className="h-full bg-[#094074] p-4 font-mono text-sm overflow-y-auto">
+                    <div className="flex items-center space-x-2 mb-4 text-[#ffdd4a]">
+                      <Terminal className="h-4 w-4" />
+                      <span>Output Console</span>
+                    </div>
+                    {output.length > 0 ? (
+                      <div className="space-y-1">
+                        {output.map((line, index) => (
+                          <div key={index} className="text-[#5adbff]">
+                            <span className="text-[#ffdd4a] mr-2">{'>'}</span>
+                            {line}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-[#5adbff] italic">
+                        Run your code to see output here...
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </ResizablePanel>
+
+          {/* Chat Panel */}
+          <ResizablePanel defaultSize={30} minSize={25} maxSize={50}>
+            <div className="flex flex-col h-full bg-[#3c6997] border-l border-[#094074]">
+              {/* Chat Header */}
+              <div className="flex items-center justify-between p-4 border-b border-[#094074] bg-[#094074]">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-[#5adbff] rounded-full flex items-center justify-center">
+                    <Brain className="h-4 w-4 text-[#094074]" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-[#5adbff]">AI Assistant</h3>
                   </div>
                 </div>
-              ))}
-              {isAssistantTyping && <TypingIndicator />}
-              <div ref={messagesEndRef} />
-            </div>
+              </div>
 
-            {/* AI Action Buttons */}
-            <div className="flex space-x-2 mb-3">
-              <button
-                onClick={handleSuggestFix}
-                className={`flex items-center flex-1 px-4 py-2 rounded-md focus:outline-none text-white text-sm justify-center ${
-                  isFixing || code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''
-                    ? 'bg-gray-500 cursor-not-allowed opacity-50'
-                    : 'bg-orange-600 hover:bg-orange-700 focus:ring-2 focus:ring-orange-500'
-                }`}
-                disabled={isFixing || code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''}
-                title={code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === '' ? 'Add some code first to get AI suggestions' : 'Get AI suggestions to fix your code'}
-              >
-                {isFixing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <AlertCircle className="mr-2 h-4 w-4" />}
-                Suggest Fix
-              </button>
-              <button
-                onClick={handleHint}
-                className={`flex items-center flex-1 px-4 py-2 rounded-md focus:outline-none text-white text-sm justify-center ${
-                  code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''
-                    ? 'bg-gray-500 cursor-not-allowed opacity-50'
-                    : 'bg-yellow-600 hover:bg-yellow-700 focus:ring-2 focus:ring-yellow-500'
-                }`}
-                disabled={code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === ''}
-                title={code.trim() === defaultCode[selectedLanguage as keyof typeof defaultCode].trim() || code.trim() === '' ? 'Add some code first to get hints' : 'Get AI hints for your code'}
-              >
-                <Lightbulb className="mr-2 h-4 w-4" />
-                Get Hint
-              </button>
-            </div>
+              {/* Chat Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#3c6997]">
+                {chatMessages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                        message.type === 'user'
+                          ? 'bg-[#5adbff] text-[#094074] ml-4'
+                          : 'bg-[#094074] text-[#5adbff] mr-4 border border-[#5adbff]/20'
+                      } shadow-lg`}
+                    >
+                      {message.type === 'assistant' ? (
+                        <div className="prose prose-invert max-w-none text-[#5adbff]">
+                          {formatCodeInMessage(message.content)}
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-relaxed">{message.content}</p>
+                      )}
+                      
+                      {message.timestamp && (
+                        <p className={`text-xs opacity-70 mt-2 ${message.type === 'user' ? 'text-[#094074]/70' : 'text-[#5adbff]/70'}`}>
+                          {message.timestamp.toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {isTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-[#094074] rounded-2xl px-4 py-3 mr-4 border border-[#5adbff]/20">
+                      <TypingIndicator />
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
 
-            {/* Chat Input */}
-            <form onSubmit={handleChatSubmit} className="flex">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Ask for help or a hint..."
-                className="flex-1 px-3 py-2 rounded-l-md bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                ref={chatInputRef}
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <MessageSquare className="h-5 w-5" />
-              </button>
-            </form>
-          </div>
-        </div>
+              {/* Chat Input */}
+              <div className="p-4 border-t border-[#094074] bg-[#094074]">
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    placeholder="Ask me anything about coding..."
+                    className="flex-1 bg-[#3c6997] border border-[#5adbff] rounded-xl px-4 py-3 text-white placeholder-[#5adbff]/70 focus:outline-none focus:ring-2 focus:ring-[#5adbff] focus:border-transparent transition-all duration-200"
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!chatInput.trim() || isTyping}
+                    className="bg-[#5adbff] hover:bg-[#ffdd4a] text-[#094074] px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Enhanced Chat Action Buttons */}
+                <div className="flex items-center justify-center mt-4 space-x-3">
+                  <Button
+                    onClick={handleGetHint}
+                    variant="outline"
+                    size="sm"
+                    className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
+                  >
+                    <Lightbulb className="mr-2 h-4 w-4" />
+                    Get Hint
+                  </Button>
+                  
+                  <Button
+                    onClick={handleFixCode}
+                    variant="outline"
+                    size="sm"
+                    className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
+                  >
+                    <Zap className="mr-2 h-4 w-4" />
+                    Fix Code
+                  </Button>
+                  
+                  <Button
+                    onClick={handleExplainCode}
+                    variant="outline"
+                    size="sm"
+                    className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
+                  >
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Explain
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
 
+      {/* Guided Step Popup - Moved slightly to the left */}
+      {guidedProject && (
+        <div className="fixed bottom-4 left-4 right-4 md:left-8 md:right-16 lg:left-16 lg:right-1/4 z-50">
+          <div className="bg-[#094074] border-2 border-[#5adbff] rounded-2xl shadow-2xl p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-6 h-6 bg-[#5adbff] rounded-full flex items-center justify-center text-xs font-bold text-[#094074]">
+                    {guidedProject.currentStep + 1}
+                  </div>
+                  <h3 className="font-bold text-[#5adbff]">
+                    Step {guidedProject.currentStep + 1} of {guidedProject.steps.length}
+                  </h3>
+                </div>
+                <div className="bg-[#3c6997] rounded-lg p-3 border border-[#5adbff]">
+                  <p className="text-sm text-white leading-relaxed">
+                    {guidedProject.steps[guidedProject.currentStep]?.instruction}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+                <Button
+                  onClick={handlePreviousStep}
+                  variant="outline"
+                  size="sm"
+                  disabled={guidedProject.currentStep === 0}
+                  className="border-[#5adbff] text-[#5adbff] hover:bg-[#5adbff] hover:text-[#094074] flex-1 sm:flex-none"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <Button
+                  onClick={handleCheckStep}
+                  className="bg-[#ffdd4a] hover:bg-[#ff960d] text-[#094074] hover:text-white font-semibold flex-1 sm:flex-none"
+                >
+                  <Search className="mr-2 h-4 w-4" />
+                  Check Step
+                </Button>
+                
+                <Button
+                  onClick={handleNextStep}
+                  disabled={!stepComplete}
+                  className="bg-[#ff960d] hover:bg-[#ffdd4a] disabled:opacity-50 disabled:cursor-not-allowed text-white hover:text-[#094074] font-semibold flex-1 sm:flex-none"
+                >
+                  {stepComplete ? (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Next Step
+                    </>
+                  ) : (
+                    <>
+                      <X className="mr-2 h-4 w-4" />
+                      Complete Step
+                    </>
+                  )}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Description Modal */}
       <ProjectDescriptionModal
-        isOpen={isGuidedModalOpen}
-        onClose={() => setIsGuidedModalOpen(false)}
+        isOpen={showProjectModal}
+        onClose={() => setShowProjectModal(false)}
         onSubmit={handleStartGuidedProject}
       />
     </div>

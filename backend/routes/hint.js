@@ -4,7 +4,7 @@ const router = express.Router();
 
 router.post('/', async (req, res) => {
   try {
-    const { code, language, stepInstruction, lineRanges, stepId } = req.body;
+    const { code, language, stepInstruction, lineRanges, stepId, projectFiles } = req.body;
 
     if (!code || !language) {
       return res.status(400).json({
@@ -27,7 +27,8 @@ router.post('/', async (req, res) => {
       language,
       stepInstruction,
       lineRanges,
-      stepId
+      stepId,
+      projectFiles
     });
 
     if (!result.success) {
@@ -48,4 +49,4 @@ router.post('/', async (req, res) => {
   }
 });
 
-export default router; 
+export default router;
