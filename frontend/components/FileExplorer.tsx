@@ -402,7 +402,7 @@ export default function FileExplorer({
       </div>
       
       {/* File Tree */}
-      <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-2">
+      <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-4">
         <div className="min-w-max">
           {files.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center p-4">
