@@ -92,8 +92,8 @@ export default function IDEPage() {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background-color: #5adbff;
+            color: #094074;
             min-height: 100vh;
         }
         .container {
@@ -101,30 +101,34 @@ export default function IDEPage() {
             margin: 0 auto;
             text-align: center;
             padding: 40px 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         h1 {
             font-size: 3rem;
             margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            color: #094074;
         }
         p {
             font-size: 1.2rem;
             line-height: 1.6;
             margin-bottom: 30px;
+            color: #3c6997;
         }
         .button {
-            background: rgba(255,255,255,0.2);
-            border: 2px solid rgba(255,255,255,0.3);
+            background-color: #ff960d;
+            border: none;
             color: white;
             padding: 15px 30px;
             font-size: 1.1rem;
-            border-radius: 50px;
+            border-radius: 5px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: background-color 0.3s ease;
         }
         .button:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-2px);
+            background-color: #ffdd4a;
+            color: #094074;
         }
     </style>
 </head>
@@ -138,7 +142,7 @@ export default function IDEPage() {
     
     <script>
         function showMessage() {
-            document.getElementById('message').innerHTML = '<p style="margin-top: 20px; font-size: 1.5rem;">🎉 Great job! You clicked the button!</p>';
+            document.getElementById('message').innerHTML = '<p style="margin-top: 20px; font-size: 1.5rem; color: #ff960d;">🎉 Great job! You clicked the button!</p>';
         }
     </script>
 </body>
@@ -488,19 +492,19 @@ for fruit in fruits:
         
         return (
           <div key={index} className="my-4">
-            <div className="bg-gray-800 rounded-t-lg px-4 py-2 text-xs text-gray-400 border-b border-gray-700 flex items-center justify-between">
+            <div className="bg-[#094074] rounded-t-lg px-4 py-2 text-xs text-[#5adbff] border-b border-[#3c6997] flex items-center justify-between">
               <span className="flex items-center gap-2">
                 <Code2 className="h-3 w-3" />
                 {language || 'code'}
               </span>
               <button 
                 onClick={() => navigator.clipboard.writeText(code)}
-                className="hover:text-white transition-colors"
+                className="hover:text-[#ffdd4a] transition-colors"
               >
                 <Copy className="h-3 w-3" />
               </button>
             </div>
-            <pre className="bg-gray-900 rounded-b-lg p-4 overflow-x-auto text-sm">
+            <pre className="bg-[#3c6997] rounded-b-lg p-4 overflow-x-auto text-sm text-white">
               <code className={`language-${language}`}>{code}</code>
             </pre>
           </div>
@@ -512,7 +516,7 @@ for fruit in fruits:
             {part.split(/(`[^`]+`)/g).map((segment, i) => {
               if (segment.startsWith('`') && segment.endsWith('`')) {
                 return (
-                  <code key={i} className="bg-gray-800 px-2 py-1 rounded text-sm font-mono text-blue-300">
+                  <code key={i} className="bg-[#094074] px-2 py-1 rounded text-sm font-mono text-[#5adbff]">
                     {segment.slice(1, -1)}
                   </code>
                 );
@@ -526,21 +530,21 @@ for fruit in fruits:
   };
 
   return (
-    <div className={`flex flex-col h-screen ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'} transition-colors duration-300`}>
+    <div className={`flex flex-col h-screen ${theme === 'dark' ? 'bg-[#094074] text-white' : 'bg-white text-[#094074]'} transition-colors duration-300`}>
       {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900 shadow-lg">
+      <header className="flex items-center justify-between p-4 border-b border-[#3c6997] bg-[#094074] shadow-lg">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Code2 className="h-5 w-5 text-white" />
+            <div className="w-8 h-8 bg-[#5adbff] rounded-lg flex items-center justify-center">
+              <Code2 className="h-5 w-5 text-[#094074]" />
             </div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold text-[#5adbff]">
               CodeCraft IDE
             </h1>
           </div>
           
-          <div className="hidden md:flex items-center space-x-2 text-sm text-gray-400">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <div className="hidden md:flex items-center space-x-2 text-sm text-[#5adbff]">
+            <div className="w-2 h-2 bg-[#ffdd4a] rounded-full animate-pulse"></div>
             <span>Ready to code</span>
           </div>
         </div>
@@ -550,7 +554,7 @@ for fruit in fruits:
             variant="ghost"
             size="sm"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="hidden sm:flex"
+            className="hidden sm:flex text-[#5adbff] hover:bg-[#3c6997]"
           >
             {theme === 'dark' ? '☀️' : '🌙'}
           </Button>
@@ -559,7 +563,7 @@ for fruit in fruits:
             variant="ghost"
             size="sm"
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="hidden sm:flex"
+            className="hidden sm:flex text-[#5adbff] hover:bg-[#3c6997]"
           >
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
@@ -572,7 +576,7 @@ for fruit in fruits:
 
           <Button
             onClick={() => setShowProjectModal(true)}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
+            className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
           >
             <Sparkles className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Start Guided Project</span>
@@ -608,25 +612,25 @@ for fruit in fruits:
           <ResizablePanel defaultSize={isExplorerCollapsed ? 70 : 50} minSize={30}>
             <div className="flex flex-col h-full">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-800/50">
-                  <TabsList className="bg-gray-800 border border-gray-700">
-                    <TabsTrigger value="editor" className="data-[state=active]:bg-blue-600">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-[#3c6997] bg-[#3c6997]">
+                  <TabsList className="bg-[#094074] border border-[#3c6997]">
+                    <TabsTrigger value="editor" className="data-[state=active]:bg-[#5adbff] data-[state=active]:text-[#094074]">
                       <Code2 className="mr-2 h-4 w-4" />
                       Editor
                     </TabsTrigger>
-                    <TabsTrigger value="preview" className="data-[state=active]:bg-green-600">
+                    <TabsTrigger value="preview" className="data-[state=active]:bg-[#ffdd4a] data-[state=active]:text-[#094074]">
                       <Play className="mr-2 h-4 w-4" />
                       Preview
                     </TabsTrigger>
-                    <TabsTrigger value="terminal" className="data-[state=active]:bg-purple-600">
+                    <TabsTrigger value="terminal" className="data-[state=active]:bg-[#ff960d] data-[state=active]:text-white">
                       <Terminal className="mr-2 h-4 w-4" />
                       Output
                     </TabsTrigger>
                   </TabsList>
 
                   {selectedFile && (
-                    <div className="flex items-center space-x-2 text-sm text-gray-400">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div className="flex items-center space-x-2 text-sm text-[#5adbff]">
+                      <div className="w-2 h-2 bg-[#5adbff] rounded-full"></div>
                       <span className="font-mono">{selectedFile.name}</span>
                     </div>
                   )}
@@ -641,10 +645,10 @@ for fruit in fruits:
                       theme={theme === 'dark' ? 'vs-dark' : 'vs-light'}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full bg-gray-800/20">
+                    <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
                       <div className="text-center">
-                        <Code2 className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-500 text-lg">Select a file to start coding</p>
+                        <Code2 className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
+                        <p className="text-[#5adbff] text-lg">Select a file to start coding</p>
                       </div>
                     </div>
                   )}
@@ -657,32 +661,32 @@ for fruit in fruits:
                       onConsoleLog={(message) => setOutput(prev => [...prev, message])}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full bg-gray-800/20">
+                    <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
                       <div className="text-center">
-                        <Play className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-500 text-lg">Preview available for HTML files</p>
+                        <Play className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
+                        <p className="text-[#5adbff] text-lg">Preview available for HTML files</p>
                       </div>
                     </div>
                   )}
                 </TabsContent>
 
                 <TabsContent value="terminal" className="flex-1 m-0">
-                  <div className="h-full bg-gray-900 p-4 font-mono text-sm overflow-y-auto">
-                    <div className="flex items-center space-x-2 mb-4 text-green-400">
+                  <div className="h-full bg-[#094074] p-4 font-mono text-sm overflow-y-auto">
+                    <div className="flex items-center space-x-2 mb-4 text-[#ffdd4a]">
                       <Terminal className="h-4 w-4" />
                       <span>Output Console</span>
                     </div>
                     {output.length > 0 ? (
                       <div className="space-y-1">
                         {output.map((line, index) => (
-                          <div key={index} className="text-gray-300">
-                            <span className="text-gray-500 mr-2">{'>'}</span>
+                          <div key={index} className="text-[#5adbff]">
+                            <span className="text-[#ffdd4a] mr-2">{'>'}</span>
                             {line}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-gray-500 italic">
+                      <div className="text-[#5adbff] italic">
                         Run your code to see output here...
                       </div>
                     )}
@@ -696,22 +700,22 @@ for fruit in fruits:
 
           {/* Chat Panel */}
           <ResizablePanel defaultSize={30} minSize={25} maxSize={50}>
-            <div className="flex flex-col h-full bg-gray-800/30 border-l border-gray-700">
+            <div className="flex flex-col h-full bg-[#3c6997] border-l border-[#094074]">
               {/* Chat Header */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gradient-to-r from-blue-600/20 to-purple-600/20">
+              <div className="flex items-center justify-between p-4 border-b border-[#094074] bg-[#094074]">
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <Brain className="h-4 w-4 text-white" />
+                  <div className="w-8 h-8 bg-[#5adbff] rounded-full flex items-center justify-center">
+                    <Brain className="h-4 w-4 text-[#094074]" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-white">AI Assistant</h3>
-                    <p className="text-xs text-gray-400">Always here to help</p>
+                    <h3 className="font-semibold text-[#5adbff]">AI Assistant</h3>
+                    <p className="text-xs text-[#5adbff]/70">Always here to help</p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-xs text-green-400">Online</span>
+                  <div className="w-2 h-2 bg-[#ffdd4a] rounded-full animate-pulse"></div>
+                  <span className="text-xs text-[#ffdd4a]">Online</span>
                 </div>
               </div>
 
@@ -725,8 +729,8 @@ for fruit in fruits:
                     <div
                       className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                         message.type === 'user'
-                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white ml-4'
-                          : 'bg-gray-700/50 text-gray-100 mr-4 border border-gray-600/50'
+                          ? 'bg-[#5adbff] text-[#094074] ml-4'
+                          : 'bg-[#094074] text-[#5adbff] mr-4 border border-[#3c6997]'
                       } shadow-lg`}
                     >
                       {message.type === 'assistant' ? (
@@ -751,7 +755,7 @@ for fruit in fruits:
                 
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-gray-700/50 rounded-2xl px-4 py-3 mr-4 border border-gray-600/50">
+                    <div className="bg-[#094074] rounded-2xl px-4 py-3 mr-4 border border-[#3c6997]">
                       <TypingIndicator />
                     </div>
                   </div>
@@ -760,7 +764,7 @@ for fruit in fruits:
               </div>
 
               {/* Chat Input */}
-              <div className="p-4 border-t border-gray-700 bg-gray-800/50">
+              <div className="p-4 border-t border-[#094074] bg-[#094074]">
                 <div className="flex space-x-2">
                   <input
                     type="text"
@@ -768,27 +772,27 @@ for fruit in fruits:
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                     placeholder="Ask me anything about coding..."
-                    className="flex-1 bg-gray-700 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    className="flex-1 bg-[#3c6997] border border-[#5adbff] rounded-xl px-4 py-3 text-white placeholder-[#5adbff]/70 focus:outline-none focus:ring-2 focus:ring-[#5adbff] focus:border-transparent transition-all duration-200"
                   />
                   <Button
                     onClick={handleSendMessage}
                     disabled={!chatInput.trim() || isTyping}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    className="bg-[#5adbff] hover:bg-[#ffdd4a] text-[#094074] px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
                 
-                <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-500">
-                  <button className="hover:text-blue-400 transition-colors flex items-center space-x-1">
+                <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-[#5adbff]">
+                  <button className="hover:text-[#ffdd4a] transition-colors flex items-center space-x-1">
                     <Lightbulb className="h-3 w-3" />
                     <span>Get Hint</span>
                   </button>
-                  <button className="hover:text-green-400 transition-colors flex items-center space-x-1">
+                  <button className="hover:text-[#ffdd4a] transition-colors flex items-center space-x-1">
                     <Zap className="h-3 w-3" />
                     <span>Fix Code</span>
                   </button>
-                  <button className="hover:text-purple-400 transition-colors flex items-center space-x-1">
+                  <button className="hover:text-[#ffdd4a] transition-colors flex items-center space-x-1">
                     <MessageSquare className="h-3 w-3" />
                     <span>Explain</span>
                   </button>
@@ -802,19 +806,19 @@ for fruit in fruits:
       {/* Guided Step Popup */}
       {guidedProject && (
         <div className="fixed bottom-4 left-4 right-4 md:left-16 md:right-16 lg:left-1/4 lg:right-1/4 z-50">
-          <div className="bg-gradient-to-r from-gray-800 to-gray-900 border border-blue-500/50 rounded-2xl shadow-2xl p-6 backdrop-blur-sm">
+          <div className="bg-[#094074] border-2 border-[#5adbff] rounded-2xl shadow-2xl p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-xs font-bold text-white">
+                  <div className="w-6 h-6 bg-[#5adbff] rounded-full flex items-center justify-center text-xs font-bold text-[#094074]">
                     {guidedProject.currentStep + 1}
                   </div>
-                  <h3 className="font-bold text-blue-400">
+                  <h3 className="font-bold text-[#5adbff]">
                     Step {guidedProject.currentStep + 1} of {guidedProject.steps.length}
                   </h3>
                 </div>
-                <div className="bg-gray-700/50 rounded-lg p-3 border border-gray-600/50">
-                  <p className="text-sm text-gray-300 leading-relaxed">
+                <div className="bg-[#3c6997] rounded-lg p-3 border border-[#5adbff]">
+                  <p className="text-sm text-white leading-relaxed">
                     {guidedProject.steps[guidedProject.currentStep]?.instruction}
                   </p>
                 </div>
@@ -826,7 +830,7 @@ for fruit in fruits:
                   variant="outline"
                   size="sm"
                   disabled={guidedProject.currentStep === 0}
-                  className="border-blue-500/50 text-blue-400 hover:bg-blue-500/20 flex-1 sm:flex-none"
+                  className="border-[#5adbff] text-[#5adbff] hover:bg-[#5adbff] hover:text-[#094074] flex-1 sm:flex-none"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Previous
@@ -834,7 +838,7 @@ for fruit in fruits:
                 
                 <Button
                   onClick={handleCheckStep}
-                  className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-semibold flex-1 sm:flex-none"
+                  className="bg-[#ffdd4a] hover:bg-[#ff960d] text-[#094074] hover:text-white font-semibold flex-1 sm:flex-none"
                 >
                   <Search className="mr-2 h-4 w-4" />
                   Check Step
@@ -843,7 +847,7 @@ for fruit in fruits:
                 <Button
                   onClick={handleNextStep}
                   disabled={!stepComplete}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold flex-1 sm:flex-none"
+                  className="bg-[#ff960d] hover:bg-[#ffdd4a] disabled:opacity-50 disabled:cursor-not-allowed text-white hover:text-[#094074] font-semibold flex-1 sm:flex-none"
                 >
                   {stepComplete ? (
                     <>
