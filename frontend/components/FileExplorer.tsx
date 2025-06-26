@@ -21,6 +21,7 @@ interface FileExplorerProps {
   selectedFileId: string | null;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  stepProgression?: React.ReactNode;
 }
 
 type SearchFilter = 'all' | 'name';
@@ -44,7 +45,7 @@ const getFileIcon = (fileName: string) => {
 // Helper function to validate file extensions
 const isValidFileExtension = (fileName: string): boolean => {
   const extension = fileName.split('.').pop()?.toLowerCase();
-  return ['py', 'css', 'html'].includes(extension || '');
+  return ['py', 'css', 'html', 'js'].includes(extension || '');
 };
 
 const FileTreeNode: React.FC<{
@@ -279,6 +280,7 @@ export default function FileExplorer({
   selectedFileId,
   isCollapsed = false,
   onToggleCollapse,
+  stepProgression,
 }: FileExplorerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createType, setCreateType] = useState<'file' | 'folder'>('file');
@@ -356,7 +358,7 @@ export default function FileExplorer({
   }
 
   return (
-    <div className="h-full bg-[#094074] border-r border-[#3c6997] flex flex-col min-w-0">
+    <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-[#3c6997] flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -470,6 +472,13 @@ export default function FileExplorer({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Step Progression UI */}
+      {stepProgression && (
+        <div className="w-full mt-auto" style={{ minHeight: 120, maxWidth: '100%' }}>
+          {stepProgression}
         </div>
       )}
     </div>

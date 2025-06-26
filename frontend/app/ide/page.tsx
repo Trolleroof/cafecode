@@ -27,6 +27,9 @@ import HTMLPreview from '@/components/HTMLPreview';
 import RunDropdown from '@/components/RunDropdown';
 import TypingIndicator from '@/components/TypingIndicator';
 import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import GuidedStepPopup from '@/components/GuidedStepPopup';
 
 interface FileNode {
   id: string;
@@ -67,10 +70,9 @@ const getLanguageFromFileName = (fileName: string): string => {
   }
 };
 
-// Helper function to recursively find all files in the file tree
+// --- Helper: Recursively get all files ---
 const getAllFiles = (files: FileNode[]): FileNode[] => {
   const allFiles: FileNode[] = [];
-  
   const traverse = (nodes: FileNode[]) => {
     nodes.forEach(node => {
       if (node.type === 'file') {
@@ -80,9 +82,35 @@ const getAllFiles = (files: FileNode[]): FileNode[] => {
       }
     });
   };
-  
   traverse(files);
   return allFiles;
+};
+
+// --- Helper: Recursively get all folders ---
+const getAllFolders = (files: FileNode[]): FileNode[] => {
+  const allFolders: FileNode[] = [];
+  const traverse = (nodes: FileNode[]) => {
+    nodes.forEach(node => {
+      if (node.type === 'folder') {
+        allFolders.push(node);
+        if (node.children) traverse(node.children);
+      }
+    });
+  };
+  traverse(files);
+  return allFolders;
+};
+
+// Move this helper to the top-level of the IDEPage component:
+const updateFileInTree = (nodes: FileNode[], fileId: string, newContent: string): FileNode[] => {
+  return nodes.map(node => {
+    if (node.id === fileId) {
+      return { ...node, content: newContent };
+    } else if (node.children) {
+      return { ...node, children: updateFileInTree(node.children, fileId, newContent) };
+    }
+    return node;
+  });
 };
 
 export default function IDEPage() {
@@ -120,6 +148,13 @@ export default function IDEPage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // Auto-scroll when typing animation is active
+  useEffect(() => {
+    if (isTyping) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [isTyping]);
 
   // Clear highlighted lines when file changes or code is modified
   useEffect(() => {
@@ -169,7 +204,35 @@ export default function IDEPage() {
     }
   };
 
+  // Add state for folder delete confirmation
+  const [pendingDeleteFolderId, setPendingDeleteFolderId] = useState<string | null>(null);
+  const [pendingDeleteFolderName, setPendingDeleteFolderName] = useState<string | null>(null);
+
+  // Update handleFileDelete to show confirmation for folders
   const handleFileDelete = (fileId: string) => {
+    // Find the node to delete
+    const findNode = (nodes: FileNode[]): FileNode | null => {
+      for (const node of nodes) {
+        if (node.id === fileId) return node;
+        if (node.children) {
+          const found = findNode(node.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const nodeToDelete = findNode(files);
+    if (nodeToDelete && nodeToDelete.type === 'folder') {
+      setPendingDeleteFolderId(fileId);
+      setPendingDeleteFolderName(nodeToDelete.name);
+      return;
+    }
+    // If not a folder, delete immediately
+    actuallyDeleteFile(fileId);
+  };
+
+  // Actual delete logic
+  const actuallyDeleteFile = (fileId: string) => {
     const deleteFromTree = (nodes: FileNode[]): FileNode[] => {
       return nodes.filter(node => {
         if (node.id === fileId) {
@@ -181,11 +244,12 @@ export default function IDEPage() {
         return true;
       });
     };
-
     setFiles(deleteFromTree(files));
     if (selectedFile?.id === fileId) {
       setSelectedFile(null);
     }
+    setPendingDeleteFolderId(null);
+    setPendingDeleteFolderName(null);
   };
 
   const handleFileMove = (fileId: string, newParentId: string | null) => {
@@ -238,23 +302,7 @@ export default function IDEPage() {
     if (selectedFile && value !== undefined) {
       const updatedFile = { ...selectedFile, content: value };
       setSelectedFile(updatedFile);
-      
-      const updateFileInTree = (nodes: FileNode[]): FileNode[] => {
-        return nodes.map(node => {
-          if (node.id === selectedFile.id) {
-            return updatedFile;
-          } else if (node.children) {
-            return {
-              ...node,
-              children: updateFileInTree(node.children)
-            };
-          }
-          return node;
-        });
-      };
-      
-      setFiles(updateFileInTree(files));
-      
+      setFiles(updateFileInTree(files, selectedFile.id, value));
       // Clear highlights when code is modified
       setHighlightedLines([]);
     }
@@ -379,6 +427,11 @@ export default function IDEPage() {
     }
 
     setIsTyping(true);
+    setChatMessages(prev => [...prev, {
+      type: 'assistant',
+      content: '💡 Getting hint...',
+      timestamp: new Date()
+    }]);
     try {
       const response = await fetch('/api/hint', {
         method: 'POST',
@@ -418,17 +471,25 @@ export default function IDEPage() {
     }
   };
 
+  // Add state for editor read-only
+  const [isEditorReadOnly, setIsEditorReadOnly] = useState(false);
+
   const handleFixCode = async () => {
-    if (!selectedFile || !selectedFile.content) {
+    if (!selectedFile || !selectedFile.content || selectedFile.content.trim().length < 10) {
       setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: 'Please select a file with some code first, and I\'ll help you fix any issues!',
+        content: 'You need to attempt something substantial for me to fix.',
         timestamp: new Date()
       }]);
       return;
     }
 
     setIsTyping(true);
+    setChatMessages(prev => [...prev, {
+      type: 'assistant',
+      content: '🛠️ Fixing code...',
+      timestamp: new Date()
+    }]);
     try {
       const response = await fetch('/api/code/fix', {
         method: 'POST',
@@ -444,15 +505,49 @@ export default function IDEPage() {
       const result = await response.json();
       
       if (result.success && result.fixed_code && result.fixes_applied) {
-        // Highlight lines that were fixed
-        const fixedLines = result.fixes_applied.map((fix: any) => fix.line_number).filter((line: number) => line);
+        // Animate typing the fixed code character by character
+        setIsEditorReadOnly(true);
+        const oldCode = selectedFile.content;
+        const newCode = result.fixed_code;
+        let i = 0;
+        let fixedLines: number[] = [];
+        const animate = () => {
+          if (i <= newCode.length) {
+            setSelectedFile({ ...selectedFile, content: newCode.slice(0, i) });
+            i++;
+            setTimeout(animate, 8); // Fast typing effect
+          } else {
+            // Highlight all changed lines
+            fixedLines = result.fixes_applied.map((fix: any) => fix.line_number).filter((line: number) => line);
+            setHighlightedLines(fixedLines);
+            setIsEditorReadOnly(false);
+          }
+        };
+        animate();
+        // Also update the file in the files tree after animation
+        setTimeout(() => {
+          setFiles(updateFileInTree(files, selectedFile.id, newCode));
+        }, newCode.length * 6 + 100);
+
+        // Build a diff-like message for the chat
+        let diffMessage = '🔧 **Code Fix Suggestions:**\n\n';
+        result.fixes_applied.forEach((fix: any) => {
+          diffMessage += `**Line ${fix.line_number}:**\n`;
+          diffMessage += `- \`Original:\` \n\`${fix.original_code}\`\n`;
+          diffMessage += `- \`Fixed:\` \n\`${fix.fixed_code}\`\n`;
+          if (fix.explanation) {
+            diffMessage += `> _${fix.explanation}_\n`;
+          }
+          diffMessage += '\n';
+        });
+        diffMessage += `\n**Explanation:** ${result.explanation}`;
         if (fixedLines.length > 0) {
-          setHighlightedLines(fixedLines);
+          diffMessage += '\n\n*Fixed lines are highlighted in your editor*';
         }
-        
+
         setChatMessages(prev => [...prev, {
           type: 'assistant',
-          content: `🔧 **Code Fix Suggestions**:\n\n\`\`\`${selectedFile.language}\n${result.fixed_code}\n\`\`\`\n\n**Explanation**: ${result.explanation}\n\n**Confidence**: ${result.confidence_score}%${fixedLines.length > 0 ? `\n\n*Fixed lines are highlighted in yellow in your editor*` : ''}`,
+          content: diffMessage,
           timestamp: new Date()
         }]);
       }
@@ -478,6 +573,11 @@ export default function IDEPage() {
     }
 
     setIsTyping(true);
+    setChatMessages(prev => [...prev, {
+      type: 'assistant',
+      content: '📖 Explaining code...',
+      timestamp: new Date()
+    }]);
     try {
       const response = await fetch('/api/translate', {
         method: 'POST',
@@ -553,67 +653,119 @@ export default function IDEPage() {
     }
   };
 
+  // Add state to track completed steps
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+
   const handleCheckStep = async () => {
-    if (!guidedProject) return;
-
+    console.log('handleCheckStep called', { guidedProject: !!guidedProject, isCheckingStep });
+    if (!guidedProject || isCheckingStep) return;
+    console.log('Starting step check...');
     setIsCheckingStep(true);
-
+    
     try {
       const currentStep = guidedProject.steps[guidedProject.currentStep];
-      let requiredFileName = null;
-      let requiredFolderName = null;
-      
-      // Try to extract the required file or folder name from the instruction
-      const fileCreateMatch = currentStep.instruction.match(/create (an? |the )?(html|css|js|javascript|python)? ?file called ['"]?([\w\-.]+)['"]?/i);
-      const folderCreateMatch = currentStep.instruction.match(/create (an? |the )?folder called ['"]?([\w\-.]+)['"]?/i);
-      
+      console.log('Current step:', currentStep);
+
+      // Check if this step is about creating a file or folder
+      const fileCreateMatch = currentStep.instruction.match(/create (an? |the )?(html|css|js|javascript|python)? ?file (called |named )?['"]?([\w\-.]+)['"]?/i);
+      const folderCreateMatch = currentStep.instruction.match(/create (an? |the )?folder (called |named )?['"]?([\w\-.]+)['"]?/i);
+      const simpleFolderMatch = currentStep.instruction.match(/create (an? |the )?folder/i);
+
+      // Handle file creation steps
       if (fileCreateMatch) {
-        requiredFileName = fileCreateMatch[3];
-      } else if (folderCreateMatch) {
-        requiredFolderName = folderCreateMatch[2];
-      }
-
-      // If the step is a file creation step, check if the file exists
-      if (requiredFileName) {
+        const requiredFileName = fileCreateMatch[4];
         const allFiles = getAllFiles(files);
-        const fileExists = allFiles.some(f => f.name.toLowerCase() === requiredFileName.toLowerCase());
-        if (!fileExists) {
+        const fileExists = allFiles.some((f: FileNode) => f.name.toLowerCase() === requiredFileName.toLowerCase());
+        
+        if (fileExists) {
+          setStepComplete(true);
+          setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: `✅ Perfect! You've created the file \`${requiredFileName}\`. You can proceed to the next step.`,
+            timestamp: new Date()
+          }]);
+          setIsCheckingStep(false);
+          return;
+        } else {
           setStepComplete(false);
           setChatMessages(prev => [...prev, {
             type: 'assistant',
-            content: `🚩 Please create the file \`${requiredFileName}\` before proceeding to the next step. Use the "+ New File" button in the file explorer.`,
+            content: `Please create the file \`${requiredFileName}\` first. Use the "+" button in the file explorer to create a new file.`,
             timestamp: new Date()
           }]);
+          setIsCheckingStep(false);
           return;
         }
       }
 
-      // If the step is a folder creation step, check if the folder exists
-      if (requiredFolderName) {
-        const allFolders = files.filter(f => f.type === 'folder');
-        const folderExists = allFolders.some(f => f.name.toLowerCase() === requiredFolderName.toLowerCase());
-        if (!folderExists) {
-          setStepComplete(false);
-          setChatMessages(prev => [...prev, {
-            type: 'assistant',
-            content: `🚩 Please create the folder \`${requiredFolderName}\` before proceeding to the next step. Use the "+ New Folder" button in the file explorer.`,
-            timestamp: new Date()
-          }]);
-          return;
+      // Handle folder creation steps
+      if (folderCreateMatch || simpleFolderMatch) {
+        const requiredFolderName = folderCreateMatch ? folderCreateMatch[3] : null;
+        const allFolders = getAllFolders(files);
+        
+        if (requiredFolderName) {
+          // Named folder creation
+          const folderExists = allFolders.some((f: FileNode) => f.name.toLowerCase() === requiredFolderName.toLowerCase());
+          if (folderExists) {
+            setStepComplete(true);
+            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `✅ Perfect! You've created the folder \`${requiredFolderName}\`. You can proceed to the next step.`,
+              timestamp: new Date()
+            }]);
+            setIsCheckingStep(false);
+            return;
+          } else {
+            setStepComplete(false);
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `Please create the folder \`${requiredFolderName}\` before proceeding. Use the "+" button in the file explorer to create a new folder.`,
+              timestamp: new Date()
+            }]);
+            setIsCheckingStep(false);
+            return;
+          }
+        } else {
+          // Simple folder creation
+          if (allFolders.length > 0) {
+            setStepComplete(true);
+            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: '✅ Great! You\'ve created a folder. You can proceed to the next step.',
+              timestamp: new Date()
+            }]);
+            setIsCheckingStep(false);
+            return;
+          } else {
+            setStepComplete(false);
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: 'Please create a folder before proceeding. Use the "+" button in the file explorer to create a new folder.',
+              timestamp: new Date()
+            }]);
+            setIsCheckingStep(false);
+            return;
+          }
         }
       }
 
-      // For all other steps, require a file to be selected
-      if (!selectedFile && !requiredFileName && !requiredFolderName) {
+      // For all other steps (code content), require a file to be selected
+      if (!selectedFile) {
         setStepComplete(false);
         setChatMessages(prev => [...prev, {
           type: 'assistant',
-          content: '🚩 Please select a file to check your progress on this step.',
+          content: 'Please select a file to check your progress on this step. You can click on any file in the file explorer to select it.',
           timestamp: new Date()
         }]);
+        setIsCheckingStep(false);
         return;
       }
 
+      // Use Gemini to analyze the code content for non-file/folder creation steps
+      console.log('Calling backend analyzeStep API for code analysis...');
       const response = await fetch('/api/guided/analyzeStep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -626,8 +778,21 @@ export default function IDEPage() {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
       
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      // Validate the response structure
+      if (!result.feedback || !Array.isArray(result.feedback)) {
+        throw new Error('Invalid response format from server');
+      }
+
       if (result.chatMessage) {
         setChatMessages(prev => [...prev, {
           type: 'assistant',
@@ -635,39 +800,46 @@ export default function IDEPage() {
           timestamp: new Date()
         }]);
       }
-
-      const allCorrect = result.feedback?.every((f: any) => f.correct) || false;
+      
+      const allCorrect = result.feedback.every((f: any) => f.correct) || false;
       setStepComplete(allCorrect);
-    } catch (error) {
-      console.error('Error checking step:', error);
-      setStepComplete(true); // Allow progression for demo
+      if (allCorrect) {
+        setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
+      }
+      
+    } catch (checkError) {
+      console.error('Error checking step:', checkError);
       setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: 'Great work! Your code looks good for this step. You can proceed to the next one!',
+        content: `❌ Error checking step: ${checkError instanceof Error ? checkError.message : 'Unknown error'}. We are guessing our API has hit the rate limit - please wait for ~15 seconds before trying again, or contact support if the issue persists.`,
         timestamp: new Date()
       }]);
+      setStepComplete(false);
     } finally {
       setIsCheckingStep(false);
     }
   };
 
   const handleNextStep = () => {
-    if (!guidedProject || !stepComplete) return;
-
+    if (!guidedProject) return;
     const nextStepIndex = guidedProject.currentStep + 1;
     if (nextStepIndex < guidedProject.steps.length) {
-      setGuidedProject({
-        ...guidedProject,
-        currentStep: nextStepIndex
-      });
-      setStepComplete(false);
+      // If the next step is already completed, allow skipping
+      if (completedSteps.has(nextStepIndex) || stepComplete) {
+        setGuidedProject({
+          ...guidedProject,
+          currentStep: nextStepIndex
+        });
+        setStepComplete(completedSteps.has(nextStepIndex));
+        const nextStep = guidedProject.steps[nextStepIndex];
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: `Great job! Now let's move to step ${nextStepIndex + 1}:
 
-      const nextStep = guidedProject.steps[nextStepIndex];
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: `Great job! Now let's move to step ${nextStepIndex + 1}:\n\n${nextStep.instruction}`,
-        timestamp: new Date()
-      }]);
+${nextStep.instruction}`,
+          timestamp: new Date()
+        }]);
+      }
     } else {
       setChatMessages(prev => [...prev, {
         type: 'assistant',
@@ -742,8 +914,7 @@ export default function IDEPage() {
               return segment.split(/(`[^`]+`)/g).map((sub, j) => {
                 if (sub.startsWith('`') && sub.endsWith('`')) {
                   return (
-                    <code key={j} className="bg-[#094074] px-2 py-1 rounded text-sm font-mono text-[#5adbff]">
-                      {sub.slice(1, -1)}
+                    <code key={j} className="bg-[#06224a] text-[#5adbff] px-1 py-0.5 rounded font-mono text-sm">{sub.slice(1, -1)}
                     </code>
                   );
                 }
@@ -754,6 +925,40 @@ export default function IDEPage() {
         );
       }
     });
+  };
+
+  // 1. Add a ref for the guided step popup
+  const guidedStepRef = useRef<HTMLDivElement>(null);
+
+  // 2. Utility to scroll to the guided step popup
+  const scrollToGuidedStep = () => {
+    guidedStepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  
+  const handlePreviousStepWithScroll = () => {
+    handlePreviousStep();
+    setTimeout(scrollToGuidedStep, 100); 
+  };
+  const handleCheckStepWithScroll = async () => {
+    await handleCheckStep();
+    setTimeout(scrollToGuidedStep, 100);
+  };
+  const handleNextStepWithScroll = () => {
+    handleNextStep();
+    setTimeout(scrollToGuidedStep, 100);
+  };
+
+  const handleStopGuidedProject = () => {
+    setGuidedProject(null);
+    setChatMessages(prev => [
+      ...prev,
+      {
+        type: 'assistant',
+        content: '🛑 Guided project stopped.',
+        timestamp: new Date()
+      }
+    ]);
   };
 
   return (
@@ -778,19 +983,22 @@ export default function IDEPage() {
             isRunning={isRunning} 
           />
 
-          <Button
-            onClick={() => setShowProjectModal(true)}
-            className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Start Guided Project</span>
-            <span className="sm:hidden">Guide</span>
-          </Button>
+          {/* Start Guided Project Button - only show if not in a guided project */}
+          {!guidedProject && (
+            <Button
+              onClick={() => setShowProjectModal(true)}
+              className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Start Guided Project</span>
+              <span className="sm:hidden">Guide</span>
+            </Button>
+          )}
 
           {/* Stop Guided Project Button */}
           {guidedProject && (
             <Button
-              onClick={() => setGuidedProject(null)}
+              onClick={handleStopGuidedProject}
               variant="outline"
               className="border-[#ff960d] text-[#ff960d] hover:bg-[#ff960d] hover:text-white"
             >
@@ -823,6 +1031,18 @@ export default function IDEPage() {
               selectedFileId={selectedFile?.id || null}
               isCollapsed={isExplorerCollapsed}
               onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
+              stepProgression={guidedProject && (
+                <GuidedStepPopup
+                  instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
+                  isComplete={stepComplete}
+                  onNextStep={handleNextStep}
+                  onPreviousStep={handlePreviousStep}
+                  onCheckStep={handleCheckStep}
+                  stepNumber={guidedProject.currentStep + 1}
+                  totalSteps={guidedProject.steps.length}
+                  isChecking={isCheckingStep}
+                />
+              )}
             />
           </ResizablePanel>
 
@@ -862,6 +1082,7 @@ export default function IDEPage() {
                       onChange={handleCodeChange}
                       theme="vs-dark"
                       highlightedLines={highlightedLines}
+                      readOnly={isEditorReadOnly}
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
@@ -916,82 +1137,6 @@ export default function IDEPage() {
                   </div>
                 </TabsContent>
               </Tabs>
-
-              {/* Guided Step Popup - Positioned within the editor panel */}
-              {guidedProject && (
-                <div className="absolute bottom-4 left-4 right-4 z-10">
-                  <div className="bg-[#094074] border-2 border-[#5adbff] rounded-xl shadow-2xl p-4 max-w-2xl mx-auto">
-                    <div className="flex flex-col space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-[#5adbff] rounded-full flex items-center justify-center text-xs font-bold text-[#094074]">
-                            {guidedProject.currentStep + 1}
-                          </div>
-                          <h3 className="font-bold text-[#5adbff] text-sm">
-                            Step {guidedProject.currentStep + 1} of {guidedProject.steps.length}
-                          </h3>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-[#3c6997] rounded-lg p-3 border border-[#5adbff]">
-                        <p className="text-sm text-white leading-relaxed">
-                          {guidedProject.steps[guidedProject.currentStep]?.instruction}
-                        </p>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        <Button
-                          onClick={handlePreviousStep}
-                          variant="outline"
-                          size="sm"
-                          disabled={guidedProject.currentStep === 0}
-                          className="bg-[#3c6997] border-[#5adbff] text-[#5adbff] hover:bg-[#5adbff] hover:text-[#094074] text-xs px-3 py-1 font-semibold"
-                        >
-                          <ArrowLeft className="mr-1 h-3 w-3" />
-                          Previous
-                        </Button>
-                        
-                        <Button
-                          onClick={handleCheckStep}
-                          disabled={isCheckingStep}
-                          className="bg-[#ffdd4a] hover:bg-[#ff960d] text-[#094074] hover:text-white font-semibold text-xs px-3 py-1 min-w-[90px] flex items-center justify-center"
-                        >
-                          {isCheckingStep ? (
-                            <>
-                              <Loader2 className="animate-spin h-3 w-3 mr-1" />
-                              Checking...
-                            </>
-                          ) : (
-                            <>
-                              <Search className="mr-1 h-3 w-3" />
-                              Check Step
-                            </>
-                          )}
-                        </Button>
-                        
-                        <Button
-                          onClick={handleNextStep}
-                          disabled={!stepComplete}
-                          className="bg-[#ff960d] hover:bg-[#ffdd4a] disabled:opacity-50 disabled:cursor-not-allowed text-white hover:text-[#094074] font-semibold text-xs px-3 py-1"
-                        >
-                          {stepComplete ? (
-                            <>
-                              <CheckCircle className="mr-1 h-3 w-3" />
-                              Next Step
-                            </>
-                          ) : (
-                            <>
-                              <X className="mr-1 h-3 w-3" />
-                              Complete Step
-                            </>
-                          )}
-                          <ArrowRight className="ml-1 h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </ResizablePanel>
 
@@ -1012,33 +1157,35 @@ export default function IDEPage() {
 
               {/* Chat Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#3c6997]">
-                {chatMessages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                        message.type === 'user'
-                          ? 'bg-[#5adbff] text-[#094074] ml-4'
-                          : 'bg-[#094074] text-[#5adbff] mr-4 border border-[#5adbff]/20'
-                      } shadow-lg`}
-                    >
-                      {message.type === 'assistant' ? (
-                        <div className="prose prose-invert max-w-none text-[#5adbff]">
-                          {formatCodeInMessage(message.content)}
-                        </div>
+                {chatMessages.map((msg, idx) => (
+                  <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
+                    <div className={`max-w-[70%] px-4 py-2 rounded-lg shadow ${msg.type === 'user' ? 'bg-[#5adbff] text-[#094074]' : 'bg-[#06224a] text-white border border-[#3c6997] shadow-lg'}`}>
+                      {msg.type === 'assistant' ? (
+                        <ReactMarkdown
+                          children={msg.content}
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            p: ({ children }) => <p className="mb-2 whitespace-pre-line text-base leading-relaxed">{children}</p>,
+                            strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                            ul: ({ children }) => <ul className="list-disc ml-6 mb-2">{children}</ul>,
+                            li: ({ children }) => <li className="mb-1">{children}</li>,
+                            code: ({ inline, children }) =>
+                              inline ? (
+                                <code className="bg-[#06224a] text-[#5adbff] px-1 py-0.5 rounded font-mono text-sm">{children}</code>
+                              ) : (
+                                <pre className="bg-[#06224a] text-[#5adbff] p-3 rounded-lg overflow-x-auto mb-2 font-mono text-sm">
+                                  <code>{children}</code>
+                                </pre>
+                              ),
+                            h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
+                            h2: ({ children }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
+                            blockquote: ({ children }) => <blockquote className="border-l-4 border-[#5adbff] pl-4 italic text-[#5adbff] mb-2">{children}</blockquote>,
+                            br: () => <br />,
+                          }}
+                        />
                       ) : (
-                        <p className="text-sm leading-relaxed">{message.content}</p>
-                      )}
-                      
-                      {message.timestamp && (
-                        <p className={`text-xs opacity-70 mt-2 ${message.type === 'user' ? 'text-[#094074]/70' : 'text-[#5adbff]/70'}`}>
-                          {message.timestamp.toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </p>
+                        <span>{msg.content}</span>
                       )}
                     </div>
                   </div>
@@ -1119,6 +1266,30 @@ export default function IDEPage() {
         onSubmit={handleStartGuidedProject}
         isStartingProject={isStartingProject}
       />
+
+      {/* Confirmation Modal */}
+      {pendingDeleteFolderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full text-center">
+            <h2 className="text-lg font-bold mb-2 text-gray-900">Delete Folder?</h2>
+            <p className="mb-4 text-gray-700">Are you sure you want to delete the folder <span className="font-semibold">{pendingDeleteFolderName}</span> and all its contents?</p>
+            <div className="flex justify-center gap-4">
+              <button
+                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold"
+                onClick={() => { setPendingDeleteFolderId(null); setPendingDeleteFolderName(null); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
+                onClick={() => actuallyDeleteFile(pendingDeleteFolderId)}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

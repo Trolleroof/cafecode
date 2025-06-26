@@ -10,6 +10,7 @@ interface MonacoEditorProps {
   theme?: string;
   highlightedLines?: number[];
   onEditorMount?: (editor: any, monaco: any) => void;
+  readOnly?: boolean;
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
@@ -19,6 +20,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   theme = 'vs-dark',
   highlightedLines = [],
   onEditorMount,
+  readOnly = false,
 }) => {
   const editorRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
@@ -86,6 +88,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         folding: true,
         lineDecorationsWidth: 10,
         lineNumbersMinChars: 3,
+        readOnly: readOnly,
       }}
     />
   );

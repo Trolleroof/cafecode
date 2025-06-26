@@ -57,8 +57,8 @@ const createProjectContext = (projectFiles) => {
     return files.map(file => {
       const prefix = '  '.repeat(indent);
       if (file.type === 'folder') {
-        const children = file.children ? formatFiles(file.children, indent + 1) : [];
-        return `${prefix}📁 ${file.name}/\n${children.join('')}`;
+        const children = file.children ? formatFiles(file.children, indent + 1) : '';
+        return `${prefix}📁 ${file.name}/\n${children}`;
       } else {
         const preview = file.content ? 
           (file.content.length > 100 ? file.content.substring(0, 100) + '...' : file.content) : 
@@ -94,28 +94,47 @@ Project: ${projectDescription}
 ${projectContext}
 
 IMPORTANT GUIDELINES:
+- ALWAYS start with step 1: "Create a folder called 'project-name' for your project" (this is a folder-only step)
+- Step 2 should be about creating the main file (index.html for web projects, main.py for Python, etc.)
 - Break down the steps into the smallest possible parts, assuming the user is a complete beginner
 - For HTML projects, encourage creating separate style.css and main.js files for styling and scripting
 - Guide users to link CSS and JavaScript files properly in HTML
 - Use very simple, beginner-friendly language
 - Each step should be achievable in 2-3 lines of code maximum
 - Consider the existing project files when creating steps
-- If no files exist, start with creating the basic file structure
+- If no files exist, start with creating the basic file structures
 - Reference specific files when relevant to the instructions
+- Make sure folder creation steps come BEFORE file creation steps
+- NEVER combine folder creation and file creation in the same step instruction
+- Be specific about file names and content requirements
+- For file creation steps, include what content should be in the file
+- For code writing steps, be clear about what the code should do
 
 Example format:
 [
   {
     "id": "1",
+    "instruction": "Create a folder called 'my-website' for your project",
+    "lineRanges": [1, 1]
+  },
+  {
+    "id": "2",
     "instruction": "Create an HTML file called 'index.html' and add the basic HTML structure with head and body tags",
     "lineRanges": [1, 10]
   },
   {
-    "id": "2", 
+    "id": "3", 
     "instruction": "Create a CSS file called 'style.css' for styling your webpage",
     "lineRanges": [1, 5]
+  },
+  {
+    "id": "4",
+    "instruction": "Add a heading to your HTML file that says 'Welcome to My Website'",
+    "lineRanges": [1, 15]
   }
-]`;
+]
+
+Make sure each step is clear, specific, and achievable. Focus on one task per step.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const response = await result.response;
@@ -155,7 +174,7 @@ Example format:
     // Send initial chat message
     const welcomeMessage = {
       type: "assistant",
-      content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nI'll help you write the code step by step. Feel free to ask questions at any time!`,
+      content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nUse the "+" button in the file explorer to create folders and files as needed. Once you've completed a step, click "Check Step" to continue to the next step.`,
     };
 
     res.json({ projectId, steps, welcomeMessage });
@@ -170,8 +189,10 @@ router.post("/analyzeStep", async (req, res) => {
   try {
     const { projectId, stepId, code, language, projectFiles } = req.body;
 
-    if (!projectId || !stepId || !code || !language) {
-      return res.status(400).json({ error: "Missing required parameters" });
+    console.log("AnalyzeStep called with:", { projectId, stepId, language, codeLength: code?.length });
+
+    if (!projectId || !language) {
+      return res.status(400).json({ error: "Missing required parameters: projectId and language" });
     }
 
     const project = activeProjects.get(projectId);
@@ -179,59 +200,191 @@ router.post("/analyzeStep", async (req, res) => {
       return res.status(404).json({ error: "Project not found" });
     }
 
-    const currentStep = project.steps[project.currentStep];
-    const projectContext = createProjectContext(projectFiles || project.projectFiles);
+    // Find the step by ID instead of using currentStep index
+    const currentStep = project.steps.find(step => step.id === stepId);
+    if (!currentStep) {
+      console.error("Step not found:", { stepId, availableSteps: project.steps.map(s => ({ id: s.id, instruction: s.instruction })) });
+      return res.status(404).json({ error: "Current step not found" });
+    }
 
-    // Use Gemini to analyze the code
-    const prompt = `Analyze the following ${language} code for step ${
-      currentStep.id
-    } of the project.\n\nStep Instruction: ${
-      currentStep.instruction
-    }\nLine Ranges: ${currentStep.lineRanges.join(
-      "-"
-    )}\n\n${language.charAt(0).toUpperCase() + language.slice(1)} Code:\n${code}\n\nProvide feedback as a JSON array of objects, where each object has:\n- line: number (line number being analyzed)\n- correct: boolean (whether the code is correct for this line)\n- suggestion: string (optional suggestion if incorrect)\n\nAnalyze this as ${language} code specifically. DO NOT include any additional text or markdown outside of the JSON array.\n\nFormat the response as a JSON array.${projectContext}`;
+    console.log("Current step instruction:", currentStep.instruction);
+    console.log("Current step ID:", currentStep.id);
+    console.log("Code being analyzed (first 200 chars):", code.substring(0, 200) + (code.length > 200 ? "..." : ""));
 
+    // Handle empty code case
+    if (!code || code.trim() === '') {
+      return res.json({
+        feedback: [{
+          line: 1,
+          correct: false,
+          suggestion: "Please add some code to this file. The file is currently empty."
+        }],
+        chatMessage: {
+          type: "assistant",
+          content: "The file is empty. Please add some code based on the step instruction and try checking again.",
+        },
+      });
+    }
+
+    // Use Gemini to analyze the code (NO project context)
+    const prompt = `You are a supportive coding instructor analyzing a student's code for a specific step in a guided project.
+
+IMPORTANT CONTEXT ABOUT THIS IDE:
+- This is a web-based IDE with a built-in file explorer on the left side
+- Users can create files using the "+" button in the file explorer
+- File creation is handled separately by the IDE's file system
+- Your job is ONLY to analyze the code content, not file structure
+- The IDE automatically manages the file system - users don't need to create folders manually
+- NEVER CHECK OR TALK ABOUT CREATING FILES - that's handled by the IDE
+- Users may have completed previous steps and added extra content beyond the current step
+- Focus on STRUCTURE and SYNTAX, not exact content or wording
+
+Step Information:
+- Step ID: ${currentStep.id}
+- Instruction: ${currentStep.instruction}
+- Expected Line Range: ${currentStep.lineRanges.join("-")}
+- Language: ${language}
+
+Student's Code:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Your task is to analyze this code and determine if it correctly implements the step instruction. Be SUPPORTIVE and UNDERSTANDING in your assessment.
+
+CRITICAL RULES:
+1. NEVER mention file creation - that's handled by the IDE
+2. Focus on CODE STRUCTURE and SYNTAX, not exact content or wording
+3. If the step asks for a specific HTML element, check if that element type exists (e.g., if asking for a paragraph, check for <p> tags)
+4. If the step asks for CSS styling, check if CSS rules are present and properly formatted
+5. If the step asks for JavaScript functionality, check if the code structure is correct
+6. Do NOT be overly strict about exact text content - focus on the structural requirements
+7. Recognize that users may have added extra content or completed multiple steps
+8. If the required structure/elements are present, mark as correct even if there's additional content
+9. Be encouraging and supportive - this is for beginners
+10. Consider that the user might have already implemented the requirement in a previous step
+
+EXAMPLES OF FLEXIBLE ANALYSIS:
+- If step says "Add a paragraph about yourself", check for <p> tags with content (any content is fine)
+- If step says "Add a heading that says 'Welcome'", check for any heading tag (<h1>, <h2>, etc.) with any text
+- If step says "Create a CSS file", check for CSS rules (any rules are fine)
+- If step says "Style the heading with red color", check for CSS that could make text red (color: red, color: #ff0000, etc.)
+- If step says "Add another paragraph", check if there are multiple <p> tags present
+
+EXAMPLES OF WHAT TO AVOID:
+- Being strict about exact text content
+- Requiring specific wording or phrases
+- Marking as incorrect if extra content is present
+- Not recognizing that requirements might already be met from previous work
+
+Provide your analysis as a JSON array of objects. Each object should have:
+- "line": number (the line number being analyzed, use 1 if analyzing the whole file)
+- "correct": boolean (true if the code structure/elements match the step requirements)
+- "suggestion": string (encouraging suggestion for improvement if incorrect, or "Great! Code structure matches step requirements." if correct)
+
+Guidelines:
+1. Be encouraging and supportive - this is for beginners
+2. Focus on whether the code STRUCTURE matches the step instruction
+3. If the required elements are present, mark as correct regardless of content
+4. If the code has extra elements not required by the step, that's perfectly fine
+5. Consider the programming language syntax and best practices
+6. Keep suggestions specific and actionable
+7. NEVER mention file creation - that's handled by the IDE
+8. For HTML files, check if the required HTML elements are present (any content is fine)
+9. For CSS files, check if the required CSS rules are present (any values are fine)
+10. For JavaScript files, check if the required functionality structure is implemented
+11. For Python files, check if the required code structure is present
+12. If the step asks for specific tags or elements, check if those tags/elements exist
+13. Don't worry about exact text content - focus on structural requirements
+
+IMPORTANT: Mark as correct if the code STRUCTURE and ELEMENTS fulfill the step requirements. Be flexible about content and encouraging to beginners.`;
+
+    console.log("Sending prompt to Gemini for analysis...");
+    console.log("Full prompt being sent to Gemini:", prompt);
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
+    console.log("Gemini response received, length:", responseText.length);
+    
     let feedback;
     try {
       // Extract JSON from response (handles both raw JSON and markdown-wrapped JSON)
       const cleanResponse = extractJsonFromResponse(responseText);
       feedback = robustJsonParse(cleanResponse);
+      console.log("Parsed feedback:", feedback);
     } catch (parseError) {
       console.error("Error parsing Gemini response for feedback:", parseError);
       console.error("Raw Gemini response:", responseText);
-      return res
-        .status(500)
-        .json({ error: "Failed to parse feedback from AI response." });
+      
+      // Fallback: provide basic feedback
+      return res.json({
+        feedback: [{
+          line: 1,
+          correct: false,
+          suggestion: "There was an issue analyzing your code. Please make sure your code follows the step instruction and try again."
+        }],
+        chatMessage: {
+          type: "assistant",
+          content: "I had trouble analyzing your code. Please review the step instruction and make sure your code matches what's expected. You can try checking again or ask for a hint.",
+        },
+      });
     }
 
     if (!Array.isArray(feedback)) {
       console.error("Gemini returned invalid feedback format:", feedback);
-      return res
-        .status(500)
-        .json({ error: "AI did not return valid feedback." });
+      return res.json({
+        feedback: [{
+          line: 1,
+          correct: false,
+          suggestion: "The analysis returned an unexpected format. Please check your code against the step instruction."
+        }],
+        chatMessage: {
+          type: "assistant",
+          content: "I couldn't properly analyze your code. Please review the step instruction and make sure your code matches what's expected.",
+        },
+      });
+    }
+
+    // Validate feedback structure
+    const validFeedback = feedback.filter(f => 
+      typeof f === 'object' && 
+      typeof f.line === 'number' && 
+      typeof f.correct === 'boolean'
+    );
+
+    if (validFeedback.length === 0) {
+      return res.json({
+        feedback: [{
+          line: 1,
+          correct: false,
+          suggestion: "The analysis didn't provide valid feedback. Please check your code against the step instruction."
+        }],
+        chatMessage: {
+          type: "assistant",
+          content: "I couldn't properly analyze your code. Please review the step instruction and make sure your code matches what's expected.",
+        },
+      });
     }
 
     // Generate a chat message based on the feedback
     let feedbackMessage = "";
-    const allCorrect = feedback.every((f) => f.correct);
+    const allCorrect = validFeedback.every((f) => f.correct);
 
     if (allCorrect) {
-      feedbackMessage =
-        "Great job! Your code looks correct. You can proceed to the next step.";
+      feedbackMessage = "Great job! Your code looks correct. You can proceed to the next step.";
     } else {
       feedbackMessage = "Let's review your code:\n\n";
-      feedback.forEach((f) => {
+      validFeedback.forEach((f) => {
         if (!f.correct) {
-          feedbackMessage += `• Line ${f.line}: ${f.suggestion}\n`;
+          feedbackMessage += `• Line ${f.line}: ${f.suggestion || 'Needs attention'}\n`;
         }
       });
       feedbackMessage += "\nMake these adjustments and try again!";
     }
 
+    console.log("Sending analysis result:", { allCorrect, feedbackCount: validFeedback.length });
+
     res.json({
-      feedback,
+      feedback: validFeedback,
       chatMessage: {
         type: "assistant",
         content: feedbackMessage,
@@ -239,7 +392,18 @@ router.post("/analyzeStep", async (req, res) => {
     });
   } catch (error) {
     console.error("Error analyzing step:", error);
-    res.status(500).json({ error: "Failed to analyze step" });
+    res.status(500).json({ 
+      error: "Failed to analyze step",
+      feedback: [{
+        line: 1,
+        correct: false,
+        suggestion: "An error occurred while analyzing your code. Please try again."
+      }],
+      chatMessage: {
+        type: "assistant",
+        content: "Sorry, there was an error analyzing your code. Please try again or ask for help.",
+      }
+    });
   }
 });
 

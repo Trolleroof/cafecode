@@ -7,14 +7,12 @@ class GeminiService {
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Updated to use the correct model name for the current API version
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite-preview-0617' });
     this.isInitialized = false;
   }
 
   async initialize() {
     try {
-      // Test the connection with a simple prompt
       const result = await this.model.generateContent('Respond with "OK" if you are working.');
       const response = await result.response;
       const text = response.text();
@@ -57,8 +55,8 @@ class GeminiService {
       return files.map(file => {
         const prefix = '  '.repeat(indent);
         if (file.type === 'folder') {
-          const children = file.children ? formatFiles(file.children, indent + 1) : [];
-          return `${prefix}📁 ${file.name}/\n${children.join('')}`;
+          const children = file.children ? formatFiles(file.children, indent + 1) : '';
+          return `${prefix}📁 ${file.name}/\n${children}`;
         } else {
           const preview = file.content ? 
             (file.content.length > 200 ? file.content.substring(0, 200) + '...' : file.content) : 
@@ -74,124 +72,62 @@ class GeminiService {
   createAnalysisPrompt(code, language, errorMessage = null, context = null, projectFiles = null) {
     const projectContext = this.createProjectContext(projectFiles);
     
-    return `
-You are an expert code analyzer. Analyze the following ${language} code and provide a comprehensive analysis.
+    return `Analyze this ${language} code and provide a comprehensive analysis.
 
-Code to analyze:
+Code:
 \`\`\`${language}
 ${code}
 \`\`\`
 
-${errorMessage ? `Error message: ${errorMessage}` : ''}
+${errorMessage ? `Error: ${errorMessage}` : ''}
 ${context ? `Context: ${context}` : ''}
 ${projectContext}
 
-Please provide your analysis in the following JSON format:
+Return JSON:
 {
-  "errors": [
-    {
-      "type": "syntax|runtime|logic|performance|style",
-      "line_number": number or null,
-      "column_number": number or null,
-      "message": "detailed error description",
-      "severity": "low|medium|high|critical",
-      "suggestion": "how to fix this error"
-    }
-  ],
-  "warnings": [
-    {
-      "type": "syntax|runtime|logic|performance|style",
-      "line_number": number or null,
-      "column_number": number or null,
-      "message": "detailed warning description",
-      "severity": "low|medium|high|critical",
-      "suggestion": "how to improve this"
-    }
-  ],
-  "suggestions": [
-    "general improvement suggestion 1",
-    "general improvement suggestion 2"
-  ],
+  "errors": [{"type": "syntax|runtime|logic|performance|style", "line_number": number, "column_number": number, "message": "description", "severity": "low|medium|high|critical", "suggestion": "fix"}],
+  "warnings": [{"type": "syntax|runtime|logic|performance|style", "line_number": number, "column_number": number, "message": "description", "severity": "low|medium|high|critical", "suggestion": "improvement"}],
+  "suggestions": ["improvement 1", "improvement 2"],
   "code_quality_score": number_between_0_and_100,
-  "analysis_summary": "overall summary of the code quality and issues found"
+  "analysis_summary": "overall summary"
 }
 
-Focus on:
-1. Syntax errors and typos
-2. Logic errors and potential bugs
-3. Performance issues
-4. Code style and best practices
-5. Security vulnerabilities
-6. Readability improvements
-7. Integration with other project files (if relevant)
-
-Be specific about line numbers when possible and provide actionable suggestions.
-`;
+Focus on syntax errors, logic bugs, performance issues, code style, security vulnerabilities, and readability.`;
   }
 
   createFixPrompt(code, language, errorMessage, lineNumber = null, projectFiles = null) {
     const projectContext = this.createProjectContext(projectFiles);
     
-    return `
-You are an expert code fixer. Fix the following ${language} code that has an error.
+    return `Fix this ${language} code with error: ${errorMessage}
 
-Code with error:
+Code:
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Error message: ${errorMessage}
-${lineNumber ? `Error occurs at line: ${lineNumber}` : ''}
+${lineNumber ? `Error at line: ${lineNumber}` : ''}
 ${projectContext}
 
-Please provide your fix in the following JSON format:
+Return JSON:
 {
   "fixed_code": "complete corrected code",
-  "fixes_applied": [
-    {
-      "line_number": number,
-      "original_code": "original line of code",
-      "fixed_code": "corrected line of code",
-      "explanation": "explanation of what was changed and why"
-    }
-  ],
-  "explanation": "overall explanation of the fixes applied",
-  "confidence_score": number_between_0_and_100
+  "fixes_applied": [{"line_number": number, "original_code": "original", "fixed_code": "corrected", "explanation": "what changed"}],
+  "explanation": "overall explanation"
 }
 
-Requirements:
-1. Fix the specific error mentioned
-2. Preserve the original code structure and logic as much as possible
-3. Only make necessary changes to fix the error
-4. Provide clear explanations for each change
-5. Ensure the fixed code follows best practices
-6. Maintain proper formatting and indentation
-7. Consider how this code integrates with other project files
-`;
+Fix the specific error while preserving original structure and logic.`;
   }
 
   createHintPrompt(code, language, stepInstruction = null, lineRanges = null, stepId = null, projectFiles = null) {
     const projectContext = this.createProjectContext(projectFiles);
     
     const stepContext = stepInstruction && lineRanges && stepId 
-      ? `Your goal is to help a complete beginner programmer complete a specific step in a guided project.
+      ? `Step ${stepId}: ${stepInstruction} (Lines ${lineRanges.join('-')})
 
-Current Step Information:
-- Step ${stepId}: ${stepInstruction}
-- Target Line Range: ${lineRanges.join('-')}
+Analyze if code correctly implements this step. If correct: confirm success. If incorrect: provide simple hint for this step only.`
+      : 'Provide a simple, beginner-friendly hint for this code.';
 
-Hinting Logic:
-1. Analyze the user's code against the Current Step Information.
-2. If the code correctly implements the step's instructions, your hint should be a confirmation message, like "Looks like you've got it! Your code is correct. You can click 'Check Step' to verify and move on."
-3. If the code is incorrect or incomplete for the current step, provide a very simple, actionable hint to guide the user toward the correct solution for THIS STEP ONLY.
-4. Use extremely simple language suitable for someone who has never programmed before.
-5. DO NOT give hints about future steps or general best practices that are not relevant to the current instruction.
-6. Your entire focus is on the current step.
-7. Consider the project context and other files when providing hints.`
-      : 'You are an expert programming assistant. Provide a general, helpful hint for the following code using very simple, beginner-friendly language.';
-
-    return `
-${stepContext}
+    return `${stepContext}
 
 Code:
 \`\`\`${language}
@@ -200,22 +136,15 @@ ${code}
 
 ${projectContext}
 
-Please provide your hint in the following JSON format:
+Return JSON:
 {
-  "hint_text": "A very simple and helpful hint, suitable for a complete beginner. ${stepInstruction ? 'Your hint should be a confirmation if the code is correct, or a very simple tip if it is incorrect.' : ''}",
-  "line_number": number or null, // The specific line number the hint refers to (null if general)
+  "hint_text": "simple hint or confirmation",
+  "line_number": number or null,
   "suggestion_type": "syntax|logic|best_practice|performance|security|readability",
-  "detailed_explanation": "An optional detailed explanation if the hint needs more context, but keep it simple."
+  "detailed_explanation": "optional detailed explanation"
 }
 
-Requirements for hints:
-- Keep the hint extremely simple and actionable in very basic terms.
-- Avoid technical jargon completely.
-- Avoid directly giving the solution.
-- Focus ONLY on the current step if one is provided.
-- Consider the broader project context when relevant.
-- Assume the user knows almost nothing about programming.
-`;
+Use extremely simple language for complete beginners.`;
   }
 
   // Helper function to robustly extract JSON from Gemini responses
@@ -353,7 +282,6 @@ Requirements for hints:
         fixed_code: fixData.fixed_code || request.code,
         fixes_applied: fixData.fixes_applied || [],
         explanation: fixData.explanation || 'Code has been fixed',
-        confidence_score: fixData.confidence_score || 80,
         execution_time: executionTime
       };
 
@@ -366,7 +294,6 @@ Requirements for hints:
         fixed_code: request.code,
         fixes_applied: [],
         explanation: `Failed to fix code: ${error.message}`,
-        confidence_score: 0,
         execution_time: executionTime
       };
     }
@@ -380,40 +307,21 @@ Requirements for hints:
 
       const projectContext = this.createProjectContext(projectFiles);
 
-      const prompt = `
-You are an expert programming assistant. Your task is to translate programming error messages into plain, easy-to-understand English for complete beginners, and provide actionable suggestions for fixing them. Ensure the output is directly usable and well-structured, without any markdown formatting that might interfere with client-side rendering (e.g., no bolding with **).
+      const prompt = `Translate this programming error message into simple English for beginners:
 
-Error message:
-${text}
-
+Error: ${text}
 ${projectContext}
 
-Please provide your response in the following JSON format:
+Return JSON:
 {
-  "translated_text": "A clear, concise, and extremely easy-to-understand explanation of the error message, suitable for someone who has never programmed before. Avoid all technical jargon and use very simple language.",
+  "translated_text": "simple explanation without markdown",
   "error_type": "syntax|runtime|logic|type|reference|etc",
   "severity": "low|medium|high|critical",
-  "suggestions": [
-    "Specific, actionable suggestion 1 to fix the error, explained in very simple terms.",
-    "Specific, actionable suggestion 2 to fix the error, explained in very simple terms."
-  ],
-  "common_causes": [
-    "Common reason 1 why this error occurs, explained simply.",
-    "Common reason 2 why this error occurs, explained simply."
-  ]
+  "suggestions": ["actionable fix 1", "actionable fix 2"],
+  "common_causes": ["common reason 1", "common reason 2"]
 }
 
-Requirements:
-1. Explain the error in extremely simple, non-technical terms, focusing on clarity for beginners.
-2. Identify the type and severity of the error.
-3. Provide specific, actionable suggestions for fixing the error using beginner-friendly language.
-4. List common causes of this type of error to aid understanding.
-5. Keep the explanation concise but informative.
-6. Focus on helping complete beginners understand and fix the error efficiently.
-7. Crucially, ensure the \`translated_text\` field contains plain text without any markdown characters (like \`**\` for bolding), as the frontend will handle formatting.
-8. Consider the project context when providing suggestions.
-9. Assume the user knows almost nothing about programming.
-`;
+Use extremely simple language for complete beginners.`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
