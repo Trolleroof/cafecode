@@ -95,9 +95,8 @@ Return JSON:
 Focus on syntax errors, logic bugs, performance issues, code style, security vulnerabilities, and readability.`;
   }
 
-  createFixPrompt(code, language, errorMessage, lineNumber = null, projectFiles = null, stepInstruction = null) {
+  createFixPrompt(code, language, errorMessage, lineNumber = null, projectFiles = null) {
     const projectContext = this.createProjectContext(projectFiles);
-    const stepContext = stepInstruction ? `\n\nCurrent Step Context: ${stepInstruction}\nIMPORTANT: Only fix issues related to this specific step. Do not make changes to other parts of the code unless they directly affect this step.` : '';
     
     return `Fix this ${language} code with error: ${errorMessage}
 
@@ -107,35 +106,16 @@ ${code}
 \`\`\`
 
 ${lineNumber ? `Error at line: ${lineNumber}` : ''}
-${projectContext}${stepContext}
-
-CRITICAL INSTRUCTIONS:
-1. Return the COMPLETE corrected file content in the "fixed_code" field
-2. In "fixes_applied", provide ONLY the specific lines that were changed, not the entire file
-3. Each fix in "fixes_applied" should contain:
-   - "line_number": the exact line number that was changed
-   - "original_content": ONLY the original line(s) that were changed
-   - "fixed_content": ONLY the corrected line(s) 
-   - "explanation": brief explanation of what was changed
+${projectContext}
 
 Return JSON:
 {
-  "fixed_code": "COMPLETE corrected file content here",
-  "fixes_applied": [
-    {
-      "line_number": number,
-      "original_content": "only the original line(s) that were changed",
-      "fixed_content": "only the corrected line(s)",
-      "explanation": "what was changed and why"
-    }
-  ],
-  "explanation": "overall explanation of all fixes applied"
+  "fixed_code": "complete corrected code",
+  "fixes_applied": [{"line_number": number, "original_code": "original", "fixed_code": "corrected", "explanation": "what changed"}],
+  "explanation": "overall explanation"
 }
 
-IMPORTANT: 
-- "fixed_code" must contain the ENTIRE corrected file
-- "fixes_applied" should contain ONLY the specific lines that were modified
-- Focus on fixing the specific error while preserving the original structure and logic`;
+Fix the specific error while preserving original structure and logic.`;
   }
 
   createHintPrompt(code, language, stepInstruction = null, lineRanges = null, stepId = null, projectFiles = null) {
@@ -282,8 +262,7 @@ Use extremely simple language for complete beginners.`;
         request.language,
         request.error_message,
         request.line_number,
-        request.projectFiles,
-        request.stepInstruction
+        request.projectFiles
       );
 
       const result = await this.model.generateContent(prompt);
