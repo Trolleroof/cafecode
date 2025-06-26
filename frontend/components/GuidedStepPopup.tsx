@@ -49,12 +49,17 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           remarkPlugins={[remarkGfm]}
           components={{
             p: ({ children }: { children: React.ReactNode }) => <p className="text-lg font-semibold text-white leading-relaxed drop-shadow mb-2">{children}</p>,
-            code: ({ inline, children }: { inline?: boolean; children: React.ReactNode }) =>
-              inline ? (
-                <code className="bg-[#06224a] text-[#5adbff] px-1 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
-              ) : (
-                <span className="inline-block bg-[#06224a] text-[#5adbff] px-1 rounded font-mono text-base align-middle" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</span>
-              ),
+            code: ({ inline, children }: { inline?: boolean; children: React.ReactNode }) => {
+              if (inline) {
+                return <code className="bg-[#06224a] text-[#5adbff] px-1 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>;
+              } else {
+                return (
+                  <pre className="bg-[#06224a] text-[#5adbff] p-3 rounded-lg font-mono text-sm overflow-x-auto my-2">
+                    <code>{children}</code>
+                  </pre>
+                );
+              }
+            },
             strong: ({ children }: { children: React.ReactNode }) => <strong className="font-bold text-white">{children}</strong>,
             ul: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
             li: ({ children }: { children: React.ReactNode }) => <span>{children}, </span>,
