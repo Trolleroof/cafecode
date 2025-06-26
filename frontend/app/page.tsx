@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Menu, X, Code2, Play, ArrowRight, Sparkles, Github, Twitter, Lightbulb, MessageSquare, Edit3, MessageCircle, CheckCircle, Star, Quote, Zap, Shield, Users, BookOpen, Check } from 'lucide-react';
+import { Menu, X, Code2, Play, ArrowRight, Sparkles, Github, Twitter, Lightbulb, MessageSquare, Edit3, MessageCircle, CheckCircle, Star, Quote, Zap, Shield, Users, BookOpen, Check, Target } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Header from '@/components/Header';
@@ -12,6 +12,10 @@ export default function Home() {
 
   const handleStartCoding = () => {
     router.push('/ide');
+  };
+
+  const handleLeetCodePractice = () => {
+    router.push('/leetcode');
   };
 
   return (
@@ -48,10 +52,10 @@ export default function Home() {
             <span className="block mt-2 font-bold text-gray-900">Write code, get instant help, and learn by doing.</span>
           </p>
 
-          {/* CTA Button with soft glow/blur background */}
-          <div className="relative flex justify-center mb-8">
+          {/* CTA Buttons with soft glow/blur background */}
+          <div className="relative flex flex-col sm:flex-row justify-center gap-4 mb-8">
             <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
-              <div className="w-80 h-16 bg-primary-500/30 blur-xl rounded-2xl shadow-lg"></div>
+              <div className="w-96 h-16 bg-primary-500/30 blur-xl rounded-2xl shadow-lg"></div>
             </div>
             <button 
               onClick={handleStartCoding}
@@ -62,6 +66,18 @@ export default function Home() {
                 <Play className="h-7 w-7 group-hover:scale-110 transition-transform" />
                 <span className="tracking-wide">Start Coding Now</span>
                 <ArrowRight className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
+              </div>
+            </button>
+            
+            <button 
+              onClick={handleLeetCodePractice}
+              className="relative group btn-secondary px-12 py-6 text-xl font-bold shadow-xl hover:shadow-accent-500/30 border-2 border-accent-500"
+              style={{ color: '#14b8a6', background: 'white' }}
+            >
+              <div className="flex items-center font-black space-x-4">
+                <Target className="h-7 w-7 group-hover:scale-110 transition-transform" />
+                <span className="tracking-wide">LeetCode Practice</span>
+                <Sparkles className="h-7 w-7 group-hover:rotate-12 transition-transform" />
               </div>
             </button>
           </div>
@@ -125,6 +141,12 @@ export default function Home() {
                 color: 'from-blue-500 to-cyan-500'
               },
               {
+                icon: Target,
+                title: 'LeetCode Practice Mode',
+                description: 'Practice coding challenges with step-by-step AI guidance. Perfect for interview preparation and skill building.',
+                color: 'from-emerald-500 to-teal-500'
+              },
+              {
                 icon: Zap,
                 title: 'Line-by-Line Code Fixes',
                 description: 'Apply suggested fixes directly to your code with one click. Learn from mistakes and understand corrections in real-time.',
@@ -141,12 +163,6 @@ export default function Home() {
                 title: 'Beginner-Friendly Interface',
                 description: 'Clean, distraction-free environment designed specifically for self-taught developers and bootcamp students.',
                 color: 'from-green-500 to-teal-500'
-              },
-              {
-                icon: Users,
-                title: 'Community Support',
-                description: 'Connect with other learners, share your progress, and get help from experienced developers in our community.',
-                color: 'from-indigo-500 to-purple-500'
               },
               {
                 icon: Shield,
@@ -364,6 +380,7 @@ export default function Home() {
                   'Everything in Free',
                   'Unlimited AI assistance',
                   'Advanced code fixes',
+                  'LeetCode practice mode',
                   'Multiple file projects',
                   'Priority support',
                   'Code templates',
