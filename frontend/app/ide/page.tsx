@@ -5,6 +5,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Play, 
   MessageSquare, 
@@ -76,6 +77,8 @@ const getLanguageFromFileName = (fileName: string): string => {
       return 'html';
     case 'css':
       return 'css';
+    case 'ts':
+      return 'typescript';
     default:
       return 'plaintext';
   }
@@ -89,6 +92,7 @@ export default function IDEPage() {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [code, setCode] = useState('');
+  const [editorLanguage, setEditorLanguage] = useState('plaintext');
   const [output, setOutput] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -119,6 +123,7 @@ export default function IDEPage() {
   const handleFileSelect = (file: FileNode) => {
     setSelectedFile(file);
     setCode(file.content || '');
+    setEditorLanguage(file.language || 'plaintext');
     setHighlightedLines([]);
   };
 
@@ -164,6 +169,7 @@ export default function IDEPage() {
     if (type === 'file') {
       setSelectedFile(newFile);
       setCode('');
+      setEditorLanguage(newFile.language || 'plaintext');
     }
   };
 
@@ -185,6 +191,7 @@ export default function IDEPage() {
     if (selectedFile?.id === fileId) {
       setSelectedFile(null);
       setCode('');
+      setEditorLanguage('plaintext');
     }
   };
 
@@ -259,7 +266,7 @@ export default function IDEPage() {
             projectFiles: files,
             guidedProject,
             currentCode: code,
-            currentLanguage: selectedFile?.language
+            currentLanguage: editorLanguage
           };
 
       const response = await fetch(endpoint, {
@@ -301,7 +308,7 @@ export default function IDEPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code,
-          language: selectedFile.language,
+          language: editorLanguage,
           stepInstruction: currentStep?.instruction,
           lineRanges: currentStep?.lineRanges,
           stepId: currentStep?.id,
@@ -348,7 +355,7 @@ export default function IDEPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code,
-          language: selectedFile.language,
+          language: editorLanguage,
           error_message: 'Please analyze and fix any issues in this code',
           projectFiles: files
         })
@@ -358,7 +365,7 @@ export default function IDEPage() {
       
       if (data.success && data.fixed_code) {
         // Display the complete fixed code in chat
-        const fixedCodeMessage = `Here's your fixed code:\n\n\`\`\`${selectedFile.language}\n${data.fixed_code}\n\`\`\`\n\n**Changes made:**\n${data.explanation}`;
+        const fixedCodeMessage = `Here's your fixed code:\n\n\`\`\`${editorLanguage}\n${data.fixed_code}\n\`\`\`\n\n**Changes made:**\n${data.explanation}`;
         
         setChatMessages(prev => [...prev, {
           type: 'assistant',
@@ -456,7 +463,7 @@ export default function IDEPage() {
           projectId: guidedProject.id,
           stepId: currentStep.id,
           code: code,
-          language: selectedFile.language,
+          language: editorLanguage,
           projectFiles: files
         })
       });
@@ -596,7 +603,22 @@ export default function IDEPage() {
               {selectedFile ? (
                 <div className="h-full flex flex-col">
                   <div className="flex items-center justify-between p-2 bg-[#2d2d30] border-b border-[#3c3c3c]">
-                    <span className="text-sm text-gray-300">{selectedFile.name}</span>
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm text-gray-300">{selectedFile.name}</span>
+                      <Select value={editorLanguage} onValueChange={setEditorLanguage}>
+                        <SelectTrigger className="w-32 h-7 text-xs bg-[#3c3c3c] border-[#5a5a5a] text-gray-300">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="javascript">JavaScript</SelectItem>
+                          <SelectItem value="python">Python</SelectItem>
+                          <SelectItem value="html">HTML</SelectItem>
+                          <SelectItem value="css">CSS</SelectItem>
+                          <SelectItem value="typescript">TypeScript</SelectItem>
+                          <SelectItem value="plaintext">Plain Text</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="flex space-x-2">
                       <Button
                         size="sm"
@@ -620,10 +642,11 @@ export default function IDEPage() {
                   </div>
                   <div className="flex-1">
                     <MonacoEditor
-                      language={selectedFile.language || 'plaintext'}
+                      language={editorLanguage}
                       value={code}
                       onChange={handleCodeChange}
                       highlightedLines={highlightedLines}
+                      readOnly={false}
                     />
                   </div>
                 </div>
@@ -665,14 +688,14 @@ export default function IDEPage() {
                     {chatMessages.map((message, index) => (
                       <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`flex items-start space-x-2 max-w-[80%] ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                          <div className={`p-2 rounded-full ${message.type === 'user' ? 'bg-[#5adbff]' : 'bg-[#ffdd4a]'}`}>
+                          <div className={`p-2 rounded-full ${message.type === 'user' ? 'bg-teal-700' : 'bg-[#ffdd4a]'}`}>
                             {message.type === 'user' ? (
-                              <User className="h-4 w-4 text-[#094074]" />
+                              <User className="h-4 w-4 text-white" />
                             ) : (
                               <Bot className="h-4 w-4 text-[#094074]" />
                             )}
                           </div>
-                          <div className={`p-3 rounded-lg ${message.type === 'user' ? 'bg-[#5adbff] text-[#094074]' : 'bg-[#3c6997] text-white'}`}>
+                          <div className={`p-3 rounded-lg ${message.type === 'user' ? 'bg-teal-700 text-white' : 'bg-indigo-700 text-white'}`}>
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
@@ -710,7 +733,7 @@ export default function IDEPage() {
                           <div className="p-2 rounded-full bg-[#ffdd4a]">
                             <Bot className="h-4 w-4 text-[#094074]" />
                           </div>
-                          <div className="bg-[#3c6997] p-3 rounded-lg">
+                          <div className="bg-indigo-700 p-3 rounded-lg">
                             <TypingIndicator />
                           </div>
                         </div>

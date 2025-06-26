@@ -460,6 +460,7 @@ export default function LeetCodePage() {
                   value={userCode}
                   onChange={(value) => setUserCode(value || '')}
                   highlightedLines={highlightedLines}
+                  readOnly={false}
                 />
               </div>
             </div>
@@ -487,14 +488,14 @@ export default function LeetCodePage() {
                     {chatMessages.map((message, index) => (
                       <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`flex items-start space-x-2 max-w-[80%] ${message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                          <div className={`p-2 rounded-full ${message.type === 'user' ? 'bg-[#5adbff]' : 'bg-[#ffdd4a]'}`}>
+                          <div className={`p-2 rounded-full ${message.type === 'user' ? 'bg-teal-700' : 'bg-[#ffdd4a]'}`}>
                             {message.type === 'user' ? (
-                              <User className="h-4 w-4 text-[#094074]" />
+                              <User className="h-4 w-4 text-white" />
                             ) : (
                               <Bot className="h-4 w-4 text-[#094074]" />
                             )}
                           </div>
-                          <div className={`p-3 rounded-lg ${message.type === 'user' ? 'bg-[#5adbff] text-[#094074]' : 'bg-[#3c6997] text-white'}`}>
+                          <div className={`p-3 rounded-lg ${message.type === 'user' ? 'bg-teal-700 text-white' : 'bg-indigo-700 text-white'}`}>
                             <ReactMarkdown
                               remarkPlugins={[remarkGfm]}
                               components={{
@@ -532,7 +533,7 @@ export default function LeetCodePage() {
                           <div className="p-2 rounded-full bg-[#ffdd4a]">
                             <Bot className="h-4 w-4 text-[#094074]" />
                           </div>
-                          <div className="bg-[#3c6997] p-3 rounded-lg">
+                          <div className="bg-indigo-700 p-3 rounded-lg">
                             <TypingIndicator />
                           </div>
                         </div>
