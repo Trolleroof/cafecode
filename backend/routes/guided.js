@@ -430,7 +430,33 @@ router.post("/project-chat", async (req, res) => {
       )
       .join("\n");
 
-    const prompt = `You are a helpful coding assistant guiding a user through a project.\nCurrent step: ${project.steps[currentStep].instruction}\n\nChat history:\n${chatHistory}\n\nProvide a helpful, encouraging response that:\n1. Addresses the user's question\n2. Provides relevant guidance for the current step\n3. Uses markdown formatting for code blocks and important points\n4. Keeps the response concise and clear\n5. Consider the project context and files when providing guidance\n\nDO NOT include any additional text or markdown outside of the JSON object.\n\nFormat your response as a JSON object with a 'content' field.${projectContext}`;
+    const prompt = `You are a helpful coding assistant guiding a user through a project.
+
+Current step: ${project.steps[currentStep].instruction}
+
+Chat history:
+${chatHistory}
+
+Provide a helpful, encouraging response that:
+1. Addresses the user's question
+2. Provides relevant guidance for the current step
+3. Uses markdown formatting for code blocks and important points
+4. Keeps the response concise and clear
+5. Consider the project context and files when providing guidance
+6. When providing code examples, wrap them in proper markdown code blocks like this:
+
+For inline code: \`code here\`
+For code blocks:
+\`\`\`javascript
+// Your code example here
+console.log("Hello World");
+\`\`\`
+
+IMPORTANT: Always wrap any code examples in markdown code blocks with the appropriate language identifier.
+
+DO NOT include any additional text or markdown outside of the JSON object.
+
+Format your response as a JSON object with a 'content' field.${projectContext}`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
@@ -499,7 +525,19 @@ router.post("/simple-chat", async (req, res) => {
     
     Consider the user's project files and current code when providing context-aware responses.
     
-    Chat history:\n${chatHistory}
+    When providing code examples, wrap them in proper markdown code blocks like this:
+
+    For inline code: \`code here\`
+    For code blocks:
+    \`\`\`javascript
+    // Your code example here
+    console.log("Hello World");
+    \`\`\`
+
+    IMPORTANT: Always wrap any code examples in markdown code blocks with the appropriate language identifier.
+    
+    Chat history:
+    ${chatHistory}
     
     ${projectContext}${guidedContext}${codeContext}
     
