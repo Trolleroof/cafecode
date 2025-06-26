@@ -113,6 +113,55 @@ const updateFileInTree = (nodes: FileNode[], fileId: string, newContent: string)
   });
 };
 
+// Move formatCodeInMessage above handleFixCode
+function formatCodeInMessage(content: string) {
+  // If the content contains 'Original:' and 'Fixed:', format them
+  if (/Original:/i.test(content) && /Fixed:/i.test(content)) {
+    // Split into lines
+    const lines = content.split('\n');
+    let formatted = '';
+    let inCodeBlock = false;
+    lines.forEach((line, idx) => {
+      if (/^Original:/i.test(line)) {
+        if (inCodeBlock) {
+          formatted += '```\n'; // close previous code block
+          inCodeBlock = false;
+        }
+        formatted += `${line}\n`;
+        // Next lines are code until 'Fixed:'
+        if (lines[idx + 1] && !/^Fixed:/i.test(lines[idx + 1])) {
+          formatted += '```python\n';
+          inCodeBlock = true;
+        }
+      } else if (/^Fixed:/i.test(line)) {
+        if (inCodeBlock) {
+          formatted += '```\n'; // close previous code block
+          inCodeBlock = false;
+        }
+        formatted += `${line}\n`;
+        // Next lines are code
+        if (lines[idx + 1]) {
+          formatted += '```python\n';
+          inCodeBlock = true;
+        }
+      } else if (/^\s*$/.test(line)) {
+        if (inCodeBlock) {
+          formatted += '```\n';
+          inCodeBlock = false;
+        }
+        formatted += '\n';
+      } else {
+        formatted += `${line}\n`;
+      }
+    });
+    if (inCodeBlock) {
+      formatted += '```\n';
+    }
+    return formatted;
+  }
+  return content;
+}
+
 export default function IDEPage() {
   // File management state - Start with empty files array
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -497,7 +546,9 @@ export default function IDEPage() {
         body: JSON.stringify({
           code: selectedFile.content,
           language: selectedFile.language,
-          error_message: 'General code review and improvement',
+          stepInstruction: guidedProject?.steps[guidedProject.currentStep]?.instruction,
+          lineRanges: guidedProject?.steps[guidedProject.currentStep]?.lineRanges,
+          stepId: guidedProject?.steps[guidedProject.currentStep]?.id,
           projectFiles: files
         })
       });
@@ -505,22 +556,28 @@ export default function IDEPage() {
       const result = await response.json();
       
       if (result.success && result.fixed_code && result.fixes_applied) {
-        // Animate typing the fixed code character by character
+        // Animate typing the fixed code word by word
         setIsEditorReadOnly(true);
         const oldCode = selectedFile.content;
         const newCode = result.fixed_code;
+        const lines = newCode.split('\n');
         let i = 0;
-        let fixedLines: number[] = [];
         const animate = () => {
-          if (i <= newCode.length) {
-            setSelectedFile({ ...selectedFile, content: newCode.slice(0, i) });
+          if (i < lines.length) {
+            setSelectedFile({ ...selectedFile, content: lines.slice(0, i + 1).join('\n') });
             i++;
-            setTimeout(animate, 8); // Fast typing effect
+            setTimeout(animate, 80); // Animate by line for better formatting
           } else {
             // Highlight all changed lines
-            fixedLines = result.fixes_applied.map((fix: any) => fix.line_number).filter((line: number) => line);
+            const fixedLines = result.fixes_applied.map((fix: any) => fix.line_number).filter((line: number) => line);
             setHighlightedLines(fixedLines);
             setIsEditorReadOnly(false);
+            // Add the fix message to chat
+            const diffMessage = formatCodeInMessage(result.diff);
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `🔧 **Code Fix Suggestions**\n\n${diffMessage}`
+            }]);
           }
         };
         animate();
@@ -528,28 +585,6 @@ export default function IDEPage() {
         setTimeout(() => {
           setFiles(updateFileInTree(files, selectedFile.id, newCode));
         }, newCode.length * 6 + 100);
-
-        // Build a diff-like message for the chat
-        let diffMessage = '🔧 **Code Fix Suggestions:**\n\n';
-        result.fixes_applied.forEach((fix: any) => {
-          diffMessage += `**Line ${fix.line_number}:**\n`;
-          diffMessage += `- \`Original:\` \n\`${fix.original_code}\`\n`;
-          diffMessage += `- \`Fixed:\` \n\`${fix.fixed_code}\`\n`;
-          if (fix.explanation) {
-            diffMessage += `> _${fix.explanation}_\n`;
-          }
-          diffMessage += '\n';
-        });
-        diffMessage += `\n**Explanation:** ${result.explanation}`;
-        if (fixedLines.length > 0) {
-          diffMessage += '\n\n*Fixed lines are highlighted in your editor*';
-        }
-
-        setChatMessages(prev => [...prev, {
-          type: 'assistant',
-          content: diffMessage,
-          timestamp: new Date()
-        }]);
       }
     } catch (error) {
       setChatMessages(prev => [...prev, {
@@ -826,19 +861,19 @@ export default function IDEPage() {
     if (nextStepIndex < guidedProject.steps.length) {
       // If the next step is already completed, allow skipping
       if (completedSteps.has(nextStepIndex) || stepComplete) {
-        setGuidedProject({
-          ...guidedProject,
-          currentStep: nextStepIndex
-        });
+      setGuidedProject({
+        ...guidedProject,
+        currentStep: nextStepIndex
+      });
         setStepComplete(completedSteps.has(nextStepIndex));
-        const nextStep = guidedProject.steps[nextStepIndex];
-        setChatMessages(prev => [...prev, {
-          type: 'assistant',
+      const nextStep = guidedProject.steps[nextStepIndex];
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
           content: `Great job! Now let's move to step ${nextStepIndex + 1}:
 
 ${nextStep.instruction}`,
-          timestamp: new Date()
-        }]);
+        timestamp: new Date()
+      }]);
       }
     } else {
       setChatMessages(prev => [...prev, {
@@ -868,63 +903,6 @@ ${nextStep.instruction}`,
         timestamp: new Date()
       }]);
     }
-  };
-
-  const formatCodeInMessage = (content: string) => {
-    // Split content by code blocks
-    const parts = content.split(/(```[\s\S]*?```)/g);
-    
-    return parts.map((part, index) => {
-      if (part.startsWith('```') && part.endsWith('```')) {
-        // Extract language and code
-        const lines = part.slice(3, -3).split('\n');
-        const language = lines[0] || '';
-        const code = lines.slice(1).join('\n');
-        
-        return (
-          <div key={index} className="my-4">
-            <div className="bg-[#094074] rounded-t-lg px-4 py-2 text-xs text-[#5adbff] border-b border-[#3c6997] flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <Code2 className="h-3 w-3" />
-                {language || 'code'}
-              </span>
-              <button 
-                onClick={() => navigator.clipboard.writeText(code)}
-                className="hover:text-[#ffdd4a] transition-colors"
-              >
-                <Copy className="h-3 w-3" />
-              </button>
-            </div>
-            <pre className="bg-[#3c6997] rounded-b-lg p-4 overflow-x-auto text-sm text-white">
-              <code className={`language-${language}`}>{code}</code>
-            </pre>
-          </div>
-        );
-      } else {
-        // Regular text with inline code and bold formatting
-        // First, handle bold (**text**)
-        const boldSplit = part.split(/(\*\*[^*]+\*\*)/g);
-        return (
-          <div key={index} className="whitespace-pre-wrap">
-            {boldSplit.map((segment, i) => {
-              if (/^\*\*[^*]+\*\*$/.test(segment)) {
-                return <strong key={i}>{segment.slice(2, -2)}</strong>;
-              }
-              // Then, handle inline code
-              return segment.split(/(`[^`]+`)/g).map((sub, j) => {
-                if (sub.startsWith('`') && sub.endsWith('`')) {
-                  return (
-                    <code key={j} className="bg-[#06224a] text-[#5adbff] px-1 py-0.5 rounded font-mono text-sm">{sub.slice(1, -1)}
-                    </code>
-                  );
-                }
-                return sub;
-              });
-            })}
-          </div>
-        );
-      }
-    });
   };
 
   // 1. Add a ref for the guided step popup
@@ -959,6 +937,54 @@ ${nextStep.instruction}`,
         timestamp: new Date()
       }
     ]);
+  };
+
+  // Create separate markdown component configurations
+  const regularMarkdownComponents = {
+    p: ({ children }: { children: React.ReactNode }) => <p className="mb-4 whitespace-pre-line text-base leading-relaxed">{children}</p>,
+    strong: ({ children }: { children: React.ReactNode }) => <strong className="font-bold text-white">{children}</strong>,
+    ul: ({ children }: { children: React.ReactNode }) => <span className="ml-8">{children}</span>,
+    li: ({ children }: { children: React.ReactNode }) => <span className="block mb-3">{children}</span>,
+    code: ({ inline, children }: { inline?: boolean; children: React.ReactNode }) =>
+      inline ? (
+        <code className="bg-[#06224a] text-[#5adbff] px-1 py-0.5 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
+      ) : (
+        <span className="inline-block bg-[#06224a] text-[#5adbff] px-1 rounded font-mono text-base align-middle" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</span>
+      ),
+    h1: ({ children }: { children: React.ReactNode }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
+    h2: ({ children }: { children: React.ReactNode }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
+    h3: ({ children }: { children: React.ReactNode }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
+    blockquote: ({ children }: { children: React.ReactNode }) => <blockquote className="border-l-4 border-[#5adbff] pl-4 italic text-[#5adbff] mb-2">{children}</blockquote>,
+    br: () => <br />,
+  };
+
+  const codeFixMarkdownComponents = {
+    p: ({ children }: { children: React.ReactNode }) => <p className="mb-4 whitespace-pre-line text-base leading-relaxed">{children}</p>,
+    strong: ({ children }: { children: React.ReactNode }) => <strong className="font-bold text-white">{children}</strong>,
+    ul: ({ children }: { children: React.ReactNode }) => <span className="ml-8">{children}</span>,
+    li: ({ children }: { children: React.ReactNode }) => <span className="block mb-3">{children}</span>,
+    code: ({ inline, children }: { inline?: boolean; children: React.ReactNode }) =>
+      inline ? (
+        <code className="bg-[#06224a] text-[#5adbff] px-1 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
+      ) : (
+        <div className="relative group">
+          <pre className="bg-[#06224a] text-[#5adbff] p-3 rounded-lg overflow-x-auto mb-2 font-mono text-sm">
+            {children}
+          </pre>
+          <button
+            className="absolute top-2 right-2 bg-[#5adbff] text-[#06224a] rounded px-2 py-1 text-xs opacity-80 hover:opacity-100 transition"
+            onClick={() => navigator.clipboard.writeText(children as string)}
+            title="Copy code"
+          >
+            Copy
+          </button>
+        </div>
+      ),
+    h1: ({ children }: { children: React.ReactNode }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
+    h2: ({ children }: { children: React.ReactNode }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
+    h3: ({ children }: { children: React.ReactNode }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
+    blockquote: ({ children }: { children: React.ReactNode }) => <blockquote className="border-l-4 border-[#5adbff] pl-4 italic text-[#5adbff] mb-2">{children}</blockquote>,
+    br: () => <br />,
   };
 
   return (
@@ -1160,30 +1186,30 @@ ${nextStep.instruction}`,
                 {chatMessages.map((msg, idx) => (
                   <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
                     <div className={`max-w-[70%] px-4 py-2 rounded-lg shadow ${msg.type === 'user' ? 'bg-[#5adbff] text-[#094074]' : 'bg-[#06224a] text-white border border-[#3c6997] shadow-lg'}`}>
-                      {msg.type === 'assistant' ? (
-                        <ReactMarkdown
-                          children={msg.content}
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            p: ({ children }) => <p className="mb-2 whitespace-pre-line text-base leading-relaxed">{children}</p>,
-                            strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
-                            ul: ({ children }) => <ul className="list-disc ml-6 mb-2">{children}</ul>,
-                            li: ({ children }) => <li className="mb-1">{children}</li>,
-                            code: ({ inline, children }) =>
-                              inline ? (
-                                <code className="bg-[#06224a] text-[#5adbff] px-1 py-0.5 rounded font-mono text-sm">{children}</code>
-                              ) : (
-                                <pre className="bg-[#06224a] text-[#5adbff] p-3 rounded-lg overflow-x-auto mb-2 font-mono text-sm">
-                                  <code>{children}</code>
-                                </pre>
-                              ),
-                            h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
-                            h2: ({ children }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
-                            h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
-                            blockquote: ({ children }) => <blockquote className="border-l-4 border-[#5adbff] pl-4 italic text-[#5adbff] mb-2">{children}</blockquote>,
-                            br: () => <br />,
-                          }}
-                        />
+                      {msg.type === 'assistant' && msg.content.includes('You need to attempt something substantial for me to fix.') ? (
+                        <div className="bg-[#06224a] text-[#5adbff] px-6 py-4 rounded-lg mb-2 font-semibold">
+                          {msg.content}
+                        </div>
+                      ) : msg.type === 'assistant' && msg.content.startsWith('🛠️ Fixing code') ? (
+                        <div className="bg-[#06224a] text-[#5adbff] px-4 py-3 rounded-lg mb-2 font-semibold">
+                          {msg.content}
+                        </div>
+                      ) : msg.type === 'assistant' && msg.content.startsWith('🔧 **Code Fix Suggestions**') ? (
+                        <div className="bg-[#06224a] text-[#5adbff] py-4 rounded-lg font-mono relative">
+                          <ReactMarkdown
+                            children={msg.content}
+                            remarkPlugins={[remarkGfm]}
+                            components={codeFixMarkdownComponents}
+                          />
+                        </div>
+                      ) : msg.type === 'assistant' ? (
+                        <div className="bg-[#06224a] text-[#5adbff] py-4 rounded-lg">
+                          <ReactMarkdown
+                            children={msg.content}
+                            remarkPlugins={[remarkGfm]}
+                            components={regularMarkdownComponents}
+                          />
+                        </div>
                       ) : (
                         <span>{msg.content}</span>
                       )}

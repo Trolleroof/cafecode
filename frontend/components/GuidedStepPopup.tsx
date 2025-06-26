@@ -1,6 +1,8 @@
 import React from 'react';
 import { Button } from './ui/button';
 import { CheckCircle, XCircle, Search, ArrowLeft, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface GuidedStepPopupProps {
   instruction: string;
@@ -11,6 +13,7 @@ interface GuidedStepPopupProps {
   stepNumber: number;
   totalSteps: number;
   isChecking?: boolean;
+  onFinish?: () => void;
 }
 
 const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
@@ -22,6 +25,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
   stepNumber,
   totalSteps,
   isChecking = false,
+  onFinish,
 }) => {
   return (
     <div className="fixed bottom-8 left-8 z-50 w-[370px] max-w-[95vw] bg-white/10 backdrop-blur-md border border-blue-400 rounded-2xl shadow-2xl p-6 flex flex-col justify-between min-h-[180px] animate-fade-in">
@@ -40,7 +44,27 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
       </div>
       {/* Instruction */}
       <div className="mb-6">
-        <p className="text-lg font-semibold text-white leading-relaxed drop-shadow" dangerouslySetInnerHTML={{ __html: instruction }} />
+        <ReactMarkdown
+          children={instruction}
+          remarkPlugins={[remarkGfm]}
+          components={{
+            p: ({ children }: { children: React.ReactNode }) => <p className="text-lg font-semibold text-white leading-relaxed drop-shadow mb-2">{children}</p>,
+            code: ({ inline, children }: { inline?: boolean; children: React.ReactNode }) =>
+              inline ? (
+                <code className="bg-[#06224a] text-[#5adbff] px-1 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
+              ) : (
+                <span className="inline-block bg-[#06224a] text-[#5adbff] px-1 rounded font-mono text-base align-middle" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</span>
+              ),
+            strong: ({ children }: { children: React.ReactNode }) => <strong className="font-bold text-white">{children}</strong>,
+            ul: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+            li: ({ children }: { children: React.ReactNode }) => <span>{children}, </span>,
+            h1: ({ children }: { children: React.ReactNode }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
+            h2: ({ children }: { children: React.ReactNode }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
+            h3: ({ children }: { children: React.ReactNode }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
+            blockquote: ({ children }: { children: React.ReactNode }) => <blockquote className="border-l-4 border-[#5adbff] pl-4 italic text-[#5adbff] mb-2">{children}</blockquote>,
+            br: () => <>{' '}</>,
+          }}
+        />
       </div>
       {/* Buttons */}
       <div className="flex gap-3 mt-auto">
@@ -68,19 +92,31 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           )}
           {isChecking ? 'Checking...' : 'Check'}
         </Button>
-        <Button
-          onClick={onNextStep}
-          disabled={!isComplete}
-          size="lg"
-          className="flex-1 min-w-0 px-0 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl shadow-lg transition-all duration-200 text-base"
-        >
-          {isComplete ? (
+        {stepNumber === totalSteps ? (
+          <Button
+            onClick={onFinish}
+            disabled={!isComplete}
+            size="lg"
+            className="flex-1 min-w-0 px-0 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl shadow-lg transition-all duration-200 text-base"
+          >
             <CheckCircle className="mr-2 h-5 w-5" />
-          ) : (
-            <XCircle className="mr-2 h-5 w-5" />
-          )}
-          Next
-        </Button>
+            Finish
+          </Button>
+        ) : (
+          <Button
+            onClick={onNextStep}
+            disabled={!isComplete}
+            size="lg"
+            className="flex-1 min-w-0 px-0 py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl shadow-lg transition-all duration-200 text-base"
+          >
+            {isComplete ? (
+              <CheckCircle className="mr-2 h-5 w-5" />
+            ) : (
+              <XCircle className="mr-2 h-5 w-5" />
+            )}
+            Next
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -440,12 +440,12 @@ export default function FileExplorer({
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-[#094074] p-4 rounded-lg border border-[#5adbff] min-w-[300px]">
-            <h4 className="text-[#5adbff] mb-3 font-semibold">
+            <h2 className="text-[#5adbff] mb-2 font-semibold">
               Create New {createType === 'file' ? 'File' : 'Folder'}
-            </h4>
+            </h2>
             {createType === 'file' && (
-              <p className="text-[#5adbff]/70 text-xs mb-2">
-                Allowed extensions: .py, .css, .html
+              <p className="text-[#5adbff]/70 text-xs mb-4">
+                Allowed extensions: .py, .css, .html, .js
               </p>
             )}
             <input
@@ -453,7 +453,7 @@ export default function FileExplorer({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={createType === 'file' ? 'filename.html' : 'folder-name'}
-              className="w-full px-3 py-2 bg-[#3c6997] text-white border border-[#5adbff] rounded mb-3 focus:outline-none focus:ring-2 focus:ring-[#5adbff]"
+              className="w-full px-3 py-2 bg-[#3c6997] text-white rounded mb-3 focus:outline-none focus:ring-2 focus:ring-[#5adbff]"
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               autoFocus
             />
