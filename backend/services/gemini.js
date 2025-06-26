@@ -108,33 +108,14 @@ ${code}
 ${lineNumber ? `Error at line: ${lineNumber}` : ''}
 ${projectContext}
 
-IMPORTANT: Return JSON with TWO distinct pieces of information:
-1. "fixed_code": The COMPLETE corrected file content (entire file with all fixes applied)
-2. "fixes_applied": Array of granular changes, where each object contains:
-   - "line_number": The line number where the change was made
-   - "original_content": The original line(s) content before the fix (only the changed lines)
-   - "fixed_content": The corrected line(s) content after the fix (only the changed lines)
-   - "explanation": Brief explanation of what was changed
-
 Return JSON:
 {
-  "fixed_code": "complete corrected code for the entire file",
-  "fixes_applied": [
-    {
-      "line_number": number,
-      "original_content": "original line content only",
-      "fixed_content": "corrected line content only", 
-      "explanation": "what was changed"
-    }
-  ],
-  "explanation": "overall explanation of all fixes"
+  "fixed_code": "complete corrected code",
+  "fixes_applied": [{"line_number": number, "original_code": "original", "fixed_code": "corrected", "explanation": "what changed"}],
+  "explanation": "overall explanation"
 }
 
-CRITICAL: 
-- "fixed_code" should contain the ENTIRE corrected file
-- "original_content" and "fixed_content" should ONLY contain the specific lines that were changed, not the entire file
-- Focus on precise, granular changes for the fixes_applied array
-- Preserve the original structure and logic while fixing the specific error`;
+Fix the specific error while preserving original structure and logic.`;
   }
 
   createHintPrompt(code, language, stepInstruction = null, lineRanges = null, stepId = null, projectFiles = null) {
