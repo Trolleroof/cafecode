@@ -86,29 +86,36 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Stats row, now below code mockup and spaced out */}
-        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-8 max-w-3xl mx-auto mt-12">
-          <div className="text-center group">
-            <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">10K+</div>
-            <div className="text-gray-600 font-medium text-lg">Students Learning</div>
+
+      </section>
+
+
+      <section id="problemStatement" className='py-24 bg-gradient-to-br from-gray-50 to-primary-50/30'>
+      <div className="flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-red-700 mb-5">
+              Vibecoding is Broken
+            </h2>
+            <p className="flex-col text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+             Vibecoding tools have made developers hyperreliant on their services. Non-technical individuals
+             looking to learn how to code have a reduced incentive because a tool can just do it for them in the fraction of a second. 
+            </p>
+
+            <p className="flex-col text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed mt-4">
+      Furthermore, underpriveleged indivduals are discouraged to code because of the seemingly high learning curve, thus keeping software engineering-related
+      careers among the top divisions of wealth. 
+    </p>
           </div>
-          <div className="text-center group">
-            <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-accent-600 to-accent-500 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">50+</div>
-            <div className="text-gray-600 font-medium text-lg">Coding Challenges</div>
           </div>
-          <div className="text-center group">
-            <div className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-300">24/7</div>
-            <div className="text-gray-600 font-medium text-lg">AI Assistant</div>
-          </div>
-        </div>
+      
       </section>
 
       {/* Features Section */}
       <section id="features" className="py-24 bg-gradient-to-br from-gray-50 to-primary-50/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
-              Everything You Need to
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900">
+              HelloWurld to the Rescue!
               <span className="block bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent"> Start Coding</span>
             </h2>
             <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
@@ -191,20 +198,20 @@ export default function Home() {
             {[
               {
                 icon: Edit3,
-                title: 'Write Your Code',
-                description: 'Start with simple, single-file programs. Our clean interface helps you focus on learning without distractions.',
+                title: 'Escape Tutorial Hell',
+                description: 'Work on projects that matter to you, and recieve guidance that helps you make progress on your program.',
                 image: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=600'
               },
               {
                 icon: MessageCircle,
                 title: 'Get Instant Help',
-                description: 'Stuck on something? Our AI chat assistant provides contextual hints and explanations tailored to your skill level.',
+                description: 'Stuck on something? Our AI chat assistant provides contextual hints and apply small code fixes to help you understand what you code quicker.',
                 image: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=600'
               },
               {
                 icon: CheckCircle,
-                title: 'Apply Fixes & Learn',
-                description: 'Apply suggested code fixes with one click and understand why they work. Learn from every mistake.',
+                title: 'Practice for Interviews',
+                description: 'Learn and practice the most common Leetcode patterns asked to applicants during SWE interviews to get the job.',
                 image: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=600'
               }
             ].map((step, index) => (
