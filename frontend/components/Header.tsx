@@ -31,10 +31,10 @@ const Header = () => {
               <Code2 className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
             </div>
             <span className="text-xl lg:text-2xl font-bold text-gray-900 hidden sm:block">
-              CodeCraft IDE
+              HelloWurld
             </span>
             <span className="text-lg font-bold text-gray-900 sm:hidden">
-              CodeCraft
+              HelloWurld
             </span>
           </div>
 

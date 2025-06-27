@@ -404,6 +404,330 @@ Use extremely simple language for complete beginners.`;
       };
     }
   }
+
+  // ===== LEETCODE-SPECIFIC METHODS =====
+
+  async generateLeetCodeSteps(problemDescription, language) {
+    const startTime = Date.now();
+
+    try {
+      if (!this.isInitialized) {
+        throw new Error('Gemini service not initialized');
+      }
+
+      const prompt = `You are a LeetCode interview coach. Create a step-by-step solution guide for this coding problem.
+
+Problem Description: ${problemDescription}
+Programming Language: ${language}
+
+Generate a structured response with:
+1. A clear problem title and description
+2. Difficulty level (Easy/Medium/Hard)
+3. Step-by-step solution approach broken into small, manageable steps
+
+Return JSON:
+{
+  "problem": {
+    "title": "Problem Title",
+    "description": "Clear problem description with examples",
+    "difficulty": "Easy|Medium|Hard",
+    "steps": [
+      {
+        "id": "step_1",
+        "instruction": "Clear instruction for this step",
+        "lineRanges": [1, 5]
+      }
+    ]
+  },
+  "welcomeMessage": {
+    "type": "assistant",
+    "content": "Welcome message explaining the problem and first step"
+  }
+}
+
+Guidelines:
+- Break the solution into 4-8 logical steps
+- Each step should be achievable in 3-5 lines of code
+- Use beginner-friendly language
+- Focus on algorithmic thinking and problem-solving approach
+- Include edge cases and optimization hints
+- Make steps progressive (each builds on the previous)`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text();
+
+      if (!responseText) {
+        throw new Error('Empty response from Gemini AI');
+      }
+
+      const cleanResponse = this.extractJsonFromResponse(responseText);
+      const leetcodeData = this.robustJsonParse(cleanResponse);
+      const executionTime = (Date.now() - startTime) / 1000;
+
+      return {
+        success: true,
+        problem: leetcodeData.problem,
+        welcomeMessage: leetcodeData.welcomeMessage,
+        execution_time: executionTime
+      };
+
+    } catch (error) {
+      const executionTime = (Date.now() - startTime) / 1000;
+      console.error('LeetCode steps generation failed:', error.message);
+
+      return {
+        success: false,
+        problem: null,
+        welcomeMessage: {
+          type: 'assistant',
+          content: `Failed to generate LeetCode problem: ${error.message}`
+        },
+        execution_time: executionTime
+      };
+    }
+  }
+
+  async analyzeLeetCodeStep(code, language, stepInstruction, lineRanges, stepId) {
+    const startTime = Date.now();
+
+    try {
+      if (!this.isInitialized) {
+        throw new Error('Gemini service not initialized');
+      }
+
+      const prompt = `You are analyzing a student's code for a specific LeetCode problem step.
+
+Step Information:
+- Step ID: ${stepId}
+- Instruction: ${stepInstruction}
+- Expected Line Range: ${lineRanges.join('-')}
+- Language: ${language}
+
+Student's Code:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Analyze if the code correctly implements this specific step. Focus on:
+1. Does the code structure match the step requirements?
+2. Is the logic correct for this step?
+3. Are there any syntax errors?
+4. Does it follow good coding practices?
+
+Return JSON:
+{
+  "feedback": [
+    {
+      "line": number,
+      "correct": boolean,
+      "suggestion": "specific feedback for this line"
+    }
+  ],
+  "chatMessage": {
+    "type": "assistant",
+    "content": "Encouraging feedback message about the step"
+  }
+}
+
+Be encouraging and specific. If correct, congratulate and explain why. If incorrect, provide clear guidance.`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text();
+
+      if (!responseText) {
+        throw new Error('Empty response from Gemini AI');
+      }
+
+      const cleanResponse = this.extractJsonFromResponse(responseText);
+      const analysisData = this.robustJsonParse(cleanResponse);
+      const executionTime = (Date.now() - startTime) / 1000;
+
+      return {
+        success: true,
+        feedback: analysisData.feedback || [],
+        chatMessage: analysisData.chatMessage || {
+          type: 'assistant',
+          content: 'Analysis completed.'
+        },
+        execution_time: executionTime
+      };
+
+    } catch (error) {
+      const executionTime = (Date.now() - startTime) / 1000;
+      console.error('LeetCode step analysis failed:', error.message);
+
+      return {
+        success: false,
+        feedback: [{
+          line: 1,
+          correct: false,
+          suggestion: `Analysis failed: ${error.message}`
+        }],
+        chatMessage: {
+          type: 'assistant',
+          content: 'Sorry, I couldn\'t analyze your code. Please try again.'
+        },
+        execution_time: executionTime
+      };
+    }
+  }
+
+  async generateSimilarLeetCodeProblem(problemDescription) {
+    const startTime = Date.now();
+
+    try {
+      if (!this.isInitialized) {
+        throw new Error('Gemini service not initialized');
+      }
+
+      const prompt = `Based on this LeetCode problem, generate a similar problem with the same algorithmic patterns but different context.
+
+Original Problem: ${problemDescription}
+
+Create a new problem that:
+1. Uses the same algorithmic approach/pattern
+2. Has different context/story
+3. Similar difficulty level
+4. Tests the same core concepts
+
+Return JSON:
+{
+  "problem": {
+    "title": "New Problem Title",
+    "description": "New problem description with examples",
+    "difficulty": "Easy|Medium|Hard",
+    "steps": [
+      {
+        "id": "step_1",
+        "instruction": "Clear instruction for this step",
+        "lineRanges": [1, 5]
+      }
+    ]
+  },
+  "welcomeMessage": {
+    "type": "assistant",
+    "content": "Message introducing the new similar problem"
+  }
+}
+
+Make it engaging and educational while maintaining the same learning objectives.`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text();
+
+      if (!responseText) {
+        throw new Error('Empty response from Gemini AI');
+      }
+
+      const cleanResponse = this.extractJsonFromResponse(responseText);
+      const similarProblemData = this.robustJsonParse(cleanResponse);
+      const executionTime = (Date.now() - startTime) / 1000;
+
+      return {
+        success: true,
+        problem: similarProblemData.problem,
+        welcomeMessage: similarProblemData.welcomeMessage,
+        execution_time: executionTime
+      };
+
+    } catch (error) {
+      const executionTime = (Date.now() - startTime) / 1000;
+      console.error('Similar LeetCode problem generation failed:', error.message);
+
+      return {
+        success: false,
+        problem: null,
+        welcomeMessage: {
+          type: 'assistant',
+          content: `Failed to generate similar problem: ${error.message}`
+        },
+        execution_time: executionTime
+      };
+    }
+  }
+
+  async chatLeetCode(history, currentStepInstruction = null, currentCode = null, currentLanguage = null) {
+    const startTime = Date.now();
+
+    try {
+      if (!this.isInitialized) {
+        throw new Error('Gemini service not initialized');
+      }
+
+      const chatHistory = history
+        .map(msg => `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+        .join('\n');
+
+      const contextInfo = currentStepInstruction 
+        ? `\n\nCurrent Step: ${currentStepInstruction}`
+        : '';
+
+      const codeInfo = currentCode && currentLanguage
+        ? `\n\nCurrent Code (${currentLanguage}):\n\`\`\`${currentLanguage}\n${currentCode}\n\`\`\``
+        : '';
+
+      const prompt = `You are a helpful LeetCode interview coach. Provide guidance and hints for coding interview problems.
+
+Chat History:
+${chatHistory}
+${contextInfo}
+${codeInfo}
+
+Provide a helpful response that:
+1. Addresses the user's question
+2. Gives hints without giving away the complete solution
+3. Encourages algorithmic thinking
+4. Uses simple, beginner-friendly language
+5. Relates to interview best practices
+
+Return JSON:
+{
+  "response": {
+    "type": "assistant",
+    "content": "Your helpful response"
+  }
+}
+
+Be encouraging and focus on teaching problem-solving approaches rather than just giving answers.`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text();
+
+      if (!responseText) {
+        throw new Error('Empty response from Gemini AI');
+      }
+
+      const cleanResponse = this.extractJsonFromResponse(responseText);
+      const chatData = this.robustJsonParse(cleanResponse);
+      const executionTime = (Date.now() - startTime) / 1000;
+
+      return {
+        success: true,
+        response: chatData.response || {
+          type: 'assistant',
+          content: 'I\'m here to help with your LeetCode practice!'
+        },
+        execution_time: executionTime
+      };
+
+    } catch (error) {
+      const executionTime = (Date.now() - startTime) / 1000;
+      console.error('LeetCode chat failed:', error.message);
+
+      return {
+        success: false,
+        response: {
+          type: 'assistant',
+          content: 'Sorry, I encountered an error. Please try again.'
+        },
+        execution_time: executionTime
+      };
+    }
+  }
 }
 
 export async function initializeGemini(apiKey) {

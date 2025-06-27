@@ -16,6 +16,7 @@ import pythonRoutes from './routes/python.js';
 import translateRoutes from './routes/translate.js';
 import hintRoutes from './routes/hint.js';
 import guidedRoutes from './routes/guided.js';
+import leetcodeRoutes from './routes/leetcode.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -105,6 +106,7 @@ app.use('/api/python', pythonRoutes);
 app.use('/api/translate', translateRoutes);
 app.use('/api/hint', hintRoutes);
 app.use('/api/guided', guidedRoutes);
+app.use('/api/leetcode', leetcodeRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -120,7 +122,8 @@ app.get('/', (req, res) => {
       analyze: '/api/code/analyze',
       fix: '/api/code/fix',
       docs: '/api/code/docs',
-      guided: '/api/guided'
+      guided: '/api/guided',
+      leetcode: '/api/leetcode'
     }
   });
 });

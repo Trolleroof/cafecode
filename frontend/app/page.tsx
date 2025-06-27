@@ -14,6 +14,10 @@ export default function Home() {
     router.push('/ide');
   };
 
+  const handleLeetCodePractice = () => {
+    router.push('/leetcode');
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Header />
@@ -48,8 +52,8 @@ export default function Home() {
             <span className="block mt-2 font-bold text-gray-900">Write code, get instant help, and learn by doing.</span>
           </p>
 
-          {/* CTA Button with soft glow/blur background */}
-          <div className="relative flex justify-center mb-8">
+          {/* CTA Buttons with soft glow/blur background */}
+          <div className="relative flex flex-col sm:flex-row justify-center gap-4 mb-8">
             <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
               <div className="w-80 h-16 bg-primary-500/30 blur-xl rounded-2xl shadow-lg"></div>
             </div>
@@ -61,6 +65,17 @@ export default function Home() {
               <div className="flex items-center font-black space-x-4">
                 <Play className="h-7 w-7 group-hover:scale-110 transition-transform" />
                 <span className="tracking-wide">Start Coding Now</span>
+                <ArrowRight className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
+              </div>
+            </button>
+            
+            <button 
+              onClick={handleLeetCodePractice}
+              className="relative group btn-secondary px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-accent-500/30 border-2 border-accent-500/40 bg-white/90 hover:bg-accent-50 text-accent-700 hover:text-accent-800"
+            >
+              <div className="flex items-center font-black space-x-4">
+                <Code2 className="h-7 w-7 group-hover:scale-110 transition-transform" />
+                <span className="tracking-wide">LeetCode Practice</span>
                 <ArrowRight className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
               </div>
             </button>
