@@ -1,24 +1,26 @@
 import express from 'express';
 import Joi from 'joi';
+import { LeetCode } from 'leetcode-query';
 
 const router = express.Router();
+const lc = new LeetCode();
 
 // Validation schemas
 const startProblemSchema = Joi.object({
-  problemDescription: Joi.string().min(10).max(2000).required(),
-  language: Joi.string().valid('javascript', 'python', 'java', 'cpp', 'c').required()
+  problemDescription: Joi.string().min(1).max(2000).required(),
+  language: Joi.string().valid('javascript', 'python', 'java', 'cpp').required()
 });
 
 const analyzeStepSchema = Joi.object({
   stepId: Joi.string().required(),
   code: Joi.string().min(1).max(10000).required(),
-  language: Joi.string().valid('javascript', 'python', 'java', 'cpp', 'c').required(),
+  language: Joi.string().valid('javascript', 'python', 'java', 'cpp').required(),
   stepInstruction: Joi.string().required(),
-  lineRanges: Joi.array().items(Joi.number().integer().min(1)).required()
+  lineRanges: Joi.array().items(Joi.number()).optional()
 });
 
 const generateSimilarProblemSchema = Joi.object({
-  problemDescription: Joi.string().min(10).max(2000).required()
+  problemDescription: Joi.string().min(1).max(2000).required()
 });
 
 const chatSchema = Joi.object({
@@ -29,7 +31,7 @@ const chatSchema = Joi.object({
   })).required(),
   currentStepInstruction: Joi.string().optional(),
   currentCode: Joi.string().optional(),
-  currentLanguage: Joi.string().valid('javascript', 'python', 'java', 'cpp', 'c').optional()
+  currentLanguage: Joi.string().valid('javascript', 'python', 'java', 'cpp').optional()
 });
 
 // Middleware to validate request body
@@ -52,126 +54,131 @@ const validateRequest = (schema) => {
   };
 };
 
-// Middleware to check Gemini service availability
+// Middleware to check if Gemini service is available
 const checkGeminiService = (req, res, next) => {
-  if (!req.geminiService) {
+  if (!req.geminiService || !req.geminiService.isInitialized) {
     return res.status(503).json({
       success: false,
-      error: 'Gemini AI service is not available',
+      error: 'AI service is not available',
       error_code: 'SERVICE_UNAVAILABLE'
     });
   }
   next();
 };
 
-// POST /api/leetcode/startProblem - Start a new LeetCode problem session
-router.post('/startProblem',
+// POST /api/leetcode/startProblem - Start a new LeetCode problem
+router.post('/startProblem', 
   validateRequest(startProblemSchema),
   checkGeminiService,
   async (req, res) => {
     try {
       const startTime = Date.now();
-      console.log(`🎯 Starting LeetCode problem: ${req.validatedBody.problemDescription.substring(0, 100)}...`);
-
       const result = await req.geminiService.generateLeetCodeSteps(
         req.validatedBody.problemDescription,
         req.validatedBody.language
       );
-
+      
       const responseTime = Date.now() - startTime;
-      console.log(`✅ LeetCode problem generated in ${responseTime}ms with ${result.problem.steps.length} steps`);
+      console.log(`✅ LeetCode problem started in ${responseTime}ms`);
 
       res.json({
-        ...result,
+        success: true,
+        problem: result.problem,
+        welcomeMessage: result.welcomeMessage,
         request_id: `leetcode_start_${Date.now()}`,
         timestamp: new Date().toISOString()
       });
 
     } catch (error) {
-      console.error('Start problem endpoint error:', error);
+      console.error('LeetCode start problem error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error during problem generation',
-        error_code: 'PROBLEM_GENERATION_ERROR',
+        error: 'Failed to start LeetCode problem',
+        error_code: 'START_PROBLEM_ERROR',
         timestamp: new Date().toISOString()
       });
     }
   }
 );
 
-// POST /api/leetcode/analyzeStep - Analyze code for a specific LeetCode step
+// POST /api/leetcode/analyzeStep - Analyze user's code for current step
 router.post('/analyzeStep',
   validateRequest(analyzeStepSchema),
   checkGeminiService,
   async (req, res) => {
     try {
       const startTime = Date.now();
-      console.log(`🔍 Analyzing LeetCode step ${req.validatedBody.stepId} for ${req.validatedBody.language}`);
+      console.log(`�� Analyzing LeetCode step: ${req.validatedBody.stepId}`);
 
       const result = await req.geminiService.analyzeLeetCodeStep(
         req.validatedBody.code,
         req.validatedBody.language,
         req.validatedBody.stepInstruction,
-        req.validatedBody.lineRanges,
+        req.validatedBody.lineRanges || [],
         req.validatedBody.stepId
       );
-
+      
       const responseTime = Date.now() - startTime;
-      console.log(`✅ LeetCode step analysis completed in ${responseTime}ms`);
+      console.log(`✅ Step analysis completed in ${responseTime}ms. All correct: ${result.allCorrect}`);
 
       res.json({
-        ...result,
+        success: true,
+        feedback: result.feedback,
+        chatMessage: result.chatMessage,
+        allCorrect: result.allCorrect,
         request_id: `leetcode_analyze_${Date.now()}`,
         timestamp: new Date().toISOString()
       });
 
     } catch (error) {
-      console.error('Analyze step endpoint error:', error);
+      console.error('LeetCode analyze step error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error during step analysis',
-        error_code: 'STEP_ANALYSIS_ERROR',
+        error: 'Failed to analyze step',
+        error_code: 'ANALYZE_STEP_ERROR',
         timestamp: new Date().toISOString()
       });
     }
   }
 );
 
-// POST /api/leetcode/generateSimilarProblem - Generate a similar LeetCode problem
+// POST /api/leetcode/generateSimilarProblem - Generate a similar problem
 router.post('/generateSimilarProblem',
   validateRequest(generateSimilarProblemSchema),
   checkGeminiService,
   async (req, res) => {
     try {
       const startTime = Date.now();
-      console.log(`🔄 Generating similar LeetCode problem based on: ${req.validatedBody.problemDescription.substring(0, 100)}...`);
+      console.log(`🔄 Generating similar LeetCode problem...`);
 
       const result = await req.geminiService.generateSimilarLeetCodeProblem(
         req.validatedBody.problemDescription
       );
-
+      
       const responseTime = Date.now() - startTime;
-      console.log(`✅ Similar LeetCode problem generated in ${responseTime}ms`);
+      console.log(`✅ Similar problem generated in ${responseTime}ms`);
 
       res.json({
-        ...result,
+        success: true,
+        problem: result.problem,
+        welcomeMessage: result.welcomeMessage,
         request_id: `leetcode_similar_${Date.now()}`,
         timestamp: new Date().toISOString()
       });
 
     } catch (error) {
-      console.error('Generate similar problem endpoint error:', error);
+      console.error('LeetCode generate similar problem error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error during similar problem generation',
-        error_code: 'SIMILAR_PROBLEM_ERROR',
+        error: 'Failed to generate similar problem',
+        error_code: 'GENERATE_SIMILAR_ERROR',
         timestamp: new Date().toISOString()
       });
     }
   }
 );
 
-// POST /api/leetcode/chat - Handle chat interactions in LeetCode context
+// POST /api/leetcode/chat - Handle chat interactions
 router.post('/chat',
   validateRequest(chatSchema),
   checkGeminiService,
@@ -186,21 +193,22 @@ router.post('/chat',
         req.validatedBody.currentCode,
         req.validatedBody.currentLanguage
       );
-
+      
       const responseTime = Date.now() - startTime;
-      console.log(`✅ LeetCode chat response generated in ${responseTime}ms`);
+      console.log(`✅ Chat response generated in ${responseTime}ms`);
 
       res.json({
-        ...result,
+        success: true,
+        response: result.response,
         request_id: `leetcode_chat_${Date.now()}`,
         timestamp: new Date().toISOString()
       });
 
     } catch (error) {
-      console.error('LeetCode chat endpoint error:', error);
+      console.error('LeetCode chat error:', error);
       res.status(500).json({
         success: false,
-        error: 'Internal server error during chat processing',
+        error: 'Failed to process chat message',
         error_code: 'CHAT_ERROR',
         timestamp: new Date().toISOString()
       });
@@ -236,6 +244,50 @@ router.get('/health', async (req, res) => {
       error: error.message,
       timestamp: new Date().toISOString()
     });
+  }
+});
+
+// GET /api/leetcode/problem/:slug - Get full problem details
+router.get('/problem/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const problem = await getProblem(slug);
+    res.json({ success: true, problem });
+  } catch (error) {
+    console.error('Error fetching LeetCode problem:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch problem' });
+  }
+});
+
+// GET /api/leetcode/assigned - Get first 10 assigned LeetCode problems
+router.get('/assigned', async (req, res) => {
+  try {
+    const leetcode = new LeetCode();
+    const problemsList = await leetcode.problems({ limit: 10 });
+    const assigned = problemsList.questions.map(p => ({
+      title: p.title,
+      titleSlug: p.titleSlug,
+      difficulty: p.difficulty
+    }));
+    res.json({ success: true, problems: assigned });
+  } catch (error) {
+    console.error('Error fetching assigned LeetCode problems:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch assigned problems' });
+  }
+});
+
+// GET /api/leetcode/testcases - Fetch LeetCode test cases
+router.get('/testcases', async (req, res) => {
+  const slug = req.query.slug;
+  if (!slug) return res.status(400).json({ error: 'Missing slug parameter' });
+  try {
+    const problem = await lc.problem(slug);
+    // Try to get the most relevant test case field
+    const testcases = problem.exampleTestcases || problem.sampleTestCase || problem.sampleTestcases || '';
+    res.json({ testcases });
+    console.log("THESE ARE TESTCASES: " + testcases)
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch testcases', details: err.message });
   }
 });
 

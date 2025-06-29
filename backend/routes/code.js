@@ -1,5 +1,11 @@
 import express from 'express';
 import Joi from 'joi';
+import { exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 const router = express.Router();
 
@@ -24,6 +30,13 @@ const fixSchema = Joi.object({
   error_message: Joi.string().min(1).max(1000).required(),
   line_number: Joi.number().integer().min(1).optional(),
   projectFiles: Joi.array().items(Joi.object()).optional()
+});
+
+const runSchema = Joi.object({
+  code: Joi.string().min(1).max(10000).required(),
+  language: Joi.string().valid(
+    'python', 'javascript', 'java', 'cpp', 'c'
+  ).required()
 });
 
 // Middleware to validate request body
@@ -122,6 +135,146 @@ router.post('/fix',
   }
 );
 
+// POST /api/code/run - Execute code and return output
+router.post('/run',
+  validateRequest(runSchema),
+  async (req, res) => {
+    try {
+      const startTime = Date.now();
+      console.log(`🚀 Executing ${req.validatedBody.language} code (${req.validatedBody.code.length} characters)`);
+
+      const { code, language } = req.validatedBody;
+      const timestamp = Date.now();
+      let tempFile, command, output, error;
+
+      // Create temporary file and execute based on language
+      switch (language) {
+        case 'python':
+          tempFile = path.join('/tmp', `code_${timestamp}.py`);
+          fs.writeFileSync(tempFile, code);
+          command = `python3 "${tempFile}"`;
+          break;
+        
+        case 'javascript':
+          tempFile = path.join('/tmp', `code_${timestamp}.js`);
+          fs.writeFileSync(tempFile, code);
+          command = `node "${tempFile}"`;
+          break;
+        
+        case 'java':
+          const className = `Code_${timestamp}`;
+          tempFile = path.join('/tmp', `${className}.java`);
+          // Wrap code in a class if it's not already
+          const javaCode = code.includes('public class') ? code : 
+            `public class ${className} {\n    public static void main(String[] args) {\n        ${code}\n    }\n}`;
+          fs.writeFileSync(tempFile, javaCode);
+          command = `cd /tmp && javac "${className}.java" && java "${className}"`;
+          break;
+        
+        case 'cpp':
+          tempFile = path.join('/tmp', `code_${timestamp}.cpp`);
+          fs.writeFileSync(tempFile, code);
+          const cppExecutable = path.join('/tmp', `code_${timestamp}`);
+          command = `cd /tmp && g++ -o "${cppExecutable}" "${tempFile}" && "${cppExecutable}"`;
+          break;
+        
+        case 'c':
+          tempFile = path.join('/tmp', `code_${timestamp}.c`);
+          fs.writeFileSync(tempFile, code);
+          const cExecutable = path.join('/tmp', `code_${timestamp}`);
+          command = `cd /tmp && gcc -o "${cExecutable}" "${tempFile}" && "${cExecutable}"`;
+          break;
+        
+        default:
+          return res.status(400).json({
+            success: false,
+            error: `Unsupported language: ${language}`,
+            error_code: 'UNSUPPORTED_LANGUAGE'
+          });
+      }
+
+      // Execute the code
+      try {
+        const { stdout, stderr } = await execAsync(command, {
+          timeout: 30000, // 30 seconds timeout
+          maxBuffer: 1024 * 1024 * 10 // 10MB buffer for large outputs
+        });
+        
+        output = stdout;
+        error = stderr;
+      } catch (execError) {
+        if (execError.code === 'ETIMEDOUT') {
+          return res.status(408).json({
+            success: false,
+            error: 'Execution timed out after 30 seconds',
+            error_code: 'TIMEOUT'
+          });
+        }
+        
+        if (execError.code === 'ENOBUFS') {
+          return res.status(413).json({
+            success: false,
+            error: 'Output too large',
+            error_code: 'OUTPUT_TOO_LARGE'
+          });
+        }
+        
+        // For compilation errors, stderr usually contains the error message
+        output = '';
+        error = execError.stderr || execError.message;
+      }
+
+      // Clean up temporary files
+      try {
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+        
+        // Clean up compiled executables for C/C++
+        if (language === 'cpp' || language === 'c') {
+          const executable = path.join('/tmp', `code_${timestamp}`);
+          if (fs.existsSync(executable)) {
+            fs.unlinkSync(executable);
+          }
+        }
+        
+        // Clean up Java class files
+        if (language === 'java') {
+          const className = `Code_${timestamp}`;
+          const classFile = path.join('/tmp', `${className}.class`);
+          if (fs.existsSync(classFile)) {
+            fs.unlinkSync(classFile);
+          }
+        }
+      } catch (cleanupError) {
+        console.error('Error cleaning up temp files:', cleanupError);
+      }
+
+      const responseTime = Date.now() - startTime;
+      console.log(`✅ Code execution completed in ${responseTime}ms`);
+
+      res.json({
+        success: !error,
+        output: output || '',
+        error: error || null,
+        language: language,
+        execution_time: responseTime,
+        request_id: `run_${timestamp}`,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Code execution error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error during code execution',
+        error_code: 'EXECUTION_ERROR',
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+);
+
 // GET /api/code/health - Service health check
 router.get('/health', async (req, res) => {
   try {
@@ -138,6 +291,7 @@ router.get('/health', async (req, res) => {
       endpoints: {
         analyze: '/api/code/analyze',
         fix: '/api/code/fix',
+        run: '/api/code/run',
         health: '/api/code/health'
       }
     });
@@ -182,6 +336,15 @@ router.get('/docs', (req, res) => {
           projectFiles: 'array (optional) - Array of project files for context'
         }
       },
+      run: {
+        method: 'POST',
+        path: '/api/code/run',
+        description: 'Execute code and return output',
+        body: {
+          code: 'string (required) - The code to execute',
+          language: 'string (required) - Programming language (python, javascript, java, cpp, c)'
+        }
+      },
       health: {
         method: 'GET',
         path: '/api/code/health',
@@ -204,6 +367,13 @@ router.get('/docs', (req, res) => {
           language: 'javascript',
           error_message: 'SyntaxError: missing ) after parameter list',
           line_number: 1
+        }
+      },
+      run: {
+        url: 'POST /api/code/run',
+        body: {
+          code: 'print("Hello, World!")\nfor i in range(5):\n    print(f"Count: {i}")',
+          language: 'python'
         }
       }
     }

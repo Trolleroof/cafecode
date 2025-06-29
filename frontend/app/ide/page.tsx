@@ -27,6 +27,7 @@ import HTMLPreview from '@/components/HTMLPreview';
 import RunDropdown from '@/components/RunDropdown';
 import TypingIndicator from '@/components/TypingIndicator';
 import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GuidedStepPopup from '@/components/GuidedStepPopup';
@@ -988,334 +989,336 @@ ${nextStep.instruction}`,
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#094074] text-white transition-colors duration-300">
-      {/* Header */}
-      <header className="flex items-center justify-between p-4 border-b border-[#3c6997] bg-[#094074] shadow-lg">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-[#5adbff] rounded-lg flex items-center justify-center">
-              <Code2 className="h-5 w-5 text-[#094074]" />
+    <ProtectedRoute>
+      <div className="flex flex-col h-screen bg-[#094074] text-white transition-colors duration-300">
+        {/* Header */}
+        <header className="flex items-center justify-between p-4 border-b border-[#3c6997] bg-[#094074] shadow-lg">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-[#5adbff] rounded-lg flex items-center justify-center">
+                <Code2 className="h-5 w-5 text-[#094074]" />
+              </div>
+              <h1 className="text-xl font-bold text-[#5adbff]">
+                CodeCraft IDE
+              </h1>
             </div>
-            <h1 className="text-xl font-bold text-[#5adbff]">
-              CodeCraft IDE
-            </h1>
           </div>
-        </div>
 
-        <div className="flex items-center space-x-2">
-          <RunDropdown 
-            files={files} 
-            onRunFile={handleRunFile} 
-            isRunning={isRunning} 
-          />
-
-          {/* Start Guided Project Button - only show if not in a guided project */}
-          {!guidedProject && (
-            <Button
-              onClick={() => setShowProjectModal(true)}
-              className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Start Guided Project</span>
-              <span className="sm:hidden">Guide</span>
-            </Button>
-          )}
-
-          {/* Stop Guided Project Button */}
-          {guidedProject && (
-            <Button
-              onClick={handleStopGuidedProject}
-              variant="outline"
-              className="border-[#ff960d] text-[#ff960d] hover:bg-[#ff960d] hover:text-white"
-            >
-              <X className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Stop Guide</span>
-              <span className="sm:hidden">Stop</span>
-            </Button>
-          )}
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden relative">
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
-          {/* File Explorer */}
-          <ResizablePanel 
-            defaultSize={isExplorerCollapsed ? 0 : 20} 
-            minSize={0}
-            maxSize={35}
-            collapsible={true}
-            onCollapse={() => setIsExplorerCollapsed(true)}
-            onExpand={() => setIsExplorerCollapsed(false)}
-          >
-            <FileExplorer
-              files={files}
-              onFileSelect={handleFileSelect}
-              onFileCreate={handleFileCreate}
-              onFileDelete={handleFileDelete}
-              onFileMove={handleFileMove}
-              selectedFileId={selectedFile?.id || null}
-              isCollapsed={isExplorerCollapsed}
-              onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
-              stepProgression={guidedProject && (
-                <GuidedStepPopup
-                  instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
-                  isComplete={stepComplete}
-                  onNextStep={handleNextStep}
-                  onPreviousStep={handlePreviousStep}
-                  onCheckStep={handleCheckStep}
-                  stepNumber={guidedProject.currentStep + 1}
-                  totalSteps={guidedProject.steps.length}
-                  isChecking={isCheckingStep}
-                />
-              )}
+          <div className="flex items-center space-x-2">
+            <RunDropdown 
+              files={files} 
+              onRunFile={handleRunFile} 
+              isRunning={isRunning} 
             />
-          </ResizablePanel>
 
-          {/* Editor and Preview */}
-          <ResizablePanel defaultSize={isExplorerCollapsed ? 70 : 50} minSize={30}>
-            <div className="flex flex-col h-full relative">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-[#3c6997] bg-[#3c6997]">
-                  <TabsList className="bg-[#094074] border border-[#3c6997]">
-                    <TabsTrigger value="editor" className="data-[state=active]:bg-[#5adbff] data-[state=active]:text-[#094074]">
-                      <Code2 className="mr-2 h-4 w-4" />
-                      Editor
-                    </TabsTrigger>
-                    <TabsTrigger value="preview" className="data-[state=active]:bg-[#ffdd4a] data-[state=active]:text-[#094074]">
-                      <Play className="mr-2 h-4 w-4" />
-                      Preview
-                    </TabsTrigger>
-                    <TabsTrigger value="terminal" className="data-[state=active]:bg-[#ff960d] data-[state=active]:text-white">
-                      <Terminal className="mr-2 h-4 w-4" />
-                      Output
-                    </TabsTrigger>
-                  </TabsList>
+            {/* Start Guided Project Button - only show if not in a guided project */}
+            {!guidedProject && (
+              <Button
+                onClick={() => setShowProjectModal(true)}
+                className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Start Guided Project</span>
+                <span className="sm:hidden">Guide</span>
+              </Button>
+            )}
 
-                  {selectedFile && (
-                    <div className="flex items-center space-x-2 text-sm text-[#5adbff]">
-                      <div className="w-2 h-2 bg-[#5adbff] rounded-full"></div>
-                      <span className="font-mono">{selectedFile.name}</span>
-                    </div>
-                  )}
-                </div>
+            {/* Stop Guided Project Button */}
+            {guidedProject && (
+              <Button
+                onClick={handleStopGuidedProject}
+                variant="outline"
+                className="border-[#ff960d] text-[#ff960d] hover:bg-[#ff960d] hover:text-white"
+              >
+                <X className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Stop Guide</span>
+                <span className="sm:hidden">Stop</span>
+              </Button>
+            )}
+          </div>
+        </header>
 
-                <TabsContent value="editor" className="flex-1 m-0">
-                  {selectedFile ? (
-                    <MonacoEditor
-                      language={selectedFile.language || 'plaintext'}
-                      value={selectedFile.content || ''}
-                      onChange={handleCodeChange}
-                      theme="vs-dark"
-                      highlightedLines={highlightedLines}
-                      readOnly={isEditorReadOnly}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
-                      <div className="text-center">
-                        <Code2 className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
-                        <p className="text-[#5adbff] text-lg">Create a file to start coding</p>
-                        <p className="text-[#5adbff]/70 text-sm mt-2">Use the file explorer to create your first file</p>
-                      </div>
-                    </div>
-                  )}
-                </TabsContent>
+        {/* Main Content */}
+        <div className="flex flex-1 overflow-hidden relative">
+          <ResizablePanelGroup direction="horizontal" className="flex-1">
+            {/* File Explorer */}
+            <ResizablePanel 
+              defaultSize={isExplorerCollapsed ? 0 : 20} 
+              minSize={0}
+              maxSize={35}
+              collapsible={true}
+              onCollapse={() => setIsExplorerCollapsed(true)}
+              onExpand={() => setIsExplorerCollapsed(false)}
+            >
+              <FileExplorer
+                files={files}
+                onFileSelect={handleFileSelect}
+                onFileCreate={handleFileCreate}
+                onFileDelete={handleFileDelete}
+                onFileMove={handleFileMove}
+                selectedFileId={selectedFile?.id || null}
+                isCollapsed={isExplorerCollapsed}
+                onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
+                stepProgression={guidedProject && (
+                  <GuidedStepPopup
+                    instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
+                    isComplete={stepComplete}
+                    onNextStep={handleNextStep}
+                    onPreviousStep={handlePreviousStep}
+                    onCheckStep={handleCheckStep}
+                    stepNumber={guidedProject.currentStep + 1}
+                    totalSteps={guidedProject.steps.length}
+                    isChecking={isCheckingStep}
+                  />
+                )}
+              />
+            </ResizablePanel>
 
-                <TabsContent value="preview" className="flex-1 m-0">
-                  {selectedFile?.language === 'html' ? (
-                    <HTMLPreview 
-                      htmlContent={selectedFile.content || ''} 
-                      cssContent={getAllFiles(files).find(f => f.language === 'css')?.content}
-                      jsContent={getAllFiles(files).find(f => f.language === 'javascript')?.content}
-                      onConsoleLog={(message) => setOutput(prev => [...prev, message])}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
-                      <div className="text-center">
-                        <Play className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
-                        <p className="text-[#5adbff] text-lg">Preview available for HTML files</p>
-                        <p className="text-[#5adbff]/70 text-sm mt-2">Create an HTML file to see the preview</p>
-                      </div>
-                    </div>
-                  )}
-                </TabsContent>
+            {/* Editor and Preview */}
+            <ResizablePanel defaultSize={isExplorerCollapsed ? 70 : 50} minSize={30}>
+              <div className="flex flex-col h-full relative">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-[#3c6997] bg-[#3c6997]">
+                    <TabsList className="bg-[#094074] border border-[#3c6997]">
+                      <TabsTrigger value="editor" className="data-[state=active]:bg-[#5adbff] data-[state=active]:text-[#094074]">
+                        <Code2 className="mr-2 h-4 w-4" />
+                        Editor
+                      </TabsTrigger>
+                      <TabsTrigger value="preview" className="data-[state=active]:bg-[#ffdd4a] data-[state=active]:text-[#094074]">
+                        <Play className="mr-2 h-4 w-4" />
+                        Preview
+                      </TabsTrigger>
+                      <TabsTrigger value="terminal" className="data-[state=active]:bg-[#ff960d] data-[state=active]:text-white">
+                        <Terminal className="mr-2 h-4 w-4" />
+                        Output
+                      </TabsTrigger>
+                    </TabsList>
 
-                <TabsContent value="terminal" className="flex-1 m-0">
-                  <div className="h-full bg-[#094074] p-4 font-mono text-sm overflow-y-auto">
-                    <div className="flex items-center space-x-2 mb-4 text-[#ffdd4a]">
-                      <Terminal className="h-4 w-4" />
-                      <span>Output Console</span>
-                    </div>
-                    {output.length > 0 ? (
-                      <div className="space-y-1">
-                        {output.map((line, index) => (
-                          <div key={index} className="text-[#5adbff]">
-                            <span className="text-[#ffdd4a] mr-2">{'>'}</span>
-                            {line}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-[#5adbff] italic">
-                        Run your code to see output here...
+                    {selectedFile && (
+                      <div className="flex items-center space-x-2 text-sm text-[#5adbff]">
+                        <div className="w-2 h-2 bg-[#5adbff] rounded-full"></div>
+                        <span className="font-mono">{selectedFile.name}</span>
                       </div>
                     )}
                   </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </ResizablePanel>
 
-          {/* Chat Panel */}
-          <ResizablePanel defaultSize={30} minSize={25} maxSize={50}>
-            <div className="flex flex-col h-full bg-[#3c6997] border-l border-[#094074]">
-              {/* Chat Header */}
-              <div className="flex items-center justify-between p-4 border-b border-[#094074] bg-[#094074]">
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-[#5adbff] rounded-full flex items-center justify-center">
-                    <Brain className="h-4 w-4 text-[#094074]" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-[#5adbff]">AI Assistant</h3>
-                  </div>
-                </div>
-              </div>
+                  <TabsContent value="editor" className="flex-1 m-0">
+                    {selectedFile ? (
+                      <MonacoEditor
+                        language={selectedFile.language || 'plaintext'}
+                        value={selectedFile.content || ''}
+                        onChange={handleCodeChange}
+                        theme="vs-dark"
+                        highlightedLines={highlightedLines}
+                        readOnly={isEditorReadOnly}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
+                        <div className="text-center">
+                          <Code2 className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
+                          <p className="text-[#5adbff] text-lg">Create a file to start coding</p>
+                          <p className="text-[#5adbff]/70 text-sm mt-2">Use the file explorer to create your first file</p>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
 
-              {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#3c6997]">
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
-                    <div className={`max-w-[70%] px-4 py-2 rounded-lg shadow ${msg.type === 'user' ? 'bg-[#5adbff] text-[#094074]' : 'bg-[#06224a] text-white border border-[#3c6997] shadow-lg'}`}>
-                      {msg.type === 'assistant' && msg.content.includes('You need to attempt something substantial for me to fix.') ? (
-                        <div className="bg-[#06224a] text-[#5adbff] px-6 py-4 rounded-lg mb-2 font-semibold">
-                          {msg.content}
+                  <TabsContent value="preview" className="flex-1 m-0">
+                    {selectedFile?.language === 'html' ? (
+                      <HTMLPreview 
+                        htmlContent={selectedFile.content || ''} 
+                        cssContent={getAllFiles(files).find(f => f.language === 'css')?.content}
+                        jsContent={getAllFiles(files).find(f => f.language === 'javascript')?.content}
+                        onConsoleLog={(message) => setOutput(prev => [...prev, message])}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
+                        <div className="text-center">
+                          <Play className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
+                          <p className="text-[#5adbff] text-lg">Preview available for HTML files</p>
+                          <p className="text-[#5adbff]/70 text-sm mt-2">Create an HTML file to see the preview</p>
                         </div>
-                      ) : msg.type === 'assistant' && msg.content.startsWith('🛠️ Fixing code') ? (
-                        <div className="bg-[#06224a] text-[#5adbff] px-4 py-3 rounded-lg mb-2 font-semibold">
-                          {msg.content}
-                        </div>
-                      ) : msg.type === 'assistant' && msg.content.startsWith('🔧 **Code Fix Suggestions**') ? (
-                        <div className="bg-[#06224a] text-[#5adbff] py-4 rounded-lg font-mono relative">
-                          <ReactMarkdown
-                            children={msg.content}
-                            remarkPlugins={[remarkGfm]}
-                            components={codeFixMarkdownComponents}
-                          />
-                        </div>
-                      ) : msg.type === 'assistant' ? (
-                        <div className="bg-[#06224a] text-[#5adbff] py-4 rounded-lg">
-                          <ReactMarkdown
-                            children={msg.content}
-                            remarkPlugins={[remarkGfm]}
-                            components={regularMarkdownComponents}
-                          />
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="terminal" className="flex-1 m-0">
+                    <div className="h-full bg-[#094074] p-4 font-mono text-sm overflow-y-auto">
+                      <div className="flex items-center space-x-2 mb-4 text-[#ffdd4a]">
+                        <Terminal className="h-4 w-4" />
+                        <span>Output Console</span>
+                      </div>
+                      {output.length > 0 ? (
+                        <div className="space-y-1">
+                          {output.map((line, index) => (
+                            <div key={index} className="text-[#5adbff]">
+                              <span className="text-[#ffdd4a] mr-2">{'>'}</span>
+                              {line}
+                            </div>
+                          ))}
                         </div>
                       ) : (
-                        <span>{msg.content}</span>
+                        <div className="text-[#5adbff] italic">
+                          Run your code to see output here...
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
-                
-                {isTyping && (
-                  <div className="flex justify-start">
-                    <div className="bg-[#094074] rounded-2xl px-4 py-3 mr-4 border border-[#5adbff]/20">
-                      <TypingIndicator />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </ResizablePanel>
+
+            {/* Chat Panel */}
+            <ResizablePanel defaultSize={30} minSize={25} maxSize={50}>
+              <div className="flex flex-col h-full bg-[#3c6997] border-l border-[#094074]">
+                {/* Chat Header */}
+                <div className="flex items-center justify-between p-4 border-b border-[#094074] bg-[#094074]">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-[#5adbff] rounded-full flex items-center justify-center">
+                      <Brain className="h-4 w-4 text-[#094074]" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-[#5adbff]">AI Assistant</h3>
                     </div>
                   </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-4 border-t border-[#094074] bg-[#094074]">
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Ask me anything about coding..."
-                    className="flex-1 bg-[#3c6997] border border-[#5adbff] rounded-xl px-4 py-3 text-white placeholder-[#5adbff]/70 focus:outline-none focus:ring-2 focus:ring-[#5adbff] focus:border-transparent transition-all duration-200"
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={!chatInput.trim() || isTyping}
-                    className="bg-[#5adbff] hover:bg-[#ffdd4a] text-[#094074] px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  >
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
                 </div>
-                
-                {/* Enhanced Chat Action Buttons */}
-                <div className="flex items-center justify-center mt-4 space-x-3">
-                  <Button
-                    onClick={handleGetHint}
-                    variant="outline"
-                    size="sm"
-                    className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
-                  >
-                    <Lightbulb className="mr-2 h-4 w-4" />
-                    Get Hint
-                  </Button>
+
+                {/* Chat Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#3c6997]">
+                  {chatMessages.map((msg, idx) => (
+                    <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
+                      <div className={`max-w-[70%] px-4 py-2 rounded-lg shadow ${msg.type === 'user' ? 'bg-[#5adbff] text-[#094074]' : 'bg-[#06224a] text-white border border-[#3c6997] shadow-lg'}`}>
+                        {msg.type === 'assistant' && msg.content.includes('You need to attempt something substantial for me to fix.') ? (
+                          <div className="bg-[#06224a] text-[#5adbff] px-6 py-4 rounded-lg mb-2 font-semibold">
+                            {msg.content}
+                          </div>
+                        ) : msg.type === 'assistant' && msg.content.startsWith('🛠️ Fixing code') ? (
+                          <div className="bg-[#06224a] text-[#5adbff] px-4 py-3 rounded-lg mb-2 font-semibold">
+                            {msg.content}
+                          </div>
+                        ) : msg.type === 'assistant' && msg.content.startsWith('�� **Code Fix Suggestions**') ? (
+                          <div className="bg-[#06224a] text-[#5adbff] py-4 rounded-lg font-mono relative">
+                            <ReactMarkdown
+                              children={msg.content}
+                              remarkPlugins={[remarkGfm]}
+                              components={codeFixMarkdownComponents}
+                            />
+                          </div>
+                        ) : msg.type === 'assistant' ? (
+                          <div className="bg-[#06224a] text-[#5adbff] py-4 rounded-lg">
+                            <ReactMarkdown
+                              children={msg.content}
+                              remarkPlugins={[remarkGfm]}
+                              components={regularMarkdownComponents}
+                            />
+                          </div>
+                        ) : (
+                          <span>{msg.content}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                   
-                  <Button
-                    onClick={handleFixCode}
-                    variant="outline"
-                    size="sm"
-                    className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
-                  >
-                    <Zap className="mr-2 h-4 w-4" />
-                    Fix Code
-                  </Button>
+                  {isTyping && (
+                    <div className="flex justify-start">
+                      <div className="bg-[#094074] rounded-2xl px-4 py-3 mr-4 border border-[#5adbff]/20">
+                        <TypingIndicator />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Chat Input */}
+                <div className="p-4 border-t border-[#094074] bg-[#094074]">
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                      placeholder="Ask me anything about coding..."
+                      className="flex-1 bg-[#3c6997] border border-[#5adbff] rounded-xl px-4 py-3 text-white placeholder-[#5adbff]/70 focus:outline-none focus:ring-2 focus:ring-[#5adbff] focus:border-transparent transition-all duration-200"
+                    />
+                    <Button
+                      onClick={handleSendMessage}
+                      disabled={!chatInput.trim() || isTyping}
+                      className="bg-[#5adbff] hover:bg-[#ffdd4a] text-[#094074] px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                   
-                  <Button
-                    onClick={handleExplainCode}
-                    variant="outline"
-                    size="sm"
-                    className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
-                  >
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Explain
-                  </Button>
+                  {/* Enhanced Chat Action Buttons */}
+                  <div className="flex items-center justify-center mt-4 space-x-3">
+                    <Button
+                      onClick={handleGetHint}
+                      variant="outline"
+                      size="sm"
+                      className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
+                    >
+                      <Lightbulb className="mr-2 h-4 w-4" />
+                      Get Hint
+                    </Button>
+                    
+                    <Button
+                      onClick={handleFixCode}
+                      variant="outline"
+                      size="sm"
+                      className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
+                    >
+                      <Zap className="mr-2 h-4 w-4" />
+                      Fix Code
+                    </Button>
+                    
+                    <Button
+                      onClick={handleExplainCode}
+                      variant="outline"
+                      size="sm"
+                      className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
+                    >
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Explain
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
 
-      {/* Project Description Modal */}
-      <ProjectDescriptionModal
-        isOpen={showProjectModal}
-        onClose={() => setShowProjectModal(false)}
-        onSubmit={handleStartGuidedProject}
-        isStartingProject={isStartingProject}
-      />
+        {/* Project Description Modal */}
+        <ProjectDescriptionModal
+          isOpen={showProjectModal}
+          onClose={() => setShowProjectModal(false)}
+          onSubmit={handleStartGuidedProject}
+          isStartingProject={isStartingProject}
+        />
 
-      {/* Confirmation Modal */}
-      {pendingDeleteFolderId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full text-center">
-            <h2 className="text-lg font-bold mb-2 text-gray-900">Delete Folder?</h2>
-            <p className="mb-4 text-gray-700">Are you sure you want to delete the folder <span className="font-semibold">{pendingDeleteFolderName}</span> and all its contents?</p>
-            <div className="flex justify-center gap-4">
-              <button
-                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold"
-                onClick={() => { setPendingDeleteFolderId(null); setPendingDeleteFolderName(null); }}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
-                onClick={() => actuallyDeleteFile(pendingDeleteFolderId)}
-              >
-                Delete
-              </button>
+        {/* Confirmation Modal */}
+        {pendingDeleteFolderId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full text-center">
+              <h2 className="text-lg font-bold mb-2 text-gray-900">Delete Folder?</h2>
+              <p className="mb-4 text-gray-700">Are you sure you want to delete the folder <span className="font-semibold">{pendingDeleteFolderName}</span> and all its contents?</p>
+              <div className="flex justify-center gap-4">
+                <button
+                  className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold"
+                  onClick={() => { setPendingDeleteFolderId(null); setPendingDeleteFolderName(null); }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
+                  onClick={() => actuallyDeleteFile(pendingDeleteFolderId)}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </ProtectedRoute>
   );
 }

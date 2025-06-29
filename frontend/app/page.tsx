@@ -1,190 +1,257 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Menu, X, Code2, Play, ArrowRight, Sparkles, Github, Twitter, Lightbulb, MessageSquare, Edit3, MessageCircle, CheckCircle, Star, Quote, Zap, Shield, Users, BookOpen, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Menu, X, Code2, Play, ArrowRight, Sparkles, Github, Twitter, Lightbulb, MessageSquare, Edit3, MessageCircle, CheckCircle, Star, Quote, Zap, Shield, Users, BookOpen, Check, Target, TrendingUp, Award, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { AuthModal } from '@/components/AuthModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const router = useRouter();
+  const { user, loading } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab] = useState<'signin' | 'signup'>('signin');
+
+  // Check for auth parameter in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'required') {
+      setShowAuthModal(true);
+      // Clean up the URL
+      router.replace('/', { scroll: false });
+    }
+  }, [router]);
 
   const handleStartCoding = () => {
-    router.push('/ide');
+    if (user) {
+      router.push('/ide');
+    } else {
+      setShowAuthModal(true);
+    }
   };
 
   const handleLeetCodePractice = () => {
-    router.push('/leetcode');
+    if (user) {
+      router.push('/leetcode');
+    } else {
+      setShowAuthModal(true);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#094074] to-[#3c6997]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ffdd4a] mx-auto mb-4"></div>
+          <p className="text-[#5adbff]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
+      <Header onSignUpClick={() => { setAuthTab('signup'); setShowAuthModal(true); }} />
 
       {/* Hero Section */}
-      <section className="relative min-h-[80vh] flex flex-col items-center justify-center overflow-hidden pt-24 pb-0">
-        {/* Background gradients */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-50 via-white to-accent-50 pointer-events-none"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/5 to-accent-500/5 pointer-events-none"></div>
-        {/* Floating elements (move away from code mockup area) */}
-        <div className="absolute top-20 left-10 w-24 h-24 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full opacity-20 animate-float blur-sm"></div>
-        <div className="absolute top-40 right-20 w-20 h-20 bg-gradient-to-br from-accent-400 to-accent-600 rounded-full opacity-20 animate-float blur-sm" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-1/2 left-20 w-16 h-16 bg-gradient-to-br from-primary-300 to-accent-300 rounded-full opacity-20 animate-float blur-sm" style={{ animationDelay: '4s' }}></div>
-        <div className="absolute top-1/2 right-1/4 w-12 h-12 bg-gradient-to-br from-accent-500 to-primary-500 rounded-full opacity-15 animate-bounce-gentle" style={{ animationDelay: '1s' }}></div>
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-16">
+        {/* Enhanced background with multiple layers */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-emerald-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-emerald-500/5"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(16,185,129,0.1),transparent_50%)]"></div>
+        
+        {/* Animated floating elements */}
+        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full opacity-10 animate-pulse blur-xl"></div>
+        <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full opacity-10 animate-pulse blur-xl" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute bottom-1/3 left-20 w-20 h-20 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full opacity-10 animate-pulse blur-xl" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full opacity-10 animate-bounce" style={{ animationDelay: '1s' }}></div>
 
-        <div className="relative z-10 w-full max-w-12xl mx-auto text-center flex flex-col items-center">
-          {/* Badge */}
-          <div className="inline-flex items-center space-x-2 glass rounded-full px-6 py-3 mb-6 shadow-lg">
-            <Sparkles className="h-5 w-5 text-primary-600" />
-            <span className="text-sm font-semibold text-primary-700 tracking-wide">Perfect for Beginners</span>
+        <div className="relative z-10 w-full max-w-7xl mx-auto text-center flex flex-col items-center px-4">
+          {/* Enhanced Badge */}
+          <div className="inline-flex items-center space-x-3 bg-white/80 backdrop-blur-sm rounded-full px-8 py-4 mb-8 shadow-xl border border-white/20">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+            <Sparkles className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-bold text-gray-700 tracking-wide">Built for Real Learning</span>
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
           </div>
 
-          {/* Main heading */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-gray-900 mb-4 leading-tight drop-shadow-md" style={{textShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
-            Learn to Code with
-            <span className="block bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500 bg-clip-text animate-gradient drop-shadow-md" style={{textShadow: '0 2px 8px rgba(0,0,0,0.15)'}}> Confidence</span>
+          {/* Enhanced Main heading */}
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black text-gray-900 mb-6 leading-tight">
+            <span className="block">Learn to Code</span>
+            <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 bg-clip-text text-transparent animate-gradient">
+              Without the BS
+            </span>
           </h1>
 
-          {/* Subheading */}
-          <p className="text-xl sm:text-2xl lg:text-3xl text-gray-800 mb-8 max-w-2xl mx-auto leading-relaxed font-semibold drop-shadow-sm" style={{textShadow: '0 1px 6px rgba(0,0,0,0.06)'}}>
-            A beginner-friendly IDE designed for self-taught developers and bootcamp students. 
-            <span className="block mt-2 font-bold text-gray-900">Write code, get instant help, and learn by doing.</span>
+          {/* Enhanced Subheading */}
+          <p className="text-2xl sm:text-3xl lg:text-4xl text-gray-700 mb-12 max-w-4xl mx-auto leading-relaxed font-medium">
+            A beginner-friendly IDE that actually teaches you to code, not just copy-paste.
+            <span className="block mt-3 font-bold text-gray-900">Write real code, get real help, build real skills.</span>
           </p>
 
-          {/* CTA Buttons with soft glow/blur background */}
-          <div className="relative flex flex-col sm:flex-row justify-center gap-4 mb-8">
-            <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
-              <div className="w-80 h-16 bg-primary-500/30 blur-xl rounded-2xl shadow-lg"></div>
-            </div>
+          {/* Enhanced CTA Buttons */}
+          <div className="relative flex flex-col sm:flex-row justify-center gap-6 mb-12">
             <button 
               onClick={handleStartCoding}
-              className="relative group btn-primary px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-primary-500/30 border border-primary-500/40"
-              style={{ color: '#fff', background: 'linear-gradient(90deg, #6366f1 0%, #14b8a6 100%)', textShadow: '0 1px 8px rgba(0,0,0,0.18)' }}
+              className="group relative px-12 py-6 text-xl font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-600 rounded-2xl shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
             >
-              <div className="flex items-center font-black space-x-4">
-                <Play className="h-7 w-7 group-hover:scale-110 transition-transform" />
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
+              <div className="relative flex items-center space-x-4">
+                <Play className="h-8 w-8 group-hover:scale-110 transition-transform" />
                 <span className="tracking-wide">Start Coding Now</span>
-                <ArrowRight className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
+                <ArrowRight className="h-8 w-8 group-hover:translate-x-2 transition-transform" />
               </div>
             </button>
             
             <button 
               onClick={handleLeetCodePractice}
-              className="relative group btn-secondary px-12 py-6 text-xl font-bold shadow-2xl hover:shadow-accent-500/30 border-2 border-accent-500/40 bg-white/90 hover:bg-accent-50 text-accent-700 hover:text-accent-800"
+              className="group px-12 py-6 text-xl font-bold text-gray-700 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
             >
-              <div className="flex items-center font-black space-x-4">
-                <Code2 className="h-7 w-7 group-hover:scale-110 transition-transform" />
-                <span className="tracking-wide">LeetCode Practice</span>
-                <ArrowRight className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
+              <div className="flex items-center space-x-4">
+                <Code2 className="h-8 w-8 group-hover:scale-110 transition-transform" />
+                <span className="tracking-wide">Practice LeetCode</span>
+                <ArrowRight className="h-8 w-8 group-hover:translate-x-2 transition-transform" />
               </div>
             </button>
           </div>
-        </div>
 
-        {/* Code preview mockup, spaced below hero content */}
-        <div className="relative z-10 w-full max-w-3xl mx-auto px-4 mt-2 animate-fade-in" style={{ animationDelay: '1s' }}>
-          <div className="bg-gray-900 rounded-2xl shadow-2xl overflow-hidden border border-gray-700 shadow-glow">
-            <div className="flex items-center space-x-3 px-6 py-4 bg-gray-800">
+          {/* Enhanced Code preview */}
+          <div className="relative w-full max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.5s' }}>
+            <div className="bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-gray-700">
+              <div className="flex items-center space-x-3 px-8 py-5 bg-gray-800/50 backdrop-blur-sm">
               <div className="w-4 h-4 bg-red-500 rounded-full shadow-sm"></div>
               <div className="w-4 h-4 bg-yellow-500 rounded-full shadow-sm"></div>
               <div className="w-4 h-4 bg-green-500 rounded-full shadow-sm"></div>
               <div className="ml-6 text-gray-400 text-sm font-mono">main.js</div>
             </div>
-            <div className="p-8 font-mono text-base leading-relaxed">
-              <div className="text-gray-500">// Your first JavaScript function</div>
-              <div className="text-blue-400">function <span className="text-yellow-400">greetUser</span>(<span className="text-orange-400">name</span>) {'{'}</div>
-              <div className="ml-6 text-green-400">console.log(<span className="text-red-400">`Hello, ${'${name}'} Welcome to coding!`</span>);</div>
-              <div className="text-blue-400">{'}'}</div>
-              <div className="mt-3 text-yellow-400">greetUser(<span className="text-red-400">'Future Developer'</span>);</div>
+              <div className="p-10 font-mono text-lg leading-relaxed bg-gradient-to-br from-gray-900 to-gray-800">
+                <div className="text-gray-500 mb-4">// Your first real JavaScript function</div>
+                <div className="text-blue-400 mb-2">function <span className="text-yellow-400">calculateSum</span>(<span className="text-orange-400">numbers</span>) {'{'}</div>
+                <div className="ml-6 text-green-400 mb-2">return numbers.reduce((sum, num) => sum + num, 0);</div>
+                <div className="text-blue-400 mb-4">{'}'}</div>
+                <div className="text-gray-500 mb-2">// Test your function</div>
+                <div className="text-yellow-400">console.log(calculateSum([1, 2, 3, 4, 5])); <span className="text-gray-500">// Output: 15</span></div>
+              </div>
             </div>
           </div>
         </div>
-
-
       </section>
 
-
-      <section id="problemStatement" className='py-24 bg-gradient-to-br from-gray-50 to-primary-50/30'>
-      <div className="flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-10">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-red-700 mb-5">
-              Vibecoding is Broken
+      {/* Enhanced Problem Statement Section */}
+      <section id="problemStatement" className='py-32 bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 relative overflow-hidden'>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(239,68,68,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(245,158,11,0.1),transparent_50%)]"></div>
+        
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center space-x-3 bg-red-100 rounded-full px-6 py-3 mb-8">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-red-700 font-semibold text-sm">The Problem</span>
+          </div>
+            
+            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-red-700 mb-8 leading-tight">
+              Modern Coding is
+              <span className="block text-red-800">Broken</span>
             </h2>
-            <p className="flex-col text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
-             Vibecoding tools have made developers hyperreliant on their services. Non-technical individuals
-             looking to learn how to code have a reduced incentive because a tool can just do it for them in the fraction of a second. 
-            </p>
+            
+            <div className="max-w-5xl mx-auto space-y-6">
+              <p className="text-2xl lg:text-3xl text-gray-700 leading-relaxed font-medium">
+                AI coding tools promised to democratize programming. Instead, they're building higher walls. 
+                <span className="block mt-3 text-red-600 font-semibold">When anyone can generate code instantly, why learn to code at all?</span>
+              </p>
 
-            <p className="flex-col text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed mt-4">
-      Furthermore, underpriveleged indivduals are discouraged to code because of the seemingly high learning curve, thus keeping software engineering-related
-      careers among the top divisions of wealth. 
-    </p>
+              <p className="text-xl lg:text-2xl text-gray-600 leading-relaxed">
+                This convenience trap is creating two worlds: those who understand the magic behind the screen, 
+                and those who just watch it happen.
+              </p>
+
+              <p className="text-xl lg:text-2xl text-gray-600 leading-relaxed">
+                Meanwhile, underprivileged communities see an impossible mountain of prerequisites. 
+                <span className="block mt-2 text-red-600 font-semibold">The message becomes clear: coding isn't for you.</span>
+              </p>
           </div>
           </div>
-      
+        </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-24 bg-gradient-to-br from-gray-50 to-primary-50/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900">
-              HelloWurld to the Rescue!
-              <span className="block bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent"> Start Coding</span>
+      {/* Enhanced Features Section */}
+      <section id="features" className="py-32 bg-gradient-to-br from-gray-50 via-blue-50 to-emerald-50 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(59,130,246,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(16,185,129,0.1),transparent_50%)]"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-24">
+            <div className="inline-flex items-center space-x-3 bg-blue-100 rounded-full px-6 py-3 mb-8">
+              <Sparkles className="h-5 w-5 text-blue-600" />
+              <span className="text-blue-700 font-semibold text-sm">The Solution</span>
+            </div>
+            
+            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
+              HelloWurld to the
+              <span className="block bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent"> Rescue!</span>
             </h2>
-            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-2xl lg:text-3xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-medium">
               Our IDE is specifically designed for beginners, with features that make learning to code intuitive and enjoyable.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
                 icon: MessageSquare,
                 title: 'AI-Powered Chat Assistant',
                 description: 'Get instant help and contextual hints while you code. Our AI understands your learning journey and provides personalized guidance.',
-                color: 'from-blue-500 to-cyan-500'
+                color: 'from-blue-500 to-cyan-500',
+                gradient: 'from-blue-50 to-cyan-50'
               },
               {
                 icon: Zap,
                 title: 'Line-by-Line Code Fixes',
                 description: 'Apply suggested fixes directly to your code with one click. Learn from mistakes and understand corrections in real-time.',
-                color: 'from-yellow-500 to-orange-500'
+                color: 'from-yellow-500 to-orange-500',
+                gradient: 'from-yellow-50 to-orange-50'
               },
               {
                 icon: Lightbulb,
                 title: 'Interactive Learning',
                 description: 'Write single-file programs and see results instantly. Perfect for beginners who want to focus on core concepts.',
-                color: 'from-purple-500 to-pink-500'
+                color: 'from-purple-500 to-pink-500',
+                gradient: 'from-purple-50 to-pink-50'
               },
               {
                 icon: BookOpen,
                 title: 'Beginner-Friendly Interface',
                 description: 'Clean, distraction-free environment designed specifically for self-taught developers and bootcamp students.',
-                color: 'from-green-500 to-teal-500'
+                color: 'from-green-500 to-teal-500',
+                gradient: 'from-green-50 to-teal-50'
               },
               {
                 icon: Users,
                 title: 'Community Support',
                 description: 'Connect with other learners, share your progress, and get help from experienced developers in our community.',
-                color: 'from-indigo-500 to-purple-500'
+                color: 'from-indigo-500 to-purple-500',
+                gradient: 'from-indigo-50 to-purple-50'
               },
               {
                 icon: Shield,
                 title: 'Safe Learning Environment',
                 description: 'Practice coding without fear of breaking anything. Our sandboxed environment lets you experiment freely.',
-                color: 'from-red-500 to-pink-500'
+                color: 'from-red-500 to-pink-500',
+                gradient: 'from-red-50 to-pink-50'
               }
             ].map((feature, index) => (
               <div
                 key={index}
-                className="group bg-white rounded-2xl p-10 shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-primary-200 transform hover:-translate-y-2"
+                className="group bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-500 border border-white/20 transform hover:-translate-y-3 hover:scale-105"
               >
-                <div className={`inline-flex p-4 rounded-xl bg-gradient-to-r ${feature.color} mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <feature.icon className="h-8 w-8 text-white" />
+                <div className={`inline-flex p-5 rounded-2xl bg-gradient-to-r ${feature.color} mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <feature.icon className="h-10 w-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-6 group-hover:text-primary-600 transition-colors">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6 group-hover:text-blue-600 transition-colors">
                   {feature.title}
                 </h3>
                 <p className="text-gray-600 leading-relaxed text-lg">
@@ -196,16 +263,23 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
-              How CodeCraft IDE
-              <span className="block bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent"> Works</span>
+      {/* Enhanced How It Works Section */}
+      <section id="how-it-works" className="py-32 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(59,130,246,0.05),transparent_50%)]"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-24">
+            <div className="inline-flex items-center space-x-3 bg-emerald-100 rounded-full px-6 py-3 mb-8">
+              <Target className="h-5 w-5 text-emerald-600" />
+              <span className="text-emerald-700 font-semibold text-sm">How It Works</span>
+            </div>
+            
+            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
+              Three Steps to
+              <span className="block bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent"> Success</span>
             </h2>
-            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
-              Three simple steps to start your coding journey with confidence and support every step of the way.
+            <p className="text-2xl lg:text-3xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-medium">
+              Start your coding journey with confidence and support every step of the way.
             </p>
           </div>
 
@@ -214,45 +288,48 @@ export default function Home() {
               {
                 icon: Edit3,
                 title: 'Escape Tutorial Hell',
-                description: 'Work on projects that matter to you, and recieve guidance that helps you make progress on your program.',
-                image: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=600'
+                description: 'Work on projects that matter to you, and receive guidance that helps you make real progress on your programs.',
+                image: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=600',
+                color: 'from-blue-500 to-cyan-500'
               },
               {
                 icon: MessageCircle,
                 title: 'Get Instant Help',
-                description: 'Stuck on something? Our AI chat assistant provides contextual hints and apply small code fixes to help you understand what you code quicker.',
-                image: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=600'
+                description: 'Stuck on something? Our AI chat assistant provides contextual hints and applies small code fixes to help you understand what you code quicker.',
+                image: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=600',
+                color: 'from-purple-500 to-pink-500'
               },
               {
                 icon: CheckCircle,
                 title: 'Practice for Interviews',
-                description: 'Learn and practice the most common Leetcode patterns asked to applicants during SWE interviews to get the job.',
-                image: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=600'
+                description: 'Learn and practice the most common LeetCode patterns asked to applicants during SWE interviews to get the job.',
+                image: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=600',
+                color: 'from-emerald-500 to-teal-500'
               }
             ].map((step, index) => (
               <div
                 key={index}
-                className={`flex flex-col ${index % 2 === 1 ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-16`}
+                className={`flex flex-col ${index % 2 === 1 ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-20`}
               >
                 {/* Content */}
-                <div className="flex-1 space-y-8">
-                  <div className="flex items-center space-x-6">
-                    <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-r from-primary-500 to-accent-500 rounded-full text-white font-bold text-2xl shadow-lg">
+                <div className="flex-1 space-y-10">
+                  <div className="flex items-center space-x-8">
+                    <div className="flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full text-white font-black text-3xl shadow-2xl">
                       {index + 1}
                     </div>
-                    <div className="bg-gradient-to-r from-primary-500 to-accent-500 p-4 rounded-xl shadow-lg">
-                      <step.icon className="h-8 w-8 text-white" />
+                    <div className={`bg-gradient-to-r ${step.color} p-5 rounded-2xl shadow-xl`}>
+                      <step.icon className="h-10 w-10 text-white" />
                     </div>
                   </div>
-                  <h3 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
+                  <h3 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 leading-tight">
                     {step.title}
                   </h3>
-                  <p className="text-xl text-gray-600 leading-relaxed">
+                  <p className="text-2xl text-gray-600 leading-relaxed">
                     {step.description}
                   </p>
-                  <button className="inline-flex items-center text-primary-600 font-bold text-lg hover:text-primary-700 transition-colors group">
+                  <button className="inline-flex items-center text-blue-600 font-bold text-xl hover:text-blue-700 transition-colors group">
                     Learn more
-                    <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="ml-4 h-6 w-6 group-hover:translate-x-2 transition-transform" />
                   </button>
                 </div>
 
@@ -264,9 +341,9 @@ export default function Home() {
                       alt={step.title}
                       width={700}
                       height={500}
-                      className="w-full h-96 object-cover rounded-3xl shadow-2xl group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-[500px] object-cover rounded-3xl shadow-2xl group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-3xl group-hover:opacity-75 transition-opacity duration-500"></div>
+                    <div className={`absolute inset-0 bg-gradient-to-r ${step.color} opacity-20 rounded-3xl group-hover:opacity-30 transition-opacity duration-500`}></div>
                   </div>
                 </div>
               </div>
@@ -275,56 +352,67 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-24 bg-gradient-to-br from-primary-50 to-accent-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+      {/* Enhanced Testimonials Section */}
+      <section className="py-32 bg-gradient-to-br from-blue-50 via-purple-50 to-emerald-50 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(59,130,246,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,rgba(16,185,129,0.1),transparent_50%)]"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-24">
+            <div className="inline-flex items-center space-x-3 bg-purple-100 rounded-full px-6 py-3 mb-8">
+              <Award className="h-5 w-5 text-purple-600" />
+              <span className="text-purple-700 font-semibold text-sm">Student Success</span>
+            </div>
+            
+            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               What Our
-              <span className="block bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent"> Students Say</span>
+              <span className="block bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent"> Students Say</span>
             </h2>
-            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-2xl lg:text-3xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-medium">
               Join thousands of beginners who have successfully started their coding journey with CodeCraft IDE.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
                 name: 'Sarah Chen',
                 role: 'Self-taught Developer',
                 image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150',
                 content: 'CodeCraft IDE made learning JavaScript so much easier. The AI assistant helped me understand concepts I was struggling with for weeks.',
-                rating: 5
+                rating: 5,
+                color: 'from-blue-500 to-cyan-500'
               },
               {
                 name: 'Marcus Johnson',
                 role: 'Bootcamp Graduate',
                 image: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150',
                 content: 'The line-by-line code fixes feature is incredible. I learned more about debugging in a month than I did in my entire bootcamp.',
-                rating: 5
+                rating: 5,
+                color: 'from-purple-500 to-pink-500'
               },
               {
                 name: 'Emily Rodriguez',
                 role: 'Career Changer',
                 image: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150',
                 content: 'As someone switching careers, CodeCraft gave me the confidence to code. The beginner-friendly interface is exactly what I needed.',
-                rating: 5
+                rating: 5,
+                color: 'from-emerald-500 to-teal-500'
               }
             ].map((testimonial, index) => (
               <div
                 key={index}
-                className="bg-white rounded-3xl p-10 shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 transform hover:-translate-y-2"
+                className="group bg-white/80 backdrop-blur-sm rounded-3xl p-10 shadow-xl hover:shadow-2xl transition-all duration-500 border border-white/20 transform hover:-translate-y-3 hover:scale-105"
               >
                 <div className="flex items-center mb-8">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="h-6 w-6 text-yellow-400 fill-current" />
+                    <Star key={i} className="h-7 w-7 text-yellow-400 fill-current" />
                   ))}
                 </div>
                 
-                <Quote className="h-10 w-10 text-primary-300 mb-6" />
+                <Quote className="h-12 w-12 text-gray-300 mb-8" />
                 
-                <p className="text-gray-700 mb-8 leading-relaxed text-lg">
+                <p className="text-gray-700 mb-10 leading-relaxed text-xl">
                   "{testimonial.content}"
                 </p>
                 
@@ -332,13 +420,13 @@ export default function Home() {
                   <Image
                     src={testimonial.image}
                     alt={testimonial.name}
-                    width={56}
-                    height={56}
-                    className="w-14 h-14 rounded-full object-cover mr-4 shadow-lg"
+                    width={64}
+                    height={64}
+                    className="w-16 h-16 rounded-full object-cover mr-6 shadow-lg"
                   />
                   <div>
-                    <h4 className="font-bold text-gray-900 text-lg">{testimonial.name}</h4>
-                    <p className="text-gray-600">{testimonial.role}</p>
+                    <h4 className="font-bold text-gray-900 text-xl">{testimonial.name}</h4>
+                    <p className="text-gray-600 text-lg">{testimonial.role}</p>
                   </div>
                 </div>
               </div>
@@ -347,20 +435,27 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+      {/* Enhanced Pricing Section */}
+      <section id="pricing" className="py-32 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.05),transparent_50%)]"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-24">
+            <div className="inline-flex items-center space-x-3 bg-emerald-100 rounded-full px-6 py-3 mb-8">
+              <TrendingUp className="h-5 w-5 text-emerald-600" />
+              <span className="text-emerald-700 font-semibold text-sm">Simple Pricing</span>
+            </div>
+            
+            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               Simple, Transparent
-              <span className="block bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent"> Pricing</span>
+              <span className="block bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent"> Pricing</span>
             </h2>
-            <p className="text-xl lg:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-2xl lg:text-3xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-medium">
               Start free and upgrade as you grow. No hidden fees, no complicated tiers.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {[
               {
                 name: 'Free',
@@ -375,7 +470,8 @@ export default function Home() {
                   'Basic syntax highlighting'
                 ],
                 cta: 'Start Free',
-                popular: false
+                popular: false,
+                color: 'from-gray-500 to-gray-600'
               },
               {
                 name: 'Pro',
@@ -392,7 +488,8 @@ export default function Home() {
                   'Progress tracking'
                 ],
                 cta: 'Start Pro Trial',
-                popular: true
+                popular: true,
+                color: 'from-blue-500 to-emerald-500'
               },
               {
                 name: 'Team',
@@ -409,49 +506,50 @@ export default function Home() {
                   'Advanced analytics'
                 ],
                 cta: 'Contact Sales',
-                popular: false
+                popular: false,
+                color: 'from-purple-500 to-pink-500'
               }
             ].map((plan, index) => (
               <div
                 key={index}
-                className={`relative bg-white rounded-3xl border-2 p-10 ${
+                className={`relative bg-white/80 backdrop-blur-sm rounded-3xl border-2 p-10 ${
                   plan.popular
-                    ? 'border-primary-500 shadow-2xl scale-105 shadow-glow'
-                    : 'border-gray-200 shadow-lg hover:shadow-2xl'
-                } transition-all duration-500 transform hover:-translate-y-2`}
+                    ? 'border-blue-500 shadow-2xl scale-105 shadow-blue-500/25'
+                    : 'border-gray-200 shadow-xl hover:shadow-2xl'
+                } transition-all duration-500 transform hover:-translate-y-3 hover:scale-105`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-gradient-to-r from-primary-500 to-accent-500 text-white px-6 py-3 rounded-full text-sm font-bold flex items-center space-x-2 shadow-lg">
-                      <Sparkles className="h-5 w-5" />
+                  <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-gradient-to-r from-blue-500 to-emerald-500 text-white px-8 py-4 rounded-full text-sm font-bold flex items-center space-x-3 shadow-xl">
+                      <Sparkles className="h-6 w-6" />
                       <span>Most Popular</span>
                     </div>
                   </div>
                 )}
 
-                <div className="text-center mb-10">
-                  <h3 className="text-3xl font-bold text-gray-900 mb-4">{plan.name}</h3>
-                  <div className="mb-6">
-                    <span className="text-5xl font-bold text-gray-900">{plan.price}</span>
-                    <span className="text-gray-600 ml-2 text-xl">/{plan.period}</span>
+                <div className="text-center mb-12">
+                  <h3 className="text-4xl font-black text-gray-900 mb-6">{plan.name}</h3>
+                  <div className="mb-8">
+                    <span className="text-6xl font-black text-gray-900">{plan.price}</span>
+                    <span className="text-gray-600 ml-3 text-2xl">/{plan.period}</span>
                   </div>
-                  <p className="text-gray-600 text-lg">{plan.description}</p>
+                  <p className="text-gray-600 text-xl">{plan.description}</p>
                 </div>
 
-                <ul className="space-y-5 mb-10">
+                <ul className="space-y-6 mb-12">
                   {plan.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center">
-                      <Check className="h-6 w-6 text-green-500 mr-4 flex-shrink-0" />
-                      <span className="text-gray-700 text-lg">{feature}</span>
+                      <Check className="h-7 w-7 text-emerald-500 mr-5 flex-shrink-0" />
+                      <span className="text-gray-700 text-xl">{feature}</span>
                     </li>
                   ))}
                 </ul>
 
                 <button
-                  className={`w-full py-4 px-8 rounded-xl font-bold text-lg transition-all duration-300 ${
+                  className={`w-full py-6 px-8 rounded-2xl font-bold text-xl transition-all duration-300 ${
                     plan.popular
-                      ? 'btn-primary shadow-lg'
-                      : 'btn-secondary'
+                      ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white shadow-xl hover:shadow-2xl'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
                   {plan.cta}
@@ -460,21 +558,21 @@ export default function Home() {
             ))}
           </div>
 
-          <div className="text-center mt-16">
-            <p className="text-gray-600 mb-6 text-lg">
+          <div className="text-center mt-20">
+            <p className="text-gray-600 mb-8 text-xl">
               All plans include a 14-day free trial. No credit card required.
             </p>
-            <div className="flex items-center justify-center space-x-8 text-gray-500 font-medium">
+            <div className="flex items-center justify-center space-x-12 text-gray-500 font-semibold text-lg">
               <span className="flex items-center">
-                <Check className="h-5 w-5 text-green-500 mr-2" />
+                <Check className="h-6 w-6 text-emerald-500 mr-3" />
                 Cancel anytime
               </span>
               <span className="flex items-center">
-                <Check className="h-5 w-5 text-green-500 mr-2" />
+                <Check className="h-6 w-6 text-emerald-500 mr-3" />
                 30-day money back guarantee
               </span>
               <span className="flex items-center">
-                <Check className="h-5 w-5 text-green-500 mr-2" />
+                <Check className="h-6 w-6 text-emerald-500 mr-3" />
                 No setup fees
               </span>
             </div>
@@ -483,6 +581,8 @@ export default function Home() {
       </section>
 
       <Footer />
+      
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} defaultTab={authTab} />
     </div>
   );
 }
