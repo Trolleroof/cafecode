@@ -99,22 +99,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error }
       }
 
-      // Try to create profile, but don't fail if it doesn't work
+      // Try to create profile, but handle duplicate key errors gracefully
       if (data.user) {
         try {
-          await supabase
+          // First check if profile already exists
+          const { data: existingProfile } = await supabase
             .from('profiles')
-            .insert([
-              {
-                id: data.user.id,
-                email: data.user.email,
-                username,
-              },
-            ])
-        } catch (profileError) {
-          // Silently ignore profile creation errors
-          // The user can still use the app with auth data
-          console.log('Profile creation handled gracefully')
+            .select('id')
+            .eq('id', data.user.id)
+            .single()
+
+          if (!existingProfile) {
+            // Only insert if profile doesn't exist
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert([
+                {
+                  id: data.user.id,
+                  email: data.user.email,
+                  username,
+                },
+              ])
+
+            if (insertError) {
+              // Check if it's a duplicate key error
+              if (insertError.code === '23505' || insertError.message?.includes('duplicate key')) {
+                console.log('Profile already exists, continuing...')
+              } else {
+                console.log('Profile creation handled gracefully:', insertError.message)
+              }
+            }
+          }
+        } catch (profileError: any) {
+          // Handle any profile-related errors gracefully
+          if (profileError.code === '23505' || profileError.message?.includes('duplicate key')) {
+            console.log('Profile already exists, continuing...')
+          } else {
+            console.log('Profile creation handled gracefully')
+          }
         }
       }
 
