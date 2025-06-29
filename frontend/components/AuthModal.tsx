@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Mail, Lock, User } from 'lucide-react'
+import { Loader2, Mail, Lock, User, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface AuthModalProps {
@@ -25,29 +25,54 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
   const [success, setSuccess] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const { signUp, signIn, signInWithGoogle } = useAuth()
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
   useEffect(() => {
-    setIsSignUp(defaultTab === 'signup');
-  }, [defaultTab, isOpen]);
+    setIsSignUp(defaultTab === 'signup')
+  }, [defaultTab, isOpen])
+
+  useEffect(() => {
+    if (isOpen) {
+      // Reset form when modal opens
+      setEmail('')
+      setPassword('')
+      setUsername('')
+      setError('')
+      setSuccess('')
+      setShowPassword(false)
+    }
+  }, [isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
+    
     if (!emailRegex.test(email)) {
       setError('Please enter a valid email address.')
       return
     }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.')
+      return
+    }
+
+    if (isSignUp && username.trim().length < 2) {
+      setError('Username must be at least 2 characters long.')
+      return
+    }
+
     setIsLoading(true)
 
     try {
       let result
       if (isSignUp) {
-        result = await signUp(email, password, username)
+        result = await signUp(email, password, username.trim())
       } else {
         result = await signIn(email, password)
       }
@@ -58,16 +83,28 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
           setError('This email is already registered. Please sign in or use a different email.')
         } else if (msg.toLowerCase().includes('invalid email')) {
           setError('Please enter a valid email address.')
+        } else if (msg.toLowerCase().includes('invalid login credentials')) {
+          setError('Invalid email or password. Please check your credentials and try again.')
+        } else if (msg.toLowerCase().includes('email not confirmed')) {
+          setError('Please check your email and click the confirmation link before signing in.')
         } else {
           setError(msg || 'An error occurred')
         }
       } else {
-        setSuccess('Account created! Please check your email to verify your account.')
+        if (isSignUp) {
+          setSuccess('Account created successfully! Please check your email to verify your account before signing in.')
+        } else {
+          setSuccess('Signed in successfully!')
+          setTimeout(() => {
+            onClose()
+          }, 1000)
+        }
         setEmail('')
         setPassword('')
         setUsername('')
       }
     } catch (err) {
+      console.error('Auth error:', err)
       setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)
@@ -102,7 +139,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
             </CardTitle>
             <CardDescription className="text-gray-600">
               {isSignUp 
-                ? 'Join CodeCraft to start your coding journey' 
+                ? 'Join HelloWurld to start your coding journey' 
                 : 'Welcome back! Sign in to continue'
               }
             </CardDescription>
@@ -128,6 +165,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
                         onChange={(e) => setEmail(e.target.value)}
                         className="pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -137,13 +175,22 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         id="signin-password"
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="pl-10"
+                        className="pl-10 pr-10"
                         required
+                        disabled={isLoading}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
+                        disabled={isLoading}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
@@ -173,6 +220,8 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
                         onChange={(e) => setUsername(e.target.value)}
                         className="pl-10"
                         required
+                        disabled={isLoading}
+                        minLength={2}
                       />
                     </div>
                   </div>
@@ -188,6 +237,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
                         onChange={(e) => setEmail(e.target.value)}
                         className="pl-10"
                         required
+                        disabled={isLoading}
                       />
                     </div>
                   </div>
@@ -197,14 +247,23 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                       <Input
                         id="signup-password"
-                        type="password"
-                        placeholder="Create a password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a password (min 6 characters)"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="pl-10"
+                        className="pl-10 pr-10"
                         required
+                        disabled={isLoading}
                         minLength={6}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-3 h-4 w-4 text-gray-400 hover:text-gray-600"
+                        disabled={isLoading}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
@@ -235,7 +294,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
                 variant="outline"
                 className="w-full mt-4"
                 onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading}
+                disabled={isGoogleLoading || isLoading}
               >
                 {isGoogleLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -254,7 +313,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
 
             {success && (
               <Alert className="mt-4" variant="default">
-                <AlertDescription>{success}</AlertDescription>
+                <AlertDescription className="text-green-600">{success}</AlertDescription>
               </Alert>
             )}
           </CardContent>
@@ -264,6 +323,7 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'signin' }: AuthModalP
           variant="ghost"
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
           onClick={onClose}
+          disabled={isLoading}
         >
           ✕
         </Button>
@@ -281,4 +341,4 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
       <path fill="#EA4335" d="M21.805 10.023h-9.765v3.977h5.617c-.242 1.242-1.484 3.648-5.617 3.648-3.375 0-6.125-2.789-6.125-6.148s2.75-6.148 6.125-6.148c1.922 0 3.211.82 3.953 1.523l2.703-2.633c-1.711-1.57-3.922-2.523-6.656-2.523-5.523 0-10 4.477-10 10s4.477 10 10 10c5.75 0 9.547-4.023 9.547-9.711 0-.656-.07-1.148-.156-1.637z" opacity=".1"/>
     </g>
   </svg>
-); 
+)

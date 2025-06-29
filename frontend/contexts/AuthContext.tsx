@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email)
       setSession(session)
       if (session?.user) {
         await fetchUserProfile(session.user.id)
@@ -68,6 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, username: string) => {
     try {
+      setLoading(true)
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -79,62 +82,81 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (error) {
+        console.error('Sign up error:', error)
         return { error }
       }
 
-      if (data.user) {
-        // Create profile record
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              email: data.user.email,
-              username,
-            },
-          ])
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError)
-          return { error: profileError }
-        }
-      }
-
+      // The profile will be created automatically by the trigger
+      console.log('Sign up successful:', data.user?.email)
       return { error: null }
     } catch (error) {
+      console.error('Sign up exception:', error)
       return { error }
+    } finally {
+      setLoading(false)
     }
   }
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      setLoading(true)
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      return { error }
+      if (error) {
+        console.error('Sign in error:', error)
+        return { error }
+      }
+
+      console.log('Sign in successful:', data.user?.email)
+      return { error: null }
     } catch (error) {
+      console.error('Sign in exception:', error)
       return { error }
+    } finally {
+      setLoading(false)
     }
   }
 
   const signInWithGoogle = async () => {
     try {
+      setLoading(true)
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      return { error }
+      
+      if (error) {
+        console.error('Google sign in error:', error)
+        return { error }
+      }
+      
+      return { error: null }
     } catch (error) {
+      console.error('Google sign in exception:', error)
       return { error }
+    } finally {
+      setLoading(false)
     }
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    try {
+      setLoading(true)
+      await supabase.auth.signOut()
+      setUser(null)
+      setSession(null)
+    } catch (error) {
+      console.error('Sign out error:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const value = {
@@ -156,4 +178,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
-} 
+}
