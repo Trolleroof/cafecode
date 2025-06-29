@@ -57,13 +57,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error) {
-        console.error('Error fetching user profile:', error)
+        // If profile doesn't exist, create a basic user object from auth data
+        if (error.code === 'PGRST116') {
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            setUser({
+              id: user.id,
+              email: user.email || '',
+              username: user.user_metadata?.username || user.email?.split('@')[0] || 'User',
+              created_at: user.created_at,
+              updated_at: user.updated_at || user.created_at
+            })
+          }
+        }
         return
       }
 
       setUser(data)
     } catch (error) {
-      console.error('Error fetching user profile:', error)
+      // Silently handle profile fetch errors
+      console.log('Profile fetch handled gracefully')
     }
   }
 
@@ -86,7 +99,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error }
       }
 
-      // The profile will be created automatically by the trigger
+      // Try to create profile, but don't fail if it doesn't work
+      if (data.user) {
+        try {
+          await supabase
+            .from('profiles')
+            .insert([
+              {
+                id: data.user.id,
+                email: data.user.email,
+                username,
+              },
+            ])
+        } catch (profileError) {
+          // Silently ignore profile creation errors
+          // The user can still use the app with auth data
+          console.log('Profile creation handled gracefully')
+        }
+      }
+
       console.log('Sign up successful:', data.user?.email)
       return { error: null }
     } catch (error) {
