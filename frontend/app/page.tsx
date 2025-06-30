@@ -22,11 +22,13 @@ import {
   TrendingUpIcon, 
   TrophyIcon, 
   UserIcon, 
-  SparklesIcon,
+  BrainIcon, 
   RocketLaunchIcon, 
   HeartIcon, 
   PaintBrushIcon, 
+  CoffeeIcon, 
   GamepadIcon,
+  SparklesIcon,
   FireIcon,
   GemIcon
 } from '@heroicons/react/24/outline';
@@ -196,7 +198,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                icon: SparklesIcon,
+                icon: BrainIcon,
                 title: 'AI-Powered Chat Assistant',
                 description: 'Get instant help and contextual hints while you code. Our AI understands your learning journey and provides personalized guidance.',
                 color: 'from-[#094074] to-[#5adbff]',
@@ -224,7 +226,7 @@ export default function Home() {
                 gradient: 'from-green-50 to-teal-50'
               },
               {
-                icon: UsersIcon,
+                icon: CoffeeIcon,
                 title: 'Community Support',
                 description: 'Connect with other learners, share your progress, and get help from experienced developers in our community.',
                 color: 'from-[#094074] to-[#3c6997]',
