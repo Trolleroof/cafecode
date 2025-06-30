@@ -43,6 +43,13 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.75rem;
+
+    /* Custom color palette */
+    --indigo-dye: #094074;
+    --lapis-lazuli: #3c6997;
+    --vivid-sky-blue: #5adbff;
+    --mustard: #ffdd4a;
+    --princeton-orange: #ff960d;
   }
   .dark {
     --background: 0 0% 3.9%;
@@ -189,66 +196,40 @@
   animation: gradient-shift 4s ease infinite;
 }
 
-/* Enhanced color utilities */
-.text-primary-50 { color: rgb(238 242 255); }
-.text-primary-100 { color: rgb(224 231 255); }
-.text-primary-200 { color: rgb(199 210 254); }
-.text-primary-300 { color: rgb(165 180 252); }
-.text-primary-400 { color: rgb(129 140 248); }
-.text-primary-500 { color: rgb(99 102 241); }
-.text-primary-600 { color: rgb(79 70 229); }
-.text-primary-700 { color: rgb(67 56 202); }
-.text-primary-800 { color: rgb(55 48 163); }
-.text-primary-900 { color: rgb(49 46 129); }
+/* Enhanced color utilities using the new palette */
+.text-indigo-dye { color: var(--indigo-dye); }
+.text-lapis-lazuli { color: var(--lapis-lazuli); }
+.text-vivid-sky-blue { color: var(--vivid-sky-blue); }
+.text-mustard { color: var(--mustard); }
+.text-princeton-orange { color: var(--princeton-orange); }
 
-.text-accent-50 { color: rgb(240 253 250); }
-.text-accent-100 { color: rgb(204 251 241); }
-.text-accent-200 { color: rgb(153 246 228); }
-.text-accent-300 { color: rgb(94 234 212); }
-.text-accent-400 { color: rgb(45 212 191); }
-.text-accent-500 { color: rgb(20 184 166); }
-.text-accent-600 { color: rgb(13 148 136); }
-.text-accent-700 { color: rgb(15 118 110); }
+.bg-indigo-dye { background-color: var(--indigo-dye); }
+.bg-lapis-lazuli { background-color: var(--lapis-lazuli); }
+.bg-vivid-sky-blue { background-color: var(--vivid-sky-blue); }
+.bg-mustard { background-color: var(--mustard); }
+.bg-princeton-orange { background-color: var(--princeton-orange); }
 
-.bg-primary-50 { background-color: rgb(238 242 255); }
-.bg-primary-100 { background-color: rgb(224 231 255); }
-.bg-primary-200 { background-color: rgb(199 210 254); }
-.bg-primary-300 { background-color: rgb(165 180 252); }
-.bg-primary-400 { background-color: rgb(129 140 248); }
-.bg-primary-500 { background-color: rgb(99 102 241); }
-.bg-primary-600 { background-color: rgb(79 70 229); }
-.bg-primary-700 { background-color: rgb(67 56 202); }
+.border-indigo-dye { border-color: var(--indigo-dye); }
+.border-lapis-lazuli { border-color: var(--lapis-lazuli); }
+.border-vivid-sky-blue { border-color: var(--vivid-sky-blue); }
+.border-mustard { border-color: var(--mustard); }
+.border-princeton-orange { border-color: var(--princeton-orange); }
 
-.bg-accent-50 { background-color: rgb(240 253 250); }
-.bg-accent-100 { background-color: rgb(204 251 241); }
-.bg-accent-200 { background-color: rgb(153 246 228); }
-.bg-accent-300 { background-color: rgb(94 234 212); }
-.bg-accent-400 { background-color: rgb(45 212 191); }
-.bg-accent-500 { background-color: rgb(20 184 166); }
-.bg-accent-600 { background-color: rgb(13 148 136); }
-.bg-accent-700 { background-color: rgb(15 118 110); }
+.hover\:text-indigo-dye:hover { color: var(--indigo-dye); }
+.hover\:text-lapis-lazuli:hover { color: var(--lapis-lazuli); }
+.hover\:text-vivid-sky-blue:hover { color: var(--vivid-sky-blue); }
+.hover\:text-mustard:hover { color: var(--mustard); }
+.hover\:text-princeton-orange:hover { color: var(--princeton-orange); }
 
-.border-primary-200 { border-color: rgb(199 210 254); }
-.border-primary-300 { border-color: rgb(165 180 252); }
-.border-primary-500 { border-color: rgb(99 102 241); }
+.hover\:bg-indigo-dye:hover { background-color: var(--indigo-dye); }
+.hover\:bg-lapis-lazuli:hover { background-color: var(--lapis-lazuli); }
+.hover\:bg-vivid-sky-blue:hover { background-color: var(--vivid-sky-blue); }
+.hover\:bg-mustard:hover { background-color: var(--mustard); }
+.hover\:bg-princeton-orange:hover { background-color: var(--princeton-orange); }
 
-.hover\:text-primary-600:hover { color: rgb(79 70 229); }
-.hover\:text-primary-700:hover { color: rgb(67 56 202); }
-.hover\:border-primary-300:hover { border-color: rgb(165 180 252); }
-.hover\:bg-primary-50:hover { background-color: rgb(238 242 255); }
-
-.from-primary-500 { --tw-gradient-from: rgb(99 102 241); }
-.to-accent-500 { --tw-gradient-to: rgb(20 184 166); }
-.from-primary-50 { --tw-gradient-from: rgb(238 242 255); }
-.to-accent-50 { --tw-gradient-to: rgb(240 253 250); }
-
-.gradient-bg {
-  background: linear-gradient(135deg, rgb(99 102 241) 0%, rgb(20 184 166) 100%);
-}
-
-/* Enhanced button styles */
+/* Enhanced button styles using new palette */
 .btn-primary {
-  @apply relative overflow-hidden bg-gradient-to-r from-primary-500 to-accent-500 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl;
+  @apply relative overflow-hidden bg-gradient-to-r from-indigo-dye to-vivid-sky-blue text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl;
   background-size: 200% 200%;
   animation: gradient-shift 4s ease infinite;
 }
@@ -277,7 +258,7 @@
 }
 
 .btn-secondary {
-  @apply relative bg-white text-gray-700 font-semibold rounded-xl border-2 border-gray-200 transition-all duration-300 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 hover:shadow-lg;
+  @apply relative bg-white text-gray-700 font-semibold rounded-xl border-2 border-gray-200 transition-all duration-300 hover:border-lapis-lazuli hover:bg-vivid-sky-blue/10 hover:text-indigo-dye hover:shadow-lg;
 }
 
 /* Glass morphism effect */
@@ -287,23 +268,23 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Enhanced shadows */
+/* Enhanced shadows using new palette */
 .shadow-glow {
-  box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 0 30px rgba(9, 64, 116, 0.3);
 }
 
 .shadow-glow-accent {
-  box-shadow: 0 0 30px rgba(20, 184, 166, 0.3);
+  box-shadow: 0 0 30px rgba(90, 219, 255, 0.3);
 }
 
 /* Monaco Editor Line Highlighting */
 .highlighted-code-line {
-  background-color: rgba(255, 221, 74, 0.2) !important; /* #ffdd4a with opacity */
-  border-left: 3px solid #ffdd4a !important;
+  background-color: rgba(255, 221, 74, 0.2) !important; /* mustard with opacity */
+  border-left: 3px solid var(--mustard) !important;
 }
 
 .highlighted-code-line-glyph {
-  background-color: #ffdd4a !important;
+  background-color: var(--mustard) !important;
   width: 4px !important;
 }
 
