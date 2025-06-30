@@ -163,140 +163,179 @@
   }
 }
 
-.animate-bounce-gentle {
-  animation: bounce-gentle 4s ease-in-out infinite;
+@layer utilities {
+  .animate-bounce-gentle {
+    animation: bounce-gentle 4s ease-in-out infinite;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.8s ease-out;
+  }
+
+  .animate-slide-up-fast {
+    animation: slide-up-fast 0.3s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 1.2s ease-out;
+  }
+
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-pulse-fast {
+    animation: pulse-fast 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 4s ease infinite;
+  }
+
+  /* Enhanced color utilities using the new palette */
+  .text-indigo-dye { color: var(--indigo-dye); }
+  .text-lapis-lazuli { color: var(--lapis-lazuli); }
+  .text-vivid-sky-blue { color: var(--vivid-sky-blue); }
+  .text-mustard { color: var(--mustard); }
+  .text-princeton-orange { color: var(--princeton-orange); }
+
+  .bg-indigo-dye { background-color: var(--indigo-dye); }
+  .bg-lapis-lazuli { background-color: var(--lapis-lazuli); }
+  .bg-vivid-sky-blue { background-color: var(--vivid-sky-blue); }
+  .bg-mustard { background-color: var(--mustard); }
+  .bg-princeton-orange { background-color: var(--princeton-orange); }
+
+  .border-indigo-dye { border-color: var(--indigo-dye); }
+  .border-lapis-lazuli { border-color: var(--lapis-lazuli); }
+  .border-vivid-sky-blue { border-color: var(--vivid-sky-blue); }
+  .border-mustard { border-color: var(--mustard); }
+  .border-princeton-orange { border-color: var(--princeton-orange); }
+
+  .hover\:text-indigo-dye:hover { color: var(--indigo-dye); }
+  .hover\:text-lapis-lazuli:hover { color: var(--lapis-lazuli); }
+  .hover\:text-vivid-sky-blue:hover { color: var(--vivid-sky-blue); }
+  .hover\:text-mustard:hover { color: var(--mustard); }
+  .hover\:text-princeton-orange:hover { color: var(--princeton-orange); }
+
+  .hover\:bg-indigo-dye:hover { background-color: var(--indigo-dye); }
+  .hover\:bg-lapis-lazuli:hover { background-color: var(--lapis-lazuli); }
+  .hover\:bg-vivid-sky-blue:hover { background-color: var(--vivid-sky-blue); }
+  .hover\:bg-mustard:hover { background-color: var(--mustard); }
+  .hover\:bg-princeton-orange:hover { background-color: var(--princeton-orange); }
+
+  /* Gradient utilities for custom colors */
+  .from-indigo-dye { --tw-gradient-from: var(--indigo-dye) var(--tw-gradient-from-position); --tw-gradient-to: rgb(9 64 116 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-lapis-lazuli { --tw-gradient-from: var(--lapis-lazuli) var(--tw-gradient-from-position); --tw-gradient-to: rgb(60 105 151 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-vivid-sky-blue { --tw-gradient-from: var(--vivid-sky-blue) var(--tw-gradient-from-position); --tw-gradient-to: rgb(90 219 255 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-mustard { --tw-gradient-from: var(--mustard) var(--tw-gradient-from-position); --tw-gradient-to: rgb(255 221 74 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-princeton-orange { --tw-gradient-from: var(--princeton-orange) var(--tw-gradient-from-position); --tw-gradient-to: rgb(255 150 13 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+
+  .to-indigo-dye { --tw-gradient-to: var(--indigo-dye) var(--tw-gradient-to-position); }
+  .to-lapis-lazuli { --tw-gradient-to: var(--lapis-lazuli) var(--tw-gradient-to-position); }
+  .to-vivid-sky-blue { --tw-gradient-to: var(--vivid-sky-blue) var(--tw-gradient-to-position); }
+  .to-mustard { --tw-gradient-to: var(--mustard) var(--tw-gradient-to-position); }
+  .to-princeton-orange { --tw-gradient-to: var(--princeton-orange) var(--tw-gradient-to-position); }
+
+  /* Background with opacity utilities */
+  .bg-vivid-sky-blue\/10 { background-color: rgb(90 219 255 / 0.1); }
+  .bg-vivid-sky-blue\/20 { background-color: rgb(90 219 255 / 0.2); }
+  .bg-vivid-sky-blue\/30 { background-color: rgb(90 219 255 / 0.3); }
+  .bg-indigo-dye\/10 { background-color: rgb(9 64 116 / 0.1); }
+  .bg-indigo-dye\/20 { background-color: rgb(9 64 116 / 0.2); }
+  .bg-indigo-dye\/30 { background-color: rgb(9 64 116 / 0.3); }
+  .bg-lapis-lazuli\/10 { background-color: rgb(60 105 151 / 0.1); }
+  .bg-lapis-lazuli\/20 { background-color: rgb(60 105 151 / 0.2); }
+  .bg-lapis-lazuli\/30 { background-color: rgb(60 105 151 / 0.3); }
+  .bg-mustard\/10 { background-color: rgb(255 221 74 / 0.1); }
+  .bg-mustard\/20 { background-color: rgb(255 221 74 / 0.2); }
+  .bg-mustard\/30 { background-color: rgb(255 221 74 / 0.3); }
+
+  /* Hover background with opacity utilities */
+  .hover\:bg-vivid-sky-blue\/10:hover { background-color: rgb(90 219 255 / 0.1); }
+  .hover\:bg-vivid-sky-blue\/20:hover { background-color: rgb(90 219 255 / 0.2); }
+  .hover\:bg-vivid-sky-blue\/30:hover { background-color: rgb(90 219 255 / 0.3); }
+  .hover\:bg-indigo-dye\/10:hover { background-color: rgb(9 64 116 / 0.1); }
+  .hover\:bg-indigo-dye\/20:hover { background-color: rgb(9 64 116 / 0.2); }
+  .hover\:bg-indigo-dye\/30:hover { background-color: rgb(9 64 116 / 0.3); }
+
+  /* Glass morphism effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Enhanced shadows using new palette */
+  .shadow-glow {
+    box-shadow: 0 0 30px rgba(9, 64, 116, 0.3);
+  }
+
+  .shadow-glow-accent {
+    box-shadow: 0 0 30px rgba(90, 219, 255, 0.3);
+  }
+
+  /* Monaco Editor Line Highlighting */
+  .highlighted-code-line {
+    background-color: rgba(255, 221, 74, 0.2) !important; /* mustard with opacity */
+    border-left: 3px solid var(--mustard) !important;
+  }
+
+  .highlighted-code-line-glyph {
+    background-color: var(--mustard) !important;
+    width: 4px !important;
+  }
+
+  /* Ensure proper white-space and font for code editor */
+  .prism-code-editor-pre,
+  .prism-code-editor-pre code {
+    white-space: pre !important;
+    word-wrap: normal !important;
+    font-family: '"Fira code", "Fira Mono", monospace' !important;
+    font-size: 14px !important;
+  }
+
+  .token.comment {
+    color: #888; /* Darker gray for comments */
+  }
 }
 
-.animate-slide-up {
-  animation: slide-up 0.8s ease-out;
-}
+@layer components {
+  /* Enhanced button styles using new palette */
+  .btn-primary {
+    @apply relative overflow-hidden bg-gradient-to-r from-indigo-dye to-vivid-sky-blue text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl;
+    background-size: 200% 200%;
+    animation: gradient-shift 4s ease infinite;
+  }
 
-.animate-slide-up-fast {
-  animation: slide-up-fast 0.3s ease-out;
-}
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
 
-.animate-fade-in {
-  animation: fade-in 1.2s ease-out;
-}
+  .btn-primary:hover::before {
+    left: 100%;
+  }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
 
-.animate-pulse-fast {
-  animation: pulse-fast 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
+  .btn-primary .group-hover\:translate-x-2 {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient-shift 4s ease infinite;
-}
-
-/* Enhanced color utilities using the new palette */
-.text-indigo-dye { color: var(--indigo-dye); }
-.text-lapis-lazuli { color: var(--lapis-lazuli); }
-.text-vivid-sky-blue { color: var(--vivid-sky-blue); }
-.text-mustard { color: var(--mustard); }
-.text-princeton-orange { color: var(--princeton-orange); }
-
-.bg-indigo-dye { background-color: var(--indigo-dye); }
-.bg-lapis-lazuli { background-color: var(--lapis-lazuli); }
-.bg-vivid-sky-blue { background-color: var(--vivid-sky-blue); }
-.bg-mustard { background-color: var(--mustard); }
-.bg-princeton-orange { background-color: var(--princeton-orange); }
-
-.border-indigo-dye { border-color: var(--indigo-dye); }
-.border-lapis-lazuli { border-color: var(--lapis-lazuli); }
-.border-vivid-sky-blue { border-color: var(--vivid-sky-blue); }
-.border-mustard { border-color: var(--mustard); }
-.border-princeton-orange { border-color: var(--princeton-orange); }
-
-.hover\:text-indigo-dye:hover { color: var(--indigo-dye); }
-.hover\:text-lapis-lazuli:hover { color: var(--lapis-lazuli); }
-.hover\:text-vivid-sky-blue:hover { color: var(--vivid-sky-blue); }
-.hover\:text-mustard:hover { color: var(--mustard); }
-.hover\:text-princeton-orange:hover { color: var(--princeton-orange); }
-
-.hover\:bg-indigo-dye:hover { background-color: var(--indigo-dye); }
-.hover\:bg-lapis-lazuli:hover { background-color: var(--lapis-lazuli); }
-.hover\:bg-vivid-sky-blue:hover { background-color: var(--vivid-sky-blue); }
-.hover\:bg-mustard:hover { background-color: var(--mustard); }
-.hover\:bg-princeton-orange:hover { background-color: var(--princeton-orange); }
-
-/* Enhanced button styles using new palette */
-.btn-primary {
-  @apply relative overflow-hidden bg-gradient-to-r from-indigo-dye to-vivid-sky-blue text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl;
-  background-size: 200% 200%;
-  animation: gradient-shift 4s ease infinite;
-}
-
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-}
-
-.btn-primary:hover::before {
-  left: 100%;
-}
-
-.btn-primary:active {
-  transform: scale(0.98);
-}
-
-.btn-primary .group-hover\:translate-x-2 {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.btn-secondary {
-  @apply relative bg-white text-gray-700 font-semibold rounded-xl border-2 border-gray-200 transition-all duration-300 hover:border-lapis-lazuli hover:bg-vivid-sky-blue/10 hover:text-indigo-dye hover:shadow-lg;
-}
-
-/* Glass morphism effect */
-.glass {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* Enhanced shadows using new palette */
-.shadow-glow {
-  box-shadow: 0 0 30px rgba(9, 64, 116, 0.3);
-}
-
-.shadow-glow-accent {
-  box-shadow: 0 0 30px rgba(90, 219, 255, 0.3);
-}
-
-/* Monaco Editor Line Highlighting */
-.highlighted-code-line {
-  background-color: rgba(255, 221, 74, 0.2) !important; /* mustard with opacity */
-  border-left: 3px solid var(--mustard) !important;
-}
-
-.highlighted-code-line-glyph {
-  background-color: var(--mustard) !important;
-  width: 4px !important;
-}
-
-/* Ensure proper white-space and font for code editor */
-.prism-code-editor-pre,
-.prism-code-editor-pre code {
-  white-space: pre !important;
-  word-wrap: normal !important;
-  font-family: '"Fira code", "Fira Mono", monospace' !important;
-  font-size: 14px !important;
-}
-
-.token.comment {
-  color: #888; /* Darker gray for comments */
+  .btn-secondary {
+    @apply relative bg-white text-gray-700 font-semibold rounded-xl border-2 border-gray-200 transition-all duration-300 hover:border-lapis-lazuli hover:bg-vivid-sky-blue/10 hover:text-indigo-dye hover:shadow-lg;
+  }
 }
