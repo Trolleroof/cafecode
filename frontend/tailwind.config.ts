@@ -67,11 +67,11 @@ const config: Config = {
           '5': 'hsl(var(--chart-5))',
         },
         // Coffee Shop Color Palette
-        'cream-beige': 'var(--cream-beige)',
-        'medium-coffee': 'var(--medium-coffee)',
-        'dark-charcoal': 'var(--dark-charcoal)',
-        'light-cream': 'var(--light-cream)',
-        'deep-espresso': 'var(--deep-espresso)',
+        'cream-beige': 'rgb(var(--cream-beige) / <alpha-value>)',
+        'medium-coffee': 'rgb(var(--medium-coffee) / <alpha-value>)',
+        'dark-charcoal': 'rgb(var(--dark-charcoal) / <alpha-value>)',
+        'light-cream': 'rgb(var(--light-cream) / <alpha-value>)',
+        'deep-espresso': 'rgb(var(--deep-espresso) / <alpha-value>)',
       },
       keyframes: {
         'accordion-down': {

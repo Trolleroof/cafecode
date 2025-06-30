@@ -10,11 +10,11 @@
   --background-end-rgb: 228, 207, 171;
 
   /* Coffee Shop Color Palette */
-  --cream-beige: #E4CFAB;
-  --medium-coffee: #A36A3E;
-  --dark-charcoal: #1C1C1C;
-  --light-cream: #F3E4D4;
-  --deep-espresso: #814D33;
+  --cream-beige: 228 207 171;
+  --medium-coffee: 163 106 62;
+  --dark-charcoal: 28 28 28;
+  --light-cream: 243 228 212;
+  --deep-espresso: 129 77 51;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -219,59 +219,67 @@
   }
 
   /* Coffee Shop Color Utilities */
-  .text-cream-beige { color: var(--cream-beige); }
-  .text-medium-coffee { color: var(--medium-coffee); }
-  .text-dark-charcoal { color: var(--dark-charcoal); }
-  .text-light-cream { color: var(--light-cream); }
-  .text-deep-espresso { color: var(--deep-espresso); }
+  .text-cream-beige { color: rgb(var(--cream-beige)); }
+  .text-medium-coffee { color: rgb(var(--medium-coffee)); }
+  .text-dark-charcoal { color: rgb(var(--dark-charcoal)); }
+  .text-light-cream { color: rgb(var(--light-cream)); }
+  .text-deep-espresso { color: rgb(var(--deep-espresso)); }
 
-  .bg-cream-beige { background-color: var(--cream-beige); }
-  .bg-medium-coffee { background-color: var(--medium-coffee); }
-  .bg-dark-charcoal { background-color: var(--dark-charcoal); }
-  .bg-light-cream { background-color: var(--light-cream); }
-  .bg-deep-espresso { background-color: var(--deep-espresso); }
+  .bg-cream-beige { background-color: rgb(var(--cream-beige)); }
+  .bg-medium-coffee { background-color: rgb(var(--medium-coffee)); }
+  .bg-dark-charcoal { background-color: rgb(var(--dark-charcoal)); }
+  .bg-light-cream { background-color: rgb(var(--light-cream)); }
+  .bg-deep-espresso { background-color: rgb(var(--deep-espresso)); }
 
-  .border-cream-beige { border-color: var(--cream-beige); }
-  .border-medium-coffee { border-color: var(--medium-coffee); }
-  .border-dark-charcoal { border-color: var(--dark-charcoal); }
-  .border-light-cream { border-color: var(--light-cream); }
-  .border-deep-espresso { border-color: var(--deep-espresso); }
+  .border-cream-beige { border-color: rgb(var(--cream-beige)); }
+  .border-medium-coffee { border-color: rgb(var(--medium-coffee)); }
+  .border-dark-charcoal { border-color: rgb(var(--dark-charcoal)); }
+  .border-light-cream { border-color: rgb(var(--light-cream)); }
+  .border-deep-espresso { border-color: rgb(var(--deep-espresso)); }
 
-  .hover\:text-cream-beige:hover { color: var(--cream-beige); }
-  .hover\:text-medium-coffee:hover { color: var(--medium-coffee); }
-  .hover\:text-dark-charcoal:hover { color: var(--dark-charcoal); }
-  .hover\:text-light-cream:hover { color: var(--light-cream); }
-  .hover\:text-deep-espresso:hover { color: var(--deep-espresso); }
+  .hover\:text-cream-beige:hover { color: rgb(var(--cream-beige)); }
+  .hover\:text-medium-coffee:hover { color: rgb(var(--medium-coffee)); }
+  .hover\:text-dark-charcoal:hover { color: rgb(var(--dark-charcoal)); }
+  .hover\:text-light-cream:hover { color: rgb(var(--light-cream)); }
+  .hover\:text-deep-espresso:hover { color: rgb(var(--deep-espresso)); }
 
-  .hover\:bg-cream-beige:hover { background-color: var(--cream-beige); }
-  .hover\:bg-medium-coffee:hover { background-color: var(--medium-coffee); }
-  .hover\:bg-dark-charcoal:hover { background-color: var(--dark-charcoal); }
-  .hover\:bg-light-cream:hover { background-color: var(--light-cream); }
-  .hover\:bg-deep-espresso:hover { background-color: var(--deep-espresso); }
+  .hover\:bg-cream-beige:hover { background-color: rgb(var(--cream-beige)); }
+  .hover\:bg-medium-coffee:hover { background-color: rgb(var(--medium-coffee)); }
+  .hover\:bg-dark-charcoal:hover { background-color: rgb(var(--dark-charcoal)); }
+  .hover\:bg-light-cream:hover { background-color: rgb(var(--light-cream)); }
+  .hover\:bg-deep-espresso:hover { background-color: rgb(var(--deep-espresso)); }
 
   /* Coffee Shop Gradient Utilities */
-  .from-cream-beige { --tw-gradient-from: var(--cream-beige) var(--tw-gradient-from-position); --tw-gradient-to: rgb(228 207 171 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-  .from-medium-coffee { --tw-gradient-from: var(--medium-coffee) var(--tw-gradient-from-position); --tw-gradient-to: rgb(163 106 62 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-  .from-dark-charcoal { --tw-gradient-from: var(--dark-charcoal) var(--tw-gradient-from-position); --tw-gradient-to: rgb(28 28 28 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-  .from-light-cream { --tw-gradient-from: var(--light-cream) var(--tw-gradient-from-position); --tw-gradient-to: rgb(243 228 212 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-  .from-deep-espresso { --tw-gradient-from: var(--deep-espresso) var(--tw-gradient-from-position); --tw-gradient-to: rgb(129 77 51 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-cream-beige { --tw-gradient-from: rgb(var(--cream-beige)) var(--tw-gradient-from-position); --tw-gradient-to: rgb(var(--cream-beige) / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-medium-coffee { --tw-gradient-from: rgb(var(--medium-coffee)) var(--tw-gradient-from-position); --tw-gradient-to: rgb(var(--medium-coffee) / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-dark-charcoal { --tw-gradient-from: rgb(var(--dark-charcoal)) var(--tw-gradient-from-position); --tw-gradient-to: rgb(var(--dark-charcoal) / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-light-cream { --tw-gradient-from: rgb(var(--light-cream)) var(--tw-gradient-from-position); --tw-gradient-to: rgb(var(--light-cream) / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-deep-espresso { --tw-gradient-from: rgb(var(--deep-espresso)) var(--tw-gradient-from-position); --tw-gradient-to: rgb(var(--deep-espresso) / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
 
-  .to-cream-beige { --tw-gradient-to: var(--cream-beige) var(--tw-gradient-to-position); }
-  .to-medium-coffee { --tw-gradient-to: var(--medium-coffee) var(--tw-gradient-to-position); }
-  .to-dark-charcoal { --tw-gradient-to: var(--dark-charcoal) var(--tw-gradient-to-position); }
-  .to-light-cream { --tw-gradient-to: var(--light-cream) var(--tw-gradient-to-position); }
-  .to-deep-espresso { --tw-gradient-to: var(--deep-espresso) var(--tw-gradient-to-position); }
+  .to-cream-beige { --tw-gradient-to: rgb(var(--cream-beige)) var(--tw-gradient-to-position); }
+  .to-medium-coffee { --tw-gradient-to: rgb(var(--medium-coffee)) var(--tw-gradient-to-position); }
+  .to-dark-charcoal { --tw-gradient-to: rgb(var(--dark-charcoal)) var(--tw-gradient-to-position); }
+  .to-light-cream { --tw-gradient-to: rgb(var(--light-cream)) var(--tw-gradient-to-position); }
+  .to-deep-espresso { --tw-gradient-to: rgb(var(--deep-espresso)) var(--tw-gradient-to-position); }
 
   /* Background with opacity utilities */
-  .bg-medium-coffee\/10 { background-color: rgb(163 106 62 / 0.1); }
-  .bg-medium-coffee\/20 { background-color: rgb(163 106 62 / 0.2); }
-  .bg-medium-coffee\/30 { background-color: rgb(163 106 62 / 0.3); }
-  .bg-deep-espresso\/10 { background-color: rgb(129 77 51 / 0.1); }
-  .bg-deep-espresso\/20 { background-color: rgb(129 77 51 / 0.2); }
-  .bg-deep-espresso\/30 { background-color: rgb(129 77 51 / 0.3); }
-  .bg-cream-beige\/10 { background-color: rgb(228 207 171 / 0.1); }
-  .bg-cream-beige\/20 { background-color: rgb(228 207 171 / 0.2); }
-  .bg-cream-beige\/30 { background-color: rgb(228 207 171 / 0.3); }
+  .bg-medium-coffee\/10 { background-color: rgb(var(--medium-coffee) / 0.1); }
+  .bg-medium-coffee\/20 { background-color: rgb(var(--medium-coffee) / 0.2); }
+  .bg-medium-coffee\/30 { background-color: rgb(var(--medium-coffee) / 0.3); }
+  .bg-deep-espresso\/10 { background-color: rgb(var(--deep-espresso) / 0.1); }
+  .bg-deep-espresso\/20 { background-color: rgb(var(--deep-espresso) / 0.2); }
+  .bg-deep-espresso\/30 { background-color: rgb(var(--deep-espresso) / 0.3); }
+  .bg-deep-espresso\/50 { background-color: rgb(var(--deep-espresso) / 0.5); }
+  .bg-deep-espresso\/95 { background-color: rgb(var(--deep-espresso) / 0.95); }
+  .bg-cream-beige\/10 { background-color: rgb(var(--cream-beige) / 0.1); }
+  .bg-cream-beige\/20 { background-color: rgb(var(--cream-beige) / 0.2); }
+  .bg-cream-beige\/30 { background-color: rgb(var(--cream-beige) / 0.3); }
+  .bg-cream-beige\/80 { background-color: rgb(var(--cream-beige) / 0.8); }
+
+  /* Border with opacity utilities */
+  .border-medium-coffee\/20 { border-color: rgb(var(--medium-coffee) / 0.2); }
+  .border-medium-coffee\/30 { border-color: rgb(var(--medium-coffee) / 0.3); }
+  .border-medium-coffee\/50 { border-color: rgb(var(--medium-coffee) / 0.5); }
 
   /* Coffee Shop Glass Effect */
   .coffee-glass {
@@ -292,11 +300,11 @@
   /* Monaco Editor Line Highlighting */
   .highlighted-code-line {
     background-color: rgba(163, 106, 62, 0.2) !important;
-    border-left: 3px solid var(--medium-coffee) !important;
+    border-left: 3px solid rgb(var(--medium-coffee)) !important;
   }
 
   .highlighted-code-line-glyph {
-    background-color: var(--medium-coffee) !important;
+    background-color: rgb(var(--medium-coffee)) !important;
     width: 4px !important;
   }
 }
@@ -334,11 +342,15 @@
 
   /* Coffee Shop Card Styles */
   .coffee-card {
-    @apply bg-cream-beige/80 backdrop-blur-sm rounded-3xl border border-medium-coffee/20 shadow-xl hover:shadow-coffee transition-all duration-500 transform hover:-translate-y-3 hover:scale-105;
+    @apply backdrop-blur-sm rounded-3xl shadow-xl hover:shadow-coffee transition-all duration-500 transform hover:-translate-y-3 hover:scale-105;
+    background-color: rgb(var(--cream-beige) / 0.8);
+    border: 1px solid rgb(var(--medium-coffee) / 0.2);
   }
 
   /* Coffee Shop Navigation */
   .coffee-nav {
-    @apply bg-deep-espresso/95 backdrop-blur-md border-b border-medium-coffee/50;
+    background-color: rgb(var(--deep-espresso) / 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgb(var(--medium-coffee) / 0.5);
   }
 }
