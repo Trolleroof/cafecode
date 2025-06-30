@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter()
 
-  // Note: Authentication logic has been removed
+  // N
   // This component now renders children without protection
 
   return <>{children}</>
