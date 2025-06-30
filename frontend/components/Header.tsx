@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { NucleoHamburger, NucleoX, NucleoCode } from '@nucleoapp/react-icons';
+import { Menu, X, Code } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const Header = () => {
@@ -28,7 +28,7 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => router.push('/')}>
             <div className="bg-gradient-to-r from-[#094074] to-[#5adbff] p-2.5 lg:p-3 rounded-xl shadow-lg">
-              <NucleoCode className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
+              <Code className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
             </div>
             <span className="text-xl lg:text-2xl font-bold text-gray-900 hidden sm:block">
               HelloWurld
@@ -92,9 +92,9 @@ const Header = () => {
               aria-label="Toggle menu"
             >
               {isMenuOpen ? (
-                <NucleoX className="h-6 w-6 text-gray-700" />
+                <X className="h-6 w-6 text-gray-700" />
               ) : (
-                <NucleoHamburger className="h-6 w-6 text-gray-700" />
+                <Menu className="h-6 w-6 text-gray-700" />
               )}
             </button>
           </div>
