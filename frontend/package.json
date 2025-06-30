@@ -61,6 +61,7 @@
     "next": "13.5.1",
     "next-themes": "^0.3.0",
     "node-fetch": "^3.3.2",
+    "phosphor-react": "^1.4.1",
     "postcss": "8.4.30",
     "prismjs": "^1.30.0",
     "pyodide": "^0.25.0",
