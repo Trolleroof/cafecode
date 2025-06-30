@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Menu, X, Code2, Play, ArrowRight, Sparkles, Github, Twitter, Lightbulb, MessageSquare, Edit3, MessageCircle, CheckCircle, Star, Quote, Zap, Shield, Users, BookOpen, Check, Target, TrendingUp, Award, User } from 'lucide-react';
+import { Menu, X, Code2, Play, ArrowRight, Sparkles, Github, Twitter, Lightbulb, MessageSquare, Edit3, MessageCircle, CheckCircle, Star, Quote, Zap, Shield, Users, BookOpen, Check, Target, TrendingUp, Award, User, Brain, Rocket, Heart, Palette, Coffee, Gamepad2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Header from '@/components/Header';
@@ -168,7 +168,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                icon: MessageSquare,
+                icon: Brain,
                 title: 'AI-Powered Chat Assistant',
                 description: 'Get instant help and contextual hints while you code. Our AI understands your learning journey and provides personalized guidance.',
                 color: 'from-[#094074] to-[#5adbff]',
@@ -182,28 +182,28 @@ export default function Home() {
                 gradient: 'from-yellow-50 to-orange-50'
               },
               {
-                icon: Lightbulb,
+                icon: Rocket,
                 title: 'Interactive Learning',
                 description: 'Write single-file programs and see results instantly. Perfect for beginners who want to focus on core concepts.',
                 color: 'from-[#3c6997] to-[#5adbff]',
                 gradient: 'from-purple-50 to-pink-50'
               },
               {
-                icon: BookOpen,
+                icon: Heart,
                 title: 'Beginner-Friendly Interface',
                 description: 'Clean, distraction-free environment designed specifically for self-taught developers and bootcamp students.',
                 color: 'from-[#5adbff] to-[#ffdd4a]',
                 gradient: 'from-green-50 to-teal-50'
               },
               {
-                icon: Users,
+                icon: Coffee,
                 title: 'Community Support',
                 description: 'Connect with other learners, share your progress, and get help from experienced developers in our community.',
                 color: 'from-[#094074] to-[#3c6997]',
                 gradient: 'from-indigo-50 to-purple-50'
               },
               {
-                icon: Shield,
+                icon: Gamepad2,
                 title: 'Safe Learning Environment',
                 description: 'Practice coding without fear of breaking anything. Our sandboxed environment lets you experiment freely.',
                 color: 'from-[#ff960d] to-[#ffdd4a]',
