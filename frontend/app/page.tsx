@@ -97,13 +97,26 @@ export default function Home() {
           </div>
           {/* Right: Hero Image */}
           <div className="flex-1 flex justify-center items-center w-full max-w-xl">
-            <Image
-              src="../public/images/demo.png"
-              alt="demo screen"
-              width={600}
-              height={500}
-              className="rounded-3xl shadow-2xl object-cover w-full h-[300px] md:h-[400px] lg:h-[450px]"
-            />
+            <div className="relative group">
+              <Image
+                src="/images/971e8cd232d73c3d92f0124a1092b6ce05bf3ac7dad2b8d7c318d71a41e5cbd1.png"
+                alt="Cafécode IDE Interface - Code editor with AI assistant and guided project features"
+                width={700}
+                height={500}
+                className="rounded-3xl shadow-2xl object-cover w-full h-[300px] md:h-[400px] lg:h-[450px] group-hover:scale-105 transition-transform duration-500"
+                priority
+              />
+              {/* Coffee-themed overlay effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-medium-coffee/10 to-deep-espresso/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              
+              {/* Floating feature badges */}
+              <div className="absolute -top-4 -left-4 bg-medium-coffee text-light-cream px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-float">
+                ☕ AI Assistant
+              </div>
+              <div className="absolute -bottom-4 -right-4 bg-deep-espresso text-light-cream px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-float" style={{ animationDelay: '1s' }}>
+                🚀 Guided Projects
+              </div>
+            </div>
           </div>
         </div>
       </section>
