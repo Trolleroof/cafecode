@@ -9,9 +9,6 @@ import Footer from '@/components/Footer';
 
 export default function Home() {
   const router = useRouter();
-  const { user, loading } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authTab, setAuthTab] = useState<'signin' | 'signup'>('signin');
 
   // Check for auth parameter in URL
   useEffect(() => {
