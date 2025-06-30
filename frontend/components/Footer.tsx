@@ -1,5 +1,5 @@
 import React from 'react';
-import { Code2, Github, Twitter, Linkedin, Mail } from 'lucide-react';
+import { NucleoCode, NucleoGithub, NucleoTwitter, NucleoLinkedin, NucleoMail } from '@nucleoapp/react-icons';
 
 const Footer = () => {
   return (
@@ -10,7 +10,7 @@ const Footer = () => {
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center space-x-2 mb-6">
               <div className="bg-gradient-to-r from-[#094074] to-[#5adbff] p-2 rounded-lg">
-                <Code2 className="h-6 w-6 text-white" />
+                <NucleoCode className="h-6 w-6 text-white" />
               </div>
               <span className="text-xl font-bold">CodeCraft IDE</span>
             </div>
@@ -20,16 +20,16 @@ const Footer = () => {
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-[#5adbff] transition-colors">
-                <Github className="h-6 w-6" />
+                <NucleoGithub className="h-6 w-6" />
               </a>
               <a href="#" className="text-gray-400 hover:text-[#5adbff] transition-colors">
-                <Twitter className="h-6 w-6" />
+                <NucleoTwitter className="h-6 w-6" />
               </a>
               <a href="#" className="text-gray-400 hover:text-[#5adbff] transition-colors">
-                <Linkedin className="h-6 w-6" />
+                <NucleoLinkedin className="h-6 w-6" />
               </a>
               <a href="#" className="text-gray-400 hover:text-[#5adbff] transition-colors">
-                <Mail className="h-6 w-6" />
+                <NucleoMail className="h-6 w-6" />
               </a>
             </div>
           </div>

@@ -2,19 +2,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Play, 
-  MessageSquare, 
-  Send, 
-  Lightbulb, 
-  RotateCcw, 
-  CheckCircle, 
-  Code2,
-  Loader2,
-  ArrowLeft,
-  Sparkles,
-  Target,
-  Trophy
-} from 'lucide-react';
+  NucleoPlay, 
+  NucleoChat, 
+  NucleoSend, 
+  NucleoBulb, 
+  NucleoRefresh, 
+  NucleoCheck, 
+  NucleoCode,
+  NucleoLoader,
+  NucleoArrowLeft,
+  NucleoMagic,
+  NucleoTarget,
+  NucleoTrophy
+} from '@nucleoapp/react-icons';
 import { useRouter } from 'next/navigation';
 import MonacoEditor from '@/components/MonacoEditor';
 import { Button } from '@/components/ui/button';
@@ -510,7 +510,7 @@ export default function LeetCodePage() {
       {isLoading && !currentProblem && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#094074]/80">
           <div className="flex flex-col items-center">
-            <Loader2 className="h-12 w-12 text-[#ffdd4a] animate-spin mb-4" />
+            <NucleoLoader className="h-12 w-12 text-[#ffdd4a] animate-spin mb-4" />
             <span className="text-[#ffdd4a] text-lg font-semibold">Loading problem...</span>
           </div>
         </div>
@@ -524,12 +524,12 @@ export default function LeetCodePage() {
             size="sm"
             className="text-[#5adbff] hover:bg-[#3c6997] hover:text-[#ffdd4a]"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <NucleoArrowLeft className="h-4 w-4 mr-2" />
             Back to Home
           </Button>
           <div className="flex items-center space-x-3">
             <div className="bg-gradient-to-r from-[#5adbff] to-[#ffdd4a] p-2 rounded-lg">
-              <Target className="h-6 w-6 text-[#094074]" />
+              <NucleoTarget className="h-6 w-6 text-[#094074]" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-[#5adbff]">LeetCode Practice</h1>
@@ -541,7 +541,7 @@ export default function LeetCodePage() {
                 className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] font-semibold shadow-lg transition-all duration-300 transform hover:scale-105 ml-4"
                 disabled={isLoading}
               >
-                <Sparkles className="mr-2 h-4 w-4" />
+                <NucleoMagic className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Solve LeetCode Problem</span>
                 <span className="sm:hidden">LeetCode</span>
               </Button>
@@ -557,7 +557,7 @@ export default function LeetCodePage() {
                 disabled={isLoading}
                 className="bg-[#ffdd4a] text-[#094074] hover:bg-[#ff960d] hover:text-white font-semibold"
               >
-                <Sparkles className="h-4 w-4 mr-2" />
+                <NucleoMagic className="h-4 w-4 mr-2" />
                 Similar Problem
               </Button>
               <Button
@@ -565,7 +565,7 @@ export default function LeetCodePage() {
                 variant="outline"
                 className="border-[#5adbff] text-[#5adbff] hover:bg-[#5adbff] hover:text-[#094074]"
               >
-                <RotateCcw className="h-4 w-4 mr-2" />
+                <NucleoRefresh className="h-4 w-4 mr-2" />
                 New Problem
               </Button>
             </>
@@ -592,7 +592,7 @@ export default function LeetCodePage() {
               {/* Steps */}
               <div className="flex-1 p-6 overflow-y-auto">
                 <h3 className="text-lg font-semibold text-[#ffdd4a] mb-4 flex items-center">
-                  <Trophy className="h-5 w-5 mr-2" />
+                  <NucleoTrophy className="h-5 w-5 mr-2" />
                   Solution Steps
                 </h3>
                 <div className="space-y-3">
@@ -620,7 +620,7 @@ export default function LeetCodePage() {
                                 ? 'bg-[#ffdd4a] text-[#094074]'
                                 : 'bg-[#3c6997] text-[#5adbff]'
                             }`}>
-                              {isCompleted ? <CheckCircle className="h-4 w-4" /> : index + 1}
+                              {isCompleted ? <NucleoCheck className="h-4 w-4" /> : index + 1}
                             </div>
                             <div className="flex-1">
                               <p className={`text-sm leading-relaxed ${
@@ -637,9 +637,9 @@ export default function LeetCodePage() {
                                     className="bg-[#5adbff] text-[#094074] hover:bg-[#ffdd4a] hover:text-[#094074] font-semibold"
                                   >
                                     {isCheckingStep ? (
-                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      <NucleoLoader className="h-4 w-4 mr-2 animate-spin" />
                                     ) : (
-                                      <CheckCircle className="h-4 w-4 mr-2" />
+                                      <NucleoCheck className="h-4 w-4 mr-2" />
                                     )}
                                     {isCheckingStep ? 'Checking...' : isAutoProgressing ? 'Progressing...' : 'Check Step'}
                                   </Button>
@@ -663,7 +663,7 @@ export default function LeetCodePage() {
           ) : (
             <div className="flex-1 flex items-center justify-center p-6">
               <div className="text-center">
-                <Code2 className="h-16 w-16 text-[#5adbff]/50 mx-auto mb-4" />
+                <NucleoCode className="h-16 w-16 text-[#5adbff]/50 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-[#5adbff] mb-2">Ready to Practice?</h3>
                 <p className="text-[#5adbff]/70 text-sm">
                   Describe a coding problem in the chat to get started with step-by-step guidance.
@@ -697,9 +697,9 @@ export default function LeetCodePage() {
               className="bg-[#5adbff] text-[#094074] hover:bg-[#ffdd4a] hover:text-[#094074] font-semibold px-4 py-2 rounded shadow disabled:opacity-50"
             >
               {isRunning ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <NucleoLoader className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <Play className="h-4 w-4 mr-2" />
+                <NucleoPlay className="h-4 w-4 mr-2" />
               )}
               {isRunning ? 'Running...' : 'Run'}
             </Button>
@@ -737,7 +737,7 @@ export default function LeetCodePage() {
           <div className="bg-[#094074] border-b border-[#3c6997] px-4 py-3">
             <div className="flex items-center space-x-3">
               <div className="bg-gradient-to-r from-[#5adbff] to-[#ffdd4a] p-2 rounded-lg">
-                <MessageSquare className="h-5 w-5 text-[#094074]" />
+                <NucleoChat className="h-5 w-5 text-[#094074]" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-[#5adbff]">AI Assistant</h3>
@@ -797,9 +797,9 @@ export default function LeetCodePage() {
                 className="bg-[#5adbff] text-[#094074] hover:bg-[#ffdd4a] hover:text-[#094074] px-3"
               >
                 {isLoading ? (
-                  <Loader2 className="h-4 animate-spin" />
+                  <NucleoLoader className="h-4 animate-spin" />
                 ) : (
-                  <Send className="h-4 w-4" />
+                  <NucleoSend className="h-4 w-4" />
                 )}
               </Button>
             </div>
