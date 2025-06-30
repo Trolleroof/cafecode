@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Menu, X, Code2, User, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   onSignUpClick?: () => void;
