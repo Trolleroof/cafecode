@@ -94,6 +94,10 @@ Project: ${projectDescription}
 ${projectContext}
 
 IMPORTANT GUIDELINES:
+- The IDE is web-based. The user cannot run terminal or shell commands, install packages, or use a real OS shell. Only code editing, file management, and code execution for supported languages are supported.
+- There is no terminal or command prompt in this IDE. Do NOT instruct the user to open a terminal or run shell/command-line commands. To run code, tell the user to press the green Run button in the IDE.
+- Do NOT include steps that require a terminal, command prompt, or shell access.
+- Make sure all instructions are actionable within the web-based IDE environment.
 - ALWAYS start with step 1: "Create a folder called 'project-name' for your project" (this is a folder-only step)
 - Step 2 should be about creating the main file (index.html for web projects, main.py for Python, etc.)
 - Break down the steps into the smallest possible parts, assuming the user is a complete beginner
@@ -253,7 +257,7 @@ ${code}
 Your task is to analyze this code and determine if it correctly implements the step instruction. Be SUPPORTIVE and UNDERSTANDING in your assessment.
 
 CRITICAL RULES:
-1. NEVER mention file creation - that's handled by the IDE
+1. NEVER mention file creation - that's handled by the IDE. 
 2. Focus on CODE STRUCTURE and SYNTAX, not exact content or wording
 3. If the step asks for a specific HTML element, check if that element type exists (e.g., if asking for a paragraph, check for <p> tags)
 4. If the step asks for CSS styling, check if CSS rules are present and properly formatted
@@ -263,6 +267,7 @@ CRITICAL RULES:
 8. If the required structure/elements are present, mark as correct even if there's additional content
 9. Be encouraging and supportive - this is for beginners
 10. Consider that the user might have already implemented the requirement in a previous step
+11. DO NOT ASK THE USER TO RUN ANY COMMANDS IN THE TERMINAL, THERE IS NO TERMINAL
 
 EXAMPLES OF FLEXIBLE ANALYSIS:
 - If step says "Add a paragraph about yourself", check for <p> tags with content (any content is fine)
@@ -542,6 +547,33 @@ router.post("/simple-chat", async (req, res) => {
   } catch (error) {
     console.error("Error processing simple chat:", error);
     res.status(500).json({ error: "Failed to process chat" });
+  }
+});
+
+// Recap route: summarize what the user learned as bullet points
+router.post("/recap", async (req, res) => {
+  try {
+    const { projectFiles, chatHistory, guidedProject, ideCapabilities } = req.body;
+    const projectContext = createProjectContext(projectFiles);
+    const chatContext = Array.isArray(chatHistory)
+      ? chatHistory.map(msg => `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n')
+      : '';
+    const stepsContext = guidedProject && guidedProject.steps
+      ? guidedProject.steps.map((s, i) => `Step ${i + 1}: ${s.instruction}`).join('\n')
+      : '';
+    const capabilities = ideCapabilities || 'The IDE is web-based. It cannot run terminal or shell commands, install packages, or use a real OS shell. Only code editing, file management, and code execution for supported languages are supported.';
+
+    const prompt = `You are a helpful coding mentor. Summarize what the user learned in this guided project as a concise list of bullet points in markdown (use - or * for each point).\n\nProject context:\n${projectContext}\n\nGuided steps:\n${stepsContext}\n\nChat history:\n${chatContext}\n\nIMPORTANT: ${capabilities}\n\nDo NOT mention anything about using a terminal, shell, or command prompt. Only include things the user could have learned in this web-based IDE.\n\nFormat your response as a markdown bullet list. Be specific, positive, and beginner-friendly.`;
+
+    const result = await req.geminiService.model.generateContent(prompt);
+    const responseText = (await result.response).text();
+    // Try to extract just the bullet list from markdown
+    const bulletListMatch = responseText.match(/([-*] .+\n?)+/g);
+    const recap = bulletListMatch ? bulletListMatch[0].trim() : responseText.trim();
+    res.json({ recap });
+  } catch (error) {
+    console.error("Error generating recap:", error);
+    res.status(500).json({ error: "Failed to generate recap" });
   }
 });
 

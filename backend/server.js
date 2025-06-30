@@ -17,6 +17,7 @@ import translateRoutes from './routes/translate.js';
 import hintRoutes from './routes/hint.js';
 import guidedRoutes from './routes/guided.js';
 import leetcodeRoutes from './routes/leetcode.js';
+import tavusRoutes from './routes/tavus.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -107,6 +108,7 @@ app.use('/api/translate', translateRoutes);
 app.use('/api/hint', hintRoutes);
 app.use('/api/guided', guidedRoutes);
 app.use('/api/leetcode', leetcodeRoutes);
+app.use('/api/tavus', tavusRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -123,7 +125,8 @@ app.get('/', (req, res) => {
       fix: '/api/code/fix',
       docs: '/api/code/docs',
       guided: '/api/guided',
-      leetcode: '/api/leetcode'
+      leetcode: '/api/leetcode',
+      tavus: '/api/tavus'
     }
   });
 });

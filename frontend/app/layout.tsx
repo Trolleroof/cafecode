@@ -5,7 +5,7 @@ import '@fontsource/sora';
 import '@fontsource/jetbrains-mono';
 
 export const metadata: Metadata = {
-  title: 'CodeCraft IDE - Learn to Code with Confidence',
+  title: 'Cafécode',
   description: 'A beginner-friendly online IDE designed for self-taught developers and bootcamp students. Write code, get instant help, and learn by doing.',
 }
 

@@ -87,7 +87,7 @@ export default function LeetCodePage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     {
       type: 'assistant',
-      content: 'Welcome to CafeCode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
+      content: 'Welcome to Cafécode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
       timestamp: new Date().toISOString()
     }
   ]);
@@ -371,7 +371,7 @@ export default function LeetCodePage() {
     setChatHistory([
       {
         type: 'assistant',
-        content: 'Welcome to CafeCode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
+        content: 'Welcome to Cafécode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
         timestamp: new Date().toISOString()
       }
     ]);
@@ -533,8 +533,7 @@ export default function LeetCodePage() {
                <TrophyIcon className="h-5 w-5 text-light-cream" />
              </div>
             <div>
-              <h1 className="text-xl font-bold text-deep-espresso">CafeCode Practice</h1>
-              <p className="text-sm text-dark-charcoal/70">Master coding interviews step by step</p>
+              <h1 className="text-xl font-bold text-deep-espresso">Cafécode Practice</h1>
             </div>
             {!currentProblem && (
               <Button
@@ -628,7 +627,7 @@ export default function LeetCodePage() {
                             </div>
                             <div className="flex-1">
                               <p className={`text-sm leading-relaxed ${
-                                isCurrent ? 'text-medium-coffee' : isCompleted ? 'text-green-500' : 'text-dark-charcoal/80'
+                                isCurrent ? 'text-[#ffdd4a]' : isCompleted ? 'text-gray-300' : 'text-[#5adbff]/80'
                               }`}>
                                 {step.instruction}
                               </p>

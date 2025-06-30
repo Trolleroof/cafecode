@@ -340,6 +340,11 @@
     @apply relative bg-light-cream text-dark-charcoal font-semibold rounded-xl border-2 border-medium-coffee transition-all duration-300 hover:border-deep-espresso hover:bg-cream-beige hover:text-deep-espresso hover:shadow-lg;
   }
 
+  .btn-coffee-secondary:hover {
+    background-color: rgb(var(--cream-beige)) !important;
+    color: rgb(var(--deep-espresso)) !important;
+  }
+
   /* Coffee Shop Card Styles */
   .coffee-card {
     @apply backdrop-blur-sm rounded-3xl shadow-xl hover:shadow-coffee transition-all duration-500 transform hover:-translate-y-3 hover:scale-105;

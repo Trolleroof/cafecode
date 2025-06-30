@@ -49,72 +49,61 @@ export default function Home() {
         <div className="absolute bottom-1/3 left-20 w-20 h-20 bg-gradient-to-br from-medium-coffee to-cream-beige rounded-full opacity-10 animate-bean-bounce blur-xl" style={{ animationDelay: '4s' }}></div>
         <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-gradient-to-br from-deep-espresso to-medium-coffee rounded-full opacity-10 animate-float" style={{ animationDelay: '1s' }}></div>
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto text-center flex flex-col items-center px-4">
-          {/* Coffee Shop Badge */}
-          <div className="inline-flex items-center space-x-3 coffee-glass rounded-full px-8 py-4 mb-8 shadow-xl border border-medium-coffee/20">
-            <div className="w-2 h-2 bg-medium-coffee rounded-full animate-pulse"></div>
-            <SparklesIcon className="h-5 w-5 text-deep-espresso" />
-            <span className="text-sm font-bold text-dark-charcoal tracking-wide">Brewed for Real Learning</span>
-            <div className="w-2 h-2 bg-medium-coffee rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
-          </div>
-
-          {/* Main heading with coffee theme */}
-          <h1 className="font-heading text-6xl sm:text-7xl lg:text-8xl font-black text-dark-charcoal mb-6 leading-tight">
-            <span className="block">Brew Your Code</span>
-            <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient">
-              Like a Barista
-            </span>
-          </h1>
-
-          {/* Coffee-themed Subheading */}
-          <p className="text-2xl sm:text-3xl lg:text-4xl text-deep-espresso mb-12 max-w-4xl mx-auto leading-relaxed font-medium">
-            A cozy coding environment where every line of code is crafted with care.
-            <span className="block mt-3 font-bold text-dark-charcoal">Fresh code, perfect blend, endless possibilities.</span>
-          </p>
-
-          {/* Coffee-themed CTA Buttons */}
-          <div className="relative flex flex-col sm:flex-row justify-center gap-6 mb-12">
-            <button 
-              onClick={handleStartCoding}
-              className="group btn-coffee-primary px-12 py-6 text-xl font-bold animate-warm-glow"
-            >
-              <div className="relative flex items-center space-x-4">
-                <PlayIcon className="h-8 w-8 group-hover:scale-110 transition-transform" />
-                <span className="tracking-wide">Start Brewing Code</span>
-                <ArrowRightIcon className="h-8 w-8 group-hover:translate-x-2 transition-transform" />
-              </div>
-            </button>
-            
-            <button 
-              onClick={handleLeetCodePractice}
-              className="group btn-coffee-secondary px-12 py-6 text-xl font-bold"
-            >
-              <div className="flex items-center space-x-4">
-                <CodeBracketIcon className="h-8 w-8 group-hover:scale-110 transition-transform" />
-                <span className="tracking-wide">Practice Algorithms</span>
-                <ArrowRightIcon className="h-8 w-8 group-hover:translate-x-2 transition-transform" />
-              </div>
-            </button>
-          </div>
-
-          {/* Coffee-themed Code preview */}
-          <div className="relative w-full max-w-4xl mx-auto animate-fade-in" style={{ animationDelay: '0.5s' }}>
-            <div className="bg-dark-charcoal rounded-3xl shadow-2xl overflow-hidden border border-medium-coffee">
-              <div className="flex items-center space-x-3 px-8 py-5 bg-deep-espresso/50 backdrop-blur-sm">
-                <div className="w-4 h-4 bg-red-500 rounded-full shadow-sm"></div>
-                <div className="w-4 h-4 bg-yellow-500 rounded-full shadow-sm"></div>
-                <div className="w-4 h-4 bg-green-500 rounded-full shadow-sm"></div>
-                <div className="ml-6 text-cream-beige text-sm font-mono">coffee-calculator.js</div>
-              </div>
-              <div className="p-10 font-mono text-lg leading-relaxed bg-gradient-to-br from-dark-charcoal to-deep-espresso">
-                <div className="text-medium-coffee mb-4">// Brewing the perfect calculation</div>
-                <div className="text-cream-beige mb-2">function <span className="text-medium-coffee">brewCoffee</span>(<span className="text-deep-espresso">beans, water</span>) {'{'}</div>
-                <div className="ml-6 text-green-400 mb-2">return beans.reduce((brew, bean) => brew + bean.strength, 0);</div>
-                <div className="text-cream-beige mb-4">{'}'}</div>
-                <div className="text-medium-coffee mb-2">// Perfect morning blend</div>
-                <div className="text-medium-coffee">console.log(brewCoffee(coffeeBeans)); <span className="text-deep-espresso">// Output: Perfect ☕</span></div>
-              </div>
+        <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center px-4 gap-8 md:gap-12 lg:gap-20">
+          {/* Left: Text Content */}
+          <div className="flex-1 flex flex-col items-start md:items-start text-left max-w-xl">
+            {/* Coffee Shop Badge */}
+            <div className="inline-flex items-center space-x-3 coffee-glass rounded-full px-6 py-3 mb-6 shadow-xl border border-medium-coffee/20">
+              <div className="w-2 h-2 bg-medium-coffee rounded-full animate-pulse"></div>
+              <SparklesIcon className="h-5 w-5 text-deep-espresso" />
+              <span className="text-xs font-bold text-dark-charcoal tracking-wide">Brewed for Real Learning</span>
+              <div className="w-2 h-2 bg-medium-coffee rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
             </div>
+            {/* Main heading with coffee theme */}
+            <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal mb-4 leading-tight">
+              <span className="block">Brew Your Code</span>
+              <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient">
+                Like a Barista
+              </span>
+            </h1>
+            {/* Coffee-themed Subheading */}
+            <p className="text-lg sm:text-xl lg:text-2xl text-deep-espresso mb-8 max-w-2xl leading-relaxed font-medium">
+              A cozy coding environment where every line of code is crafted with care.
+              <span className="block mt-2 font-bold text-dark-charcoal text-base sm:text-lg">Fresh code, perfect blend, endless possibilities.</span>
+            </p>
+            {/* Coffee-themed CTA Buttons */}
+            <div className="relative flex flex-col sm:flex-row gap-4 mb-8">
+              <button 
+                onClick={handleStartCoding}
+                className="group btn-coffee-primary px-8 py-4 text-lg font-bold animate-warm-glow"
+              >
+                <div className="relative flex items-center space-x-3">
+                  <PlayIcon className="h-7 w-7 group-hover:scale-110 transition-transform" />
+                  <span className="tracking-wide">Start Brewing Code</span>
+                  <ArrowRightIcon className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
+                </div>
+              </button>
+              <button 
+                onClick={handleLeetCodePractice}
+                className="group btn-coffee-secondary px-8 py-4 text-lg font-bold"
+              >
+                <div className="flex items-center space-x-3">
+                  <CodeBracketIcon className="h-7 w-7 group-hover:scale-110 transition-transform" />
+                  <span className="tracking-wide">Practice Algorithms</span>
+                  <ArrowRightIcon className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
+                </div>
+              </button>
+            </div>
+          </div>
+          {/* Right: Hero Image */}
+          <div className="flex-1 flex justify-center items-center w-full max-w-xl">
+            <Image
+              src="../public/images/demo.png"
+              alt="demo screen"
+              width={600}
+              height={500}
+              className="rounded-3xl shadow-2xl object-cover w-full h-[300px] md:h-[400px] lg:h-[450px]"
+            />
           </div>
         </div>
       </section>
@@ -132,24 +121,23 @@ export default function Home() {
             </div>
             
             <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-deep-espresso mb-8 leading-tight">
-              Coding Education is
-              <span className="block text-red-800">Over-Roasted</span>
+              Vibecoding is
+              <span className="block text-red-800 pt-2">Over-Roasted</span>
             </h2>
             
             <div className="max-w-5xl mx-auto space-y-6">
               <p className="text-2xl lg:text-3xl text-dark-charcoal leading-relaxed font-medium">
-                Like burnt coffee, modern coding education leaves a bitter taste. 
+                Modern coding education leaves a bitter taste due to high learning curves and costs.
                 <span className="block mt-3 text-red-600 font-semibold">When AI can generate code instantly, why learn the craft?</span>
               </p>
 
               <p className="text-xl lg:text-2xl text-deep-espresso leading-relaxed">
-                This convenience trap creates two worlds: master baristas who understand every bean, 
-                and those who just push buttons on automatic machines.
+                This convenience trap creates a two-tiered world: the master baristas who understand the craft, and those who just push buttons on a machine.
               </p>
 
               <p className="text-xl lg:text-2xl text-deep-espresso leading-relaxed">
-                Meanwhile, aspiring developers see an impossible menu of prerequisites. 
-                <span className="block mt-2 text-red-600 font-semibold">The message becomes clear: this café isn't for you.</span>
+                This leaves aspiring developers facing an impossible menu of prerequisites.
+                <span className="block mt-2 text-red-600 font-semibold">The message becomes clear: coding isn't for you.</span>
               </p>
             </div>
           </div>
@@ -157,7 +145,7 @@ export default function Home() {
       </section>
 
       {/* Features Section - Coffee Shop themed */}
-      <section id="features" className="py-32 bg-gradient-to-br from-light-cream via-cream-beige to-light-cream relative overflow-hidden">
+      <section id="features" className="py-24 bg-gradient-to-br from-light-cream via-cream-beige to-light-cream relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(163,106,62,0.1),transparent_50%)]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(129,77,51,0.1),transparent_50%)]"></div>
         
@@ -169,7 +157,7 @@ export default function Home() {
             </div>
             
             <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-dark-charcoal mb-8 leading-tight">
-              CafeCode to the
+              Cafécode to the
               <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Rescue!</span>
             </h2>
             <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium">
@@ -246,12 +234,9 @@ export default function Home() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(163,106,62,0.05),transparent_50%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-24">
-            <div className="inline-flex items-center space-x-3 bg-deep-espresso/10 rounded-full px-6 py-3 mb-8">
-              <CodeBracketIcon className="h-5 w-5 text-deep-espresso" />
-              <span className="text-dark-charcoal font-semibold text-sm">The Brewing Process</span>
-            </div>
-            
+          <div className="text-center mb-18">
+          
+
             <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-dark-charcoal mb-8 leading-tight">
               Three Steps to
               <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Perfect Code</span>
@@ -347,7 +332,7 @@ export default function Home() {
               <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Regulars Say</span>
             </h2>
             <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium">
-              Join thousands of developers who have found their perfect coding blend at CafeCode.
+              Join thousands of developers who have found their perfect coding blend at Cafécode.
             </p>
           </div>
 
@@ -357,7 +342,7 @@ export default function Home() {
                 name: 'Sarah Chen',
                 role: 'Self-taught Developer',
                 image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150',
-                content: 'CafeCode made learning JavaScript as smooth as my morning latte. The AI barista helped me understand concepts I was struggling with for weeks.',
+                content: 'Cafécode made learning JavaScript as smooth as my morning latte. The AI barista helped me understand concepts I was struggling with for weeks.',
                 rating: 5,
                 color: 'from-medium-coffee to-deep-espresso'
               },
@@ -373,7 +358,7 @@ export default function Home() {
                 name: 'Emily Rodriguez',
                 role: 'Career Changer',
                 image: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150',
-                content: 'As someone switching careers, CafeCode gave me the confidence to code. The cozy atmosphere is exactly what I needed to learn.',
+                content: 'As someone switching careers, Cafécode gave me the confidence to code. The cozy atmosphere is exactly what I needed to learn.',
                 rating: 5,
                 color: 'from-medium-coffee to-cream-beige'
               }
@@ -549,7 +534,7 @@ export default function Home() {
                 <CheckIcon className="h-6 w-6 text-medium-coffee mr-3" />
                 30-day money back guarantee
               </span>
-              <span className="flex items-center">
+                     <span className="flex items-center">
                 <CheckIcon className="h-6 w-6 text-medium-coffee mr-3" />
                 No setup fees
               </span>

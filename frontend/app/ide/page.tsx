@@ -16,7 +16,9 @@ import {
   Search,
   Copy,
   Zap,
-  Loader2
+  Loader2,
+  ArrowLeftIcon,
+  Mic
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -31,6 +33,10 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GuidedStepPopup from '@/components/GuidedStepPopup';
+import { useRouter } from 'next/navigation';
+import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import TavusConversation from '../../components/TavusConversation';
 
 interface FileNode {
   id: string;
@@ -191,6 +197,8 @@ export default function IDEPage() {
 
   // UI state
   const [activeTab, setActiveTab] = useState('editor');
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const router = useRouter();
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -534,6 +542,41 @@ export default function IDEPage() {
       return;
     }
 
+    // Only allow Fix Code if a guided project is active and the current step is not complete
+    if (!guidedProject || stepComplete) {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Code fixing is only available for the current step of an active guided project.',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+
+    // Extract the latest error from output, if any
+    let errorMessage = '';
+    if (output && output.length > 0) {
+      // Look for a line that starts with 'Error:' or contains 'Error'
+      const errorLine = output.find(line => /error/i.test(line));
+      if (errorLine) {
+        errorMessage = errorLine;
+      }
+    }
+
+    const allowedLanguages = [
+      'python', 'javascript', 'java', 'cpp', 'c', 'html', 'css', 'typescript'
+    ];
+    if (!allowedLanguages.includes(selectedFile.language ?? '')) {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Code fixing is only supported for Python, JavaScript, Java, C++, C, HTML, CSS, and TypeScript files.',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+    if (!errorMessage || errorMessage.trim().length === 0) {
+      errorMessage = 'Code is not working as expected.';
+    }
+
     setIsTyping(true);
     setChatMessages(prev => [...prev, {
       type: 'assistant',
@@ -541,17 +584,17 @@ export default function IDEPage() {
       timestamp: new Date()
     }]);
     try {
+      // Only send required fields to /api/code/fix
+      const body = {
+        code: selectedFile.content,
+        language: selectedFile.language,
+        error_message: errorMessage,
+        projectFiles: files
+      };
       const response = await fetch('/api/code/fix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: selectedFile.content,
-          language: selectedFile.language,
-          stepInstruction: guidedProject?.steps[guidedProject.currentStep]?.instruction,
-          lineRanges: guidedProject?.steps[guidedProject.currentStep]?.lineRanges,
-          stepId: guidedProject?.steps[guidedProject.currentStep]?.id,
-          projectFiles: files
-        })
+        body: JSON.stringify(body)
       });
 
       const result = await response.json();
@@ -574,7 +617,10 @@ export default function IDEPage() {
             setHighlightedLines(fixedLines);
             setIsEditorReadOnly(false);
             // Add the fix message to chat
-            const diffMessage = formatCodeInMessage(result.diff);
+            let diffMessage = formatCodeInMessage(result.diff);
+            if (!diffMessage || diffMessage.trim() === '' || diffMessage.trim() === 'undefined') {
+              diffMessage = 'Code is fixed!';
+            }
             setChatMessages(prev => [...prev, {
               type: 'assistant',
               content: `🔧 **Code Fix Suggestions**\n\n${diffMessage}`
@@ -856,36 +902,6 @@ export default function IDEPage() {
     }
   };
 
-  const handleNextStep = () => {
-    if (!guidedProject) return;
-    const nextStepIndex = guidedProject.currentStep + 1;
-    if (nextStepIndex < guidedProject.steps.length) {
-      // If the next step is already completed, allow skipping
-      if (completedSteps.has(nextStepIndex) || stepComplete) {
-      setGuidedProject({
-        ...guidedProject,
-        currentStep: nextStepIndex
-      });
-        setStepComplete(completedSteps.has(nextStepIndex));
-      const nextStep = guidedProject.steps[nextStepIndex];
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-          content: `Great job! Now let's move to step ${nextStepIndex + 1}:
-
-${nextStep.instruction}`,
-        timestamp: new Date()
-      }]);
-      }
-    } else {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: '🎉 Congratulations! You\'ve completed the guided project! You\'re doing amazing!',
-        timestamp: new Date()
-      }]);
-      setGuidedProject(null);
-    }
-  };
-
   const handlePreviousStep = () => {
     if (!guidedProject) return;
 
@@ -895,7 +911,8 @@ ${nextStep.instruction}`,
         ...guidedProject,
         currentStep: prevStepIndex
       });
-      setStepComplete(false);
+      // If the previous step is not completed, set stepComplete to false
+      setStepComplete(completedSteps.has(prevStepIndex));
 
       const prevStep = guidedProject.steps[prevStepIndex];
       setChatMessages(prev => [...prev, {
@@ -903,6 +920,35 @@ ${nextStep.instruction}`,
         content: `Back to step ${prevStepIndex + 1}:\n\n${prevStep.instruction}`,
         timestamp: new Date()
       }]);
+    }
+  };
+
+  // Only allow moving forward if the current step is complete
+  const handleNextStep = () => {
+    if (!guidedProject) return;
+    if (!stepComplete) {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Please complete the current step before moving to the next one.',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+    const nextStepIndex = guidedProject.currentStep + 1;
+    if (nextStepIndex < guidedProject.steps.length) {
+      setGuidedProject({
+        ...guidedProject,
+        currentStep: nextStepIndex
+      });
+      setStepComplete(completedSteps.has(nextStepIndex));
+      const nextStep = guidedProject.steps[nextStepIndex];
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: `Great job! Now let's move to step ${nextStepIndex + 1}:\n\n${nextStep.instruction}`,
+        timestamp: new Date()
+      }]);
+    } else {
+      handleFinishProject();
     }
   };
 
@@ -988,20 +1034,68 @@ ${nextStep.instruction}`,
     br: () => <br />,
   };
 
+  // Add state for congratulations modal
+  const [showCongrats, setShowCongrats] = useState(false);
+  const [showRecap, setShowRecap] = useState(false);
+  const [recapText, setRecapText] = useState('');
+  const [isRecapLoading, setIsRecapLoading] = useState(false);
+
+  const handleFinishProject = async () => {
+    setShowCongrats(true);
+    setGuidedProject(null);
+    setChatMessages(prev => [...prev, {
+      type: 'assistant',
+      content: '🎉 Congratulations! You\'ve completed the guided project! You\'re doing amazing!',
+      timestamp: new Date()
+    }]);
+  };
+
+  // Add useEffect to auto-fetch recap when showCongrats is set
+  useEffect(() => {
+    if (showCongrats) {
+      setIsRecapLoading(true);
+      setShowRecap(false);
+      (async () => {
+        try {
+          const response = await fetch('/api/guided/recap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectFiles: files,
+              chatHistory: chatMessages,
+              guidedProject: guidedProject,
+              ideCapabilities: 'The IDE is web-based (Cafécode). It supports code editing, file management, and code execution for supported languages (Python, JavaScript, HTML, CSS, etc). It does NOT support running terminal or shell commands, installing packages, or accessing a real OS shell.'
+            })
+          });
+          const result = await response.json();
+          setRecapText(result.recap || 'Here is a summary of what you learned!');
+          setShowRecap(true);
+        } catch (e) {
+          setRecapText('Could not fetch recap. Please try again later.');
+          setShowRecap(true);
+        } finally {
+          setIsRecapLoading(false);
+        }
+      })();
+    }
+  }, [showCongrats]);
+
   return (
     <ProtectedRoute>
       <div className="flex flex-col h-screen bg-light-cream text-dark-charcoal transition-colors duration-300">
         {/* Header */}
         <header className="flex items-center justify-between p-4 border-b border-cream-beige bg-light-cream shadow-lg">
-          <div className="flex items-center space-x-4">
+    
             <div className="flex items-center space-x-2">
+                <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-cream-beige">
+            <ArrowLeftIcon className="h-5 w-5 text-deep-espresso" />
+          </button>
               <div className="w-8 h-8 bg-medium-coffee rounded-lg flex items-center justify-center">
                 <Code2 className="h-5 w-5 text-light-cream" />
               </div>
               <h1 className="text-xl font-bold text-deep-espresso">
-                CafeCode IDE
+                Cafécode IDE
               </h1>
-            </div>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -1069,6 +1163,7 @@ ${nextStep.instruction}`,
                     stepNumber={guidedProject.currentStep + 1}
                     totalSteps={guidedProject.steps.length}
                     isChecking={isCheckingStep}
+                    onFinish={handleFinishProject}
                   />
                 )}
               />
@@ -1181,102 +1276,133 @@ ${nextStep.instruction}`,
                       <h3 className="font-semibold text-deep-espresso">AI Assistant</h3>
                     </div>
                   </div>
+                  <ToggleGroup
+                    type="single"
+                    value={isVoiceMode ? 'voice' : 'text'}
+                    onValueChange={(value) => {
+                      if (value) setIsVoiceMode(value === 'voice');
+                    }}
+                    className="bg-cream-beige p-1 rounded-lg"
+                  >
+                    <ToggleGroupItem value="text" aria-label="Toggle text" className="data-[state=on]:bg-medium-coffee data-[state=on]:text-light-cream rounded-md px-2 py-1 hover:bg-cream-beige hover:text-deep-espresso">
+                      <MessageSquare className="h-4 w-4" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="voice" aria-label="Toggle voice" className="data-[state=on]:bg-medium-coffee data-[state=on]:text-light-cream rounded-md px-2 py-1 hover:bg-cream-beige hover:text-deep-espresso">
+                      <Mic className="h-4 w-4" />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
 
-                {/* Chat Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-cream-beige/50">
-                  {chatMessages.map((msg, idx) => (
-                    <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
-                      <div className={`max-w-[80%] px-4 py-3 rounded-lg shadow-md ${msg.type === 'user' ? 'bg-medium-coffee text-light-cream' : 'bg-white text-dark-charcoal border border-cream-beige'}`}>
-                        {msg.type === 'assistant' && (msg.content.includes('substantial') || msg.content.startsWith('🛠️ Fixing code')) ? (
-                          <div className="font-semibold">
-                            {msg.content}
+                <div className="flex-1 overflow-hidden transition-all duration-300">
+                  {isVoiceMode ? (
+                    <div className="h-full w-full bg-cream-beige/50">
+                      <TavusConversation 
+                        currentCode={selectedFile?.content || ''}
+                        currentLanguage={selectedFile?.language || 'plaintext'}
+                        output={output}
+                        projectFiles={files}
+                        guidedProject={guidedProject}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      {/* Chat Messages */}
+                      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-cream-beige/50 h-full" style={{paddingTop: '10rem'}}>
+                        {chatMessages.map((msg, idx) => (
+                          <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
+                            <div className={`max-w-[80%] px-4 py-3 rounded-lg shadow-md ${msg.type === 'user' ? 'bg-medium-coffee text-light-cream' : 'bg-white text-dark-charcoal border border-cream-beige'}`}>
+                              {msg.type === 'assistant' && (msg.content.includes('substantial') || msg.content.startsWith('🛠️ Fixing code')) ? (
+                                <div className="font-semibold">
+                                  {msg.content}
+                                </div>
+                              ) : msg.type === 'assistant' && msg.content.startsWith('🔧 **Code Fix Suggestions**') ? (
+                                <div className="bg-dark-charcoal text-light-cream p-3 rounded-lg font-mono relative">
+                                  <ReactMarkdown
+                                    children={msg.content}
+                                    remarkPlugins={[remarkGfm]}
+                                    components={codeFixMarkdownComponents}
+                                  />
+                                </div>
+                              ) : msg.type === 'assistant' ? (
+                                <div>
+                                  <ReactMarkdown
+                                    children={msg.content}
+                                    remarkPlugins={[remarkGfm]}
+                                    components={regularMarkdownComponents}
+                                  />
+                                </div>
+                              ) : (
+                                <span>{msg.content}</span>
+                              )}
+                            </div>
                           </div>
-                        ) : msg.type === 'assistant' && msg.content.startsWith('🔧 **Code Fix Suggestions**') ? (
-                          <div className="bg-dark-charcoal text-light-cream p-3 rounded-lg font-mono relative">
-                            <ReactMarkdown
-                              children={msg.content}
-                              remarkPlugins={[remarkGfm]}
-                              components={codeFixMarkdownComponents}
-                            />
+                        ))}
+                        
+                        {isTyping && (
+                          <div className="flex justify-start">
+                            <div className="bg-white rounded-2xl px-4 py-3 mr-4 border border-cream-beige">
+                              <TypingIndicator />
+                            </div>
                           </div>
-                        ) : msg.type === 'assistant' ? (
-                          <div>
-                            <ReactMarkdown
-                              children={msg.content}
-                              remarkPlugins={[remarkGfm]}
-                              components={regularMarkdownComponents}
-                            />
-                          </div>
-                        ) : (
-                          <span>{msg.content}</span>
                         )}
+                        <div ref={chatEndRef} />
                       </div>
-                    </div>
-                  ))}
-                  
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="bg-white rounded-2xl px-4 py-3 mr-4 border border-cream-beige">
-                        <TypingIndicator />
-                      </div>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
 
-                {/* Chat Input */}
-                <div className="p-4 border-t border-cream-beige bg-light-cream">
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                      placeholder="Ask me anything about coding..."
-                      className="flex-1 bg-white border border-medium-coffee/50 rounded-xl px-4 py-3 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200"
-                    />
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={!chatInput.trim() || isTyping}
-                      className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                    >
-                      <ArrowRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  {/* Enhanced Chat Action Buttons */}
-                  <div className="flex items-center justify-center mt-4 space-x-3">
-                    <Button
-                      onClick={handleGetHint}
-                      variant="outline"
-                      size="sm"
-                      className="btn-coffee-secondary"
-                    >
-                      <Lightbulb className="mr-2 h-4 w-4" />
-                      Get Hint
-                    </Button>
-                    
-                    <Button
-                      onClick={handleFixCode}
-                      variant="outline"
-                      size="sm"
-                      className="btn-coffee-secondary"
-                    >
-                      <Zap className="mr-2 h-4 w-4" />
-                      Fix Code
-                    </Button>
-                    
-                    <Button
-                      onClick={handleExplainCode}
-                      variant="outline"
-                      size="sm"
-                      className="btn-coffee-secondary"
-                    >
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Explain
-                    </Button>
-                  </div>
+                      {/* Chat Input */}
+                      <div className="p-4 border-t border-cream-beige bg-light-cream">
+                        <div className="flex space-x-2">
+                          <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                            placeholder="Ask me anything about coding..."
+                            className="flex-1 bg-white border border-medium-coffee/50 rounded-xl px-4 py-3 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200"
+                          />
+                          <Button
+                            onClick={handleSendMessage}
+                            disabled={!chatInput.trim() || isTyping}
+                            className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        {/* Enhanced Chat Action Buttons */}
+                        <div className="flex items-center justify-center mt-4 space-x-3">
+                          <Button
+                            onClick={handleGetHint}
+                            variant="outline"
+                            size="sm"
+                            className="btn-coffee-secondary"
+                          >
+                            <Lightbulb className="mr-2 h-4 w-4" />
+                            Get Hint
+                          </Button>
+                          
+                          <Button
+                            onClick={handleFixCode}
+                            variant="outline"
+                            size="sm"
+                            className="btn-coffee-secondary"
+                          >
+                            <Zap className="mr-2 h-4 w-4" />
+                            Fix Code
+                          </Button>
+                          
+                          <Button
+                            onClick={handleExplainCode}
+                            variant="outline"
+                            size="sm"
+                            className="btn-coffee-secondary"
+                          >
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Explain
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </ResizablePanel>
@@ -1311,6 +1437,38 @@ ${nextStep.instruction}`,
                   Delete
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {showCongrats && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-[#f7ecd4] to-[#e7dbc7]">
+            <div className="relative flex flex-col items-center max-w-lg w-full p-0 animate-fade-in">
+              {/* Celebration Emojis */}
+              <div className="flex flex-row items-center justify-center gap-4 mt-8 mb-2">
+                <span className="text-7xl drop-shadow-lg animate-bounce-slow">🎉</span>
+                <span className="text-8xl drop-shadow-lg animate-pulse">☕️</span>
+                <span className="text-7xl drop-shadow-lg animate-bounce-slow">🎊</span>
+              </div>
+              {/* Title and Subtitle */}
+              <h2 className="text-4xl font-extrabold text-deep-espresso mb-2 mt-2 text-center drop-shadow-sm">You finished the project!</h2>
+              <p className="text-xl text-medium-coffee mb-6 text-center font-medium">You finished your Cafécode guided project.<br/>Take a sip, celebrate, and keep building! <span className="inline-block">☕️</span></p>
+              {/* Congrats Card (no recap) */}
+              <div className="w-full bg-white rounded-3xl p-8 shadow-2xl border border-cream-beige flex flex-col items-center mb-6 min-h-[120px]">
+                <h3 className="font-extrabold text-2xl mb-3 text-medium-coffee text-center">Congratulations on finishing your Cafécode guided project!</h3>
+              </div>
+              {/* Close Button */}
+              <button
+                className="mt-2 mb-8 px-10 py-4 rounded-2xl bg-medium-coffee text-light-cream font-bold text-xl shadow-lg hover:bg-deep-espresso transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:ring-offset-2"
+                onClick={() => {
+                  setShowCongrats(false);
+                  setShowRecap(false);
+                  setIsRecapLoading(false);
+                  setRecapText('');
+                }}
+              >
+                Close
+              </button>
             </div>
           </div>
         )}

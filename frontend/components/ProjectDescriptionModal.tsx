@@ -1,15 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
-// Color palette as CSS variables
-const COLORS = {
-  indigoDye: '#094074',
-  lapisLazuli: '#3c6997',
-  vividSkyBlue: '#5adbff',
-  mustard: '#ffdd4a',
-  princetonOrange: '#ff960d',
-};
-
 interface ProjectDescriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -68,19 +59,13 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div
-        className="rounded-xl shadow-xl w-full max-w-md relative border"
-        style={{
-          background: COLORS.indigoDye,
-          borderColor: COLORS.lapisLazuli,
-          padding: '1.5rem 1.25rem',
-          minWidth: 280,
-        }}
+        className="rounded-xl shadow-xl w-full max-w-md relative border bg-light-cream border-cream-beige p-6 min-w-[280px]"
       >
         {/* Only show X button when not loading/loaded */}
         {!loading && !isLoaded && (
           <button
             onClick={handleClose}
-            className="absolute top-3 right-3 p-1 text-gray-300 hover:text-white transition-colors"
+            className="absolute top-3 right-3 p-1 text-deep-espresso hover:text-medium-coffee transition-colors"
           >
             <X className="h-6 w-6" />
           </button>
@@ -90,71 +75,54 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
           <div className="text-center py-8">
             <div className="mb-6">
               <div
-                className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ background: COLORS.lapisLazuli }}
+                className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 bg-medium-coffee"
               >
-                <svg className="animate-spin h-7 w-7" fill="none" viewBox="0 0 24 24" style={{ color: COLORS.vividSkyBlue }}>
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <Loader2 className="animate-spin h-7 w-7 text-light-cream" />
               </div>
-              <h2 className="text-xl font-semibold mb-2" style={{ color: COLORS.vividSkyBlue }}>Setting Up Your Project</h2>
-              <p className="text-gray-200">Creating guided steps and preparing your workspace...</p>
+              <h2 className="text-xl font-semibold mb-2 text-medium-coffee">Setting Up Your Project</h2>
+              <p className="text-deep-espresso">Creating guided steps and preparing your workspace...</p>
             </div>
-            <div className="w-full rounded-full h-3" style={{ background: COLORS.lapisLazuli }}>
+            <div className="w-full rounded-full h-3 bg-cream-beige">
               <div 
-                className="h-3 rounded-full transition-all duration-300 ease-out" 
-                style={{ 
-                  width: `${progress}%`, 
-                  background: `linear-gradient(90deg, ${COLORS.vividSkyBlue} 0%, ${COLORS.mustard} 100%)`,
-                  boxShadow: `0 0 10px ${COLORS.vividSkyBlue}40`
-                }}
+                className="h-3 rounded-full transition-all duration-300 ease-out bg-gradient-to-r from-medium-coffee to-deep-espresso shadow-md"
+                style={{ width: `${progress}%` }}
               ></div>
             </div>
-            <div className="mt-2 text-sm text-gray-300">{progress}%</div>
+            <div className="mt-2 text-sm text-medium-coffee">{progress}%</div>
           </div>
         ) : isLoaded ? (
           <div className="text-center py-8">
             <div className="mb-4">
               <div
-                className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ background: COLORS.mustard }}
+                className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 bg-medium-coffee"
               >
-                <svg className="w-7 h-7" fill="none" stroke={COLORS.princetonOrange} viewBox="0 0 24 24">
+                <svg className="w-7 h-7" fill="none" stroke="#fff" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold mb-2" style={{ color: COLORS.mustard }}>Project Ready!</h2>
-              <p className="text-gray-200">Your guided project has been set up successfully. Let's start coding!</p>
+              <h2 className="text-xl font-semibold mb-2 text-medium-coffee">Project Ready!</h2>
+              <p className="text-deep-espresso">Your guided project has been set up successfully. Let's start coding!</p>
             </div>
             <button
               onClick={handleClose}
-              className="px-5 py-2 text-sm font-medium rounded-md shadow-md transition-colors"
-              style={{ background: COLORS.princetonOrange, color: COLORS.indigoDye }}
+              className="px-5 py-2 text-sm font-medium rounded-md shadow-md transition-colors bg-medium-coffee text-light-cream hover:bg-deep-espresso"
             >
               Continue
             </button>
           </div>
         ) : (
           <>
-            <h2 className="text-2xl font-bold mb-3" style={{ color: COLORS.vividSkyBlue, letterSpacing: '-1px' }}>Start Guided Project</h2>
+            <h2 className="text-2xl font-bold mb-3 text-medium-coffee tracking-tight">Start Guided Project</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
-                <label htmlFor="description" className="block text-base font-medium mb-2" style={{ color: COLORS.mustard }}>
+                <label htmlFor="description" className="block text-base font-medium mb-2 text-deep-espresso">
                   Describe your project
                 </label>
                 <textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full h-28 px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-gray-100 placeholder-gray-400"
-                  style={{
-                    background: '#0e223a',
-                    border: `1px solid ${COLORS.lapisLazuli}`,
-                    color: 'white',
-                    fontSize: '1.1rem',
-                    marginTop: 4,
-                  }}
+                  className="w-full h-28 px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-dark-charcoal placeholder-deep-espresso bg-cream-beige border border-medium-coffee text-lg mt-1"
                   placeholder="e.g., Create a simple calculator that can perform basic arithmetic operations"
                   required
                   disabled={loading}
@@ -164,23 +132,14 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2 text-sm font-medium rounded-md border transition-colors"
-                  style={{
-                    background: 'rgba(60, 105, 151, 0.85)',
-                    color: 'white',
-                    borderColor: COLORS.lapisLazuli,
-                    borderWidth: 1,
-                  }}
-                  onMouseOver={e => (e.currentTarget.style.background = COLORS.lapisLazuli)}
-                  onMouseOut={e => (e.currentTarget.style.background = 'rgba(60, 105, 151, 0.85)')}
+                  className="px-4 py-2 text-sm font-medium rounded-md border bg-cream-beige text-deep-espresso border-medium-coffee hover:bg-medium-coffee hover:text-light-cream transition-colors"
                   disabled={loading}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-semibold rounded-md shadow-md flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ background: COLORS.princetonOrange, color: COLORS.indigoDye }}
+                  className="px-4 py-2 text-sm font-semibold rounded-md shadow-md flex items-center transition-colors bg-medium-coffee text-light-cream hover:bg-deep-espresso disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={loading}
                 >
                   {loading && <Loader2 className="animate-spin h-4 w-4 mr-2" />}

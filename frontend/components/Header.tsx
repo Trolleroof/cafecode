@@ -31,10 +31,10 @@ const Header = () => {
               <span className="text-light-cream text-xl lg:text-2xl">☕</span>
             </div>
             <span className="font-heading text-xl lg:text-2xl font-bold text-light-cream hidden sm:block">
-              CodeCraft Café
+              Cafécode
             </span>
             <span className="font-heading text-lg font-bold text-light-cream sm:hidden">
-              CodeCraft
+            Cafécode
             </span>
           </div>
 
@@ -44,14 +44,14 @@ const Header = () => {
               onClick={() => handleNavClick('#features')}
               className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
             >
-              Our Blend
+              The Truth
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button 
               onClick={() => handleNavClick('#how-it-works')}
               className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
             >
-              Brewing Process
+              Our Features
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button 
