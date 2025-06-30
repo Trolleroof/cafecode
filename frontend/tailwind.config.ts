@@ -10,10 +10,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Garet', 'system-ui', 'sans-serif'],
-        heading: ['Garet', 'ui-sans-serif', 'system-ui'],
-        body: ['Garet', 'ui-sans-serif', 'system-ui'],
-        mono: ['JetBrains Mono Variable', 'JetBrains Mono', 'ui-monospace', 'SFMono-Regular'],
+        heading: ['var(--font-heading)', 'ui-serif', 'Georgia', 'serif'],
+        body: ['var(--font-poppins)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular'],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

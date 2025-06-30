@@ -18,6 +18,7 @@ import MonacoEditor from '@/components/MonacoEditor';
 import { Button } from '@/components/ui/button';
 import TypingIndicator from '@/components/TypingIndicator';
 import LeetCodeProjectModal from '@/components/LeetCodeProjectModal';
+import { OnChange } from '@monaco-editor/react';
 
 interface ChatMessage {
   type: 'user' | 'assistant';
@@ -49,15 +50,15 @@ function LeetCodeTestCases({ testCases, height }: { testCases: any[], height: nu
   const [active, setActive] = useState(0);
   if (!testCases || testCases.length === 0) return null;
   return (
-    <div className="bg-[#18181a] rounded-lg text-white font-mono w-full max-w-xl mx-auto mb-4" style={{ height, minHeight: 80, maxHeight: 300, overflow: 'auto' }}>
+    <div className="bg-dark-charcoal rounded-lg text-light-cream font-mono w-full max-w-xl mx-auto mb-4" style={{ height, minHeight: 80, maxHeight: 300, overflow: 'auto' }}>
       <div className="flex mb-2">
         {testCases.map((_, i) => (
           <button
             key={i}
             className={`px-4 py-1 rounded-t pt-2 ${
               active === i
-                ? 'bg-[#232324] text-white'
-                : 'bg-[#18181a] text-gray-400 border-b-2 border-[#ffdd4a]'
+                ? 'bg-cream-beige text-dark-charcoal'
+                : 'bg-dark-charcoal text-light-cream/70 border-b-2 border-medium-coffee'
             }`}
             onClick={() => setActive(i)}
           >
@@ -65,11 +66,11 @@ function LeetCodeTestCases({ testCases, height }: { testCases: any[], height: nu
           </button>
         ))}
       </div>
-      <div className="p-4 bg-[#232324] rounded-b-lg">
+      <div className="p-4 bg-cream-beige/10 rounded-b-lg">
         {Object.entries(testCases[active]).map(([key, value]) => (
           <div key={key} className="mb-4">
-            <div className="text-[#ffdd4a] text-sm mb-1">{key} =</div>
-            <div className="bg-[#232324] rounded px-3 py-2 text-base text-white font-mono border border-[#232324]">
+            <div className="text-medium-coffee text-sm mb-1">{key} =</div>
+            <div className="bg-dark-charcoal rounded px-3 py-2 text-base text-light-cream font-mono border border-cream-beige/20">
               {typeof value === 'object' ? JSON.stringify(value) : String(value)}
             </div>
           </div>
@@ -86,7 +87,7 @@ export default function LeetCodePage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     {
       type: 'assistant',
-      content: 'Welcome to LeetCode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
+      content: 'Welcome to CafeCode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
       timestamp: new Date().toISOString()
     }
   ]);
@@ -161,6 +162,10 @@ export default function LeetCodePage() {
       setTestCases([]);
     }
   }, [currentProblem?.slug]);
+
+  const handleCodeChange: OnChange = (value) => {
+    setCode(value || '');
+  };
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -366,7 +371,7 @@ export default function LeetCodePage() {
     setChatHistory([
       {
         type: 'assistant',
-        content: 'Welcome to LeetCode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
+        content: 'Welcome to CafeCode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
         timestamp: new Date().toISOString()
       }
     ]);
@@ -374,10 +379,14 @@ export default function LeetCodePage() {
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'Easy': return 'text-green-600 bg-green-100';
-      case 'Medium': return 'text-yellow-600 bg-yellow-100';
-      case 'Hard': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'Easy':
+        return 'text-green-400';
+      case 'Medium':
+        return 'text-yellow-400';
+      case 'Hard':
+        return 'text-red-400';
+      default:
+        return 'text-gray-400';
     }
   };
 
@@ -503,40 +512,34 @@ export default function LeetCodePage() {
   }, []);
 
   return (
-    <div className="min-h-screen max-h-screen bg-gradient-to-br from-[#094074] to-[#3c6997] flex flex-col overflow-hidden relative">
+    <div className="min-h-screen max-h-screen bg-light-cream flex flex-col overflow-hidden relative text-dark-charcoal">
       {/* Loading Overlay */}
       {isLoading && !currentProblem && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#094074]/80">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-light-cream/80">
           <div className="flex flex-col items-center">
-            <ArrowPathIcon className="h-12 w-12 text-[#ffdd4a] animate-spin mb-4" />
-            <span className="text-[#ffdd4a] text-lg font-semibold">Loading problem...</span>
+            <ArrowPathIcon className="h-12 w-12 text-medium-coffee animate-spin mb-4" />
+            <span className="text-medium-coffee text-lg font-semibold">Loading problem...</span>
           </div>
         </div>
       )}
       {/* Header */}
-      <div className="bg-[#094074] border-b border-[#3c6997] px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button
-            onClick={() => router.push('/')}
-            variant="ghost"
-            size="sm"
-            className="text-[#5adbff] hover:bg-[#3c6997] hover:text-[#ffdd4a]"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-2" />
-            Back to Home
-          </Button>
+      <div className="bg-light-cream border-b border-cream-beige px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+           <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-cream-beige">
+            <ArrowLeftIcon className="h-5 w-5 text-deep-espresso" />
+          </button>
           <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-r from-[#5adbff] to-[#ffdd4a] p-2 rounded-lg">
-              <Target className="h-6 w-6 text-[#094074]" />
-            </div>
+            <div className="w-8 h-8 bg-medium-coffee rounded-lg flex items-center justify-center">
+               <TrophyIcon className="h-5 w-5 text-light-cream" />
+             </div>
             <div>
-              <h1 className="text-xl font-bold text-[#5adbff]">LeetCode Practice</h1>
-              <p className="text-sm text-[#5adbff]/70">Master coding interviews step by step</p>
+              <h1 className="text-xl font-bold text-deep-espresso">CafeCode Practice</h1>
+              <p className="text-sm text-dark-charcoal/70">Master coding interviews step by step</p>
             </div>
             {!currentProblem && (
               <Button
                 onClick={() => setShowProjectModal(true)}
-                className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] font-semibold shadow-lg transition-all duration-300 transform hover:scale-105 ml-4"
+                className="btn-coffee-primary ml-4"
                 disabled={isLoading}
               >
                 <SparklesIcon className="mr-2 h-4 w-4" />
@@ -553,7 +556,7 @@ export default function LeetCodePage() {
               <Button
                 onClick={handleGenerateSimilarProblem}
                 disabled={isLoading}
-                className="bg-[#ffdd4a] text-[#094074] hover:bg-[#ff960d] hover:text-white font-semibold"
+                className="btn-coffee-secondary"
               >
                 <SparklesIcon className="h-4 w-4 mr-2" />
                 Similar Problem
@@ -561,7 +564,7 @@ export default function LeetCodePage() {
               <Button
                 onClick={handleNewProblem}
                 variant="outline"
-                className="border-[#5adbff] text-[#5adbff] hover:bg-[#5adbff] hover:text-[#094074]"
+                className="btn-coffee-outline"
               >
                 <ArrowPathIcon className="h-4 w-4 mr-2" />
                 New Problem
@@ -573,23 +576,26 @@ export default function LeetCodePage() {
 
       <div className="flex-1 flex max-h-[calc(100vh-80px)] overflow-hidden">
         {/* Left Panel - Problem Description & Steps */}
-        <div className="w-1/3 bg-[#094074] border-r border-[#3c6997] flex flex-col">
+        <div className="w-1/3 bg-light-cream border-r border-cream-beige flex flex-col">
           {currentProblem ? (
             <>
               {/* Problem Header */}
-              <div className="p-6 border-b border-[#3c6997]">
+              <div className="p-6 border-b border-cream-beige">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xl font-bold text-[#5adbff]">{currentProblem.title}</h2>
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getDifficultyColor(currentProblem.difficulty)}`}>
+                  <h2 className="text-xl font-bold text-deep-espresso">{currentProblem.title}</h2>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getDifficultyColor(currentProblem.difficulty)} bg-opacity-10 ${
+                    currentProblem.difficulty === 'Easy' ? 'bg-green-400' :
+                    currentProblem.difficulty === 'Medium' ? 'bg-yellow-400' : 'bg-red-400'
+                  }`}>
                     {currentProblem.difficulty}
                   </span>
                 </div>
-                <p className="text-[#5adbff]/80 text-sm leading-relaxed">{currentProblem.description}</p>
+                <div className="text-dark-charcoal/80 leading-relaxed prose" dangerouslySetInnerHTML={{ __html: currentProblem.description.replace(/\n/g, '<br/>') }} />
               </div>
 
               {/* Steps */}
               <div className="flex-1 p-6 overflow-y-auto">
-                <h3 className="text-lg font-semibold text-[#ffdd4a] mb-4 flex items-center">
+                <h3 className="text-lg font-semibold text-medium-coffee mb-4 flex items-center">
                   <TrophyIcon className="h-5 w-5 mr-2" />
                   Solution Steps
                 </h3>
@@ -604,10 +610,10 @@ export default function LeetCodePage() {
                           key={step.id}
                           className={`p-4 rounded-lg border transition-all duration-200 ${
                             isCurrent
-                              ? 'border-[#ffdd4a] bg-[#ffdd4a]/10'
+                              ? 'border-medium-coffee bg-medium-coffee/10'
                               : isCompleted
                               ? 'border-green-500 bg-green-500/10'
-                              : 'border-[#3c6997] bg-[#3c6997]/20'
+                              : 'border-cream-beige bg-cream-beige/20'
                           }`}
                         >
                           <div className="flex items-start space-x-3">
@@ -615,14 +621,14 @@ export default function LeetCodePage() {
                               isCompleted
                                 ? 'bg-green-500 text-white'
                                 : isCurrent
-                                ? 'bg-[#ffdd4a] text-[#094074]'
-                                : 'bg-[#3c6997] text-[#5adbff]'
+                                ? 'bg-medium-coffee text-light-cream'
+                                : 'bg-cream-beige text-dark-charcoal'
                             }`}>
                               {isCompleted ? <CheckIcon className="h-4 w-4" /> : index + 1}
                             </div>
                             <div className="flex-1">
                               <p className={`text-sm leading-relaxed ${
-                                isCurrent ? 'text-[#ffdd4a]' : isCompleted ? 'text-green-400' : 'text-[#5adbff]/80'
+                                isCurrent ? 'text-medium-coffee' : isCompleted ? 'text-green-500' : 'text-dark-charcoal/80'
                               }`}>
                                 {step.instruction}
                               </p>
@@ -632,7 +638,7 @@ export default function LeetCodePage() {
                                     onClick={handleCheckStep}
                                     disabled={isCheckingStep || isAutoProgressing}
                                     size="sm"
-                                    className="bg-[#5adbff] text-[#094074] hover:bg-[#ffdd4a] hover:text-[#094074] font-semibold"
+                                    className="btn-coffee-primary"
                                   >
                                     {isCheckingStep ? (
                                       <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
@@ -650,7 +656,7 @@ export default function LeetCodePage() {
                     })
                   ) : (
                     <div className="text-center py-8">
-                      <div className="text-[#5adbff]/50 text-sm">
+                      <div className="text-dark-charcoal/50 text-sm">
                         {currentProblem.steps === undefined ? 'Loading steps...' : 'No steps available'}
                       </div>
                     </div>
@@ -661,9 +667,9 @@ export default function LeetCodePage() {
           ) : (
             <div className="flex-1 flex items-center justify-center p-6">
               <div className="text-center">
-                <CodeBracketIcon className="h-16 w-16 text-[#5adbff]/50 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-[#5adbff] mb-2">Ready to Practice?</h3>
-                <p className="text-[#5adbff]/70 text-sm">
+                <CodeBracketIcon className="h-16 w-16 text-dark-charcoal/50 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-deep-espresso mb-2">Ready to Practice?</h3>
+                <p className="text-dark-charcoal/70 text-sm">
                   Describe a coding problem in the chat to get started with step-by-step guidance.
                 </p>
               </div>
@@ -674,13 +680,13 @@ export default function LeetCodePage() {
         {/* Middle Panel - Code Editor */}
         <div className="flex-1 flex flex-col">
           {/* Editor Header */}
-          <div className="bg-[#094074] border-b border-[#3c6997] px-4 py-3 flex items-center justify-between">
+          <div className="bg-light-cream border-b border-cream-beige px-4 py-3 flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h3 className="text-sm font-semibold text-[#5adbff]">Code Editor</h3>
+              <h3 className="text-sm font-semibold text-deep-espresso">Code Editor</h3>
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="bg-[#3c6997] text-[#5adbff] border border-[#5adbff]/30 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#5adbff]"
+                className="bg-cream-beige text-dark-charcoal border border-medium-coffee/30 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-medium-coffee"
               >
                 <option value="javascript">JavaScript</option>
                 <option value="python">Python</option>
@@ -692,7 +698,7 @@ export default function LeetCodePage() {
             <Button
               onClick={handleRunCode}
               disabled={isRunning}
-              className="bg-[#5adbff] text-[#094074] hover:bg-[#ffdd4a] hover:text-[#094074] font-semibold px-4 py-2 rounded shadow disabled:opacity-50"
+              className="btn-coffee-primary"
             >
               {isRunning ? (
                 <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
@@ -708,9 +714,9 @@ export default function LeetCodePage() {
             <MonacoEditor
               language={language}
               value={code}
-              onChange={(value) => setCode(value || '')}
+              onChange={handleCodeChange}
               theme="vs-dark"
-              highlightedLines={currentStep ? currentStep.lineRanges : []}
+              highlightedLines={currentProblem ? currentProblem.steps[currentStepIndex]?.lineRanges : []}
             />
           </div>
 
@@ -720,7 +726,7 @@ export default function LeetCodePage() {
               <div
                 ref={resizerRef}
                 onMouseDown={handleMouseDown}
-                style={{ height: 8, cursor: 'row-resize', background: '#232324', margin: '0 -16px', borderTop: '1px solid #3c6997', borderBottom: '1px solid #3c6997' }}
+                className="h-2 bg-cream-beige cursor-row-resize hover:bg-medium-coffee/50 transition-colors"
               />
 
               {/* Test Case Viewer */}
@@ -730,16 +736,16 @@ export default function LeetCodePage() {
         </div>
 
         {/* Right Panel - Chat */}
-        <div className="w-1/3 bg-[#094074] border-l border-[#3c6997] flex flex-col">
+        <div className="w-1/3 bg-light-cream border-l border-cream-beige flex flex-col">
           {/* Chat Header */}
-          <div className="bg-[#094074] border-b border-[#3c6997] px-4 py-3">
+          <div className="bg-light-cream border-b border-cream-beige px-4 py-3">
             <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-[#5adbff] to-[#ffdd4a] p-2 rounded-lg">
-                <ChatBubbleLeftRightIcon className="h-5 w-5 text-[#094074]" />
-              </div>
+               <div className="w-8 h-8 bg-medium-coffee rounded-lg flex items-center justify-center">
+                 <ChatBubbleLeftRightIcon className="h-5 w-5 text-light-cream" />
+               </div>
               <div>
-                <h3 className="text-sm font-semibold text-[#5adbff]">AI Assistant</h3>
-                <p className="text-xs text-[#5adbff]/70">Get hints and guidance</p>
+                <h3 className="text-sm font-semibold text-deep-espresso">AI Assistant</h3>
+                <p className="text-xs text-dark-charcoal/70">Get hints and guidance</p>
               </div>
             </div>
           </div>
@@ -754,8 +760,8 @@ export default function LeetCodePage() {
                 <div
                   className={`max-w-[80%] p-3 rounded-lg ${
                     message.type === 'user'
-                      ? 'bg-[#5adbff] text-[#094074]'
-                      : 'bg-[#3c6997] text-[#5adbff]'
+                      ? 'bg-medium-coffee text-light-cream'
+                      : 'bg-white text-dark-charcoal shadow'
                   }`}
                 >
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -767,7 +773,7 @@ export default function LeetCodePage() {
             
             {isTyping && (
               <div className="flex justify-start">
-                <div className="bg-[#3c6997] text-[#5adbff] p-3 rounded-lg">
+                <div className="bg-white text-dark-charcoal p-3 rounded-lg shadow">
                   <TypingIndicator />
                 </div>
               </div>
@@ -776,7 +782,7 @@ export default function LeetCodePage() {
           </div>
 
           {/* Chat Input */}
-          <div className="border-t border-[#3c6997] p-4">
+          <div className="border-t border-cream-beige p-4">
             <div className="flex space-x-2">
               <input
                 ref={inputRef}
@@ -785,14 +791,14 @@ export default function LeetCodePage() {
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder={currentProblem ? "Ask for help or hints..." : "Describe a coding problem..."}
-                className="flex-1 bg-[#3c6997] text-[#5adbff] placeholder-[#5adbff]/50 border border-[#5adbff]/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#5adbff]"
+                className="flex-1 bg-white text-dark-charcoal placeholder-dark-charcoal/50 border border-cream-beige rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medium-coffee"
                 disabled={isLoading}
               />
               <Button
                 onClick={handleSendMessage}
                 disabled={isLoading || !inputMessage.trim()}
                 size="sm"
-                className="bg-[#5adbff] text-[#094074] hover:bg-[#ffdd4a] hover:text-[#094074] px-3"
+                className="btn-coffee-primary px-3"
               >
                 {isLoading ? (
                   <ArrowPathIcon className="h-4 animate-spin" />
@@ -808,9 +814,9 @@ export default function LeetCodePage() {
       <LeetCodeProjectModal
         isOpen={showProjectModal}
         onClose={() => setShowProjectModal(false)}
-        onSubmit={handleStartLeetCodeProject}
-        isStartingProject={isLoading}
         problems={leetcodeProblems}
+        onSubmit={handleStartLeetCodeProject}
+        isStartingProject={isLoading && !currentProblem}
       />
     </div>
   );

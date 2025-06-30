@@ -19,13 +19,18 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <style>{`
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Raleway:wght@400;500&display=swap" rel="stylesheet" />
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
           :root {
-            --font-poppins: 'Sora Variable', 'Sora', ui-sans-serif, system-ui;
-            --font-heading: 'Space Grotesk Variable', 'Space Grotesk', ui-sans-serif, system-ui;
+            --font-poppins: 'Raleway', sans-serif;
+            --font-heading: 'Playfair Display', serif;
             --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular;
           }
-        `}</style>
+        `,
+          }}
+        />
       </head>
       <body className="font-body antialiased">
         {children}

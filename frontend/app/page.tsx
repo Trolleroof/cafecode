@@ -14,7 +14,7 @@ import {
   SparklesIcon, 
   TrophyIcon, 
   ArrowTrendingUpIcon,
-  BrainIcon
+  LightBulbIcon
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -33,7 +33,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-light-cream">
+    <div className="min-h-screen bg-light-cream pt-8">
       <Header />
 
       {/* Hero Section */}
@@ -169,7 +169,7 @@ export default function Home() {
             </div>
             
             <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-dark-charcoal mb-8 leading-tight">
-              CodeCraft Café to the
+              CafeCode to the
               <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Rescue!</span>
             </h2>
             <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium">
@@ -180,7 +180,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                icon: BrainIcon,
+                icon: LightBulbIcon,
                 title: 'AI Barista Assistant',
                 description: 'Get instant help and contextual hints while you code. Our AI understands your learning journey like a skilled barista knows your order.',
                 color: 'from-medium-coffee to-deep-espresso',
@@ -347,7 +347,7 @@ export default function Home() {
               <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Regulars Say</span>
             </h2>
             <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium">
-              Join thousands of developers who have found their perfect coding blend at CodeCraft Café.
+              Join thousands of developers who have found their perfect coding blend at CafeCode.
             </p>
           </div>
 
@@ -357,7 +357,7 @@ export default function Home() {
                 name: 'Sarah Chen',
                 role: 'Self-taught Developer',
                 image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150',
-                content: 'CodeCraft Café made learning JavaScript as smooth as my morning latte. The AI barista helped me understand concepts I was struggling with for weeks.',
+                content: 'CafeCode made learning JavaScript as smooth as my morning latte. The AI barista helped me understand concepts I was struggling with for weeks.',
                 rating: 5,
                 color: 'from-medium-coffee to-deep-espresso'
               },
@@ -373,7 +373,7 @@ export default function Home() {
                 name: 'Emily Rodriguez',
                 role: 'Career Changer',
                 image: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150',
-                content: 'As someone switching careers, CodeCraft gave me the confidence to code. The cozy atmosphere is exactly what I needed to learn.',
+                content: 'As someone switching careers, CafeCode gave me the confidence to code. The cozy atmosphere is exactly what I needed to learn.',
                 rating: 5,
                 color: 'from-medium-coffee to-cream-beige'
               }

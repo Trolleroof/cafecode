@@ -941,39 +941,39 @@ ${nextStep.instruction}`,
   };
 
   // Create separate markdown component configurations
-  const regularMarkdownComponents = {
-    p: ({ children }: { children: React.ReactNode }) => <p className="mb-4 whitespace-pre-line text-base leading-relaxed">{children}</p>,
-    strong: ({ children }: { children: React.ReactNode }) => <strong className="font-bold text-white">{children}</strong>,
-    ul: ({ children }: { children: React.ReactNode }) => <span className="ml-8">{children}</span>,
-    li: ({ children }: { children: React.ReactNode }) => <span className="block mb-3">{children}</span>,
-    code: ({ inline, children }: { inline?: boolean; children: React.ReactNode }) =>
+  const regularMarkdownComponents: { [key: string]: React.ElementType } = {
+    p: ({ children }) => <p className="mb-4 whitespace-pre-line text-base leading-relaxed">{children}</p>,
+    strong: ({ children }) => <strong className="font-bold text-dark-charcoal">{children}</strong>,
+    ul: ({ children }) => <span className="ml-8">{children}</span>,
+    li: ({ children }) => <span className="block mb-3">{children}</span>,
+    code: ({ inline, children }) =>
       inline ? (
-        <code className="bg-[#06224a] text-[#5adbff] px-1 py-0.5 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
+        <code className="bg-light-cream text-medium-coffee px-1 py-0.5 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
       ) : (
-        <span className="inline-block bg-[#06224a] text-[#5adbff] px-1 rounded font-mono text-base align-middle" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</span>
+        <span className="inline-block bg-light-cream text-medium-coffee px-1 rounded font-mono text-base align-middle" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</span>
       ),
-    h1: ({ children }: { children: React.ReactNode }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
-    h2: ({ children }: { children: React.ReactNode }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
-    h3: ({ children }: { children: React.ReactNode }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
-    blockquote: ({ children }: { children: React.ReactNode }) => <blockquote className="border-l-4 border-[#5adbff] pl-4 italic text-[#5adbff] mb-2">{children}</blockquote>,
+    h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
+    blockquote: ({ children }) => <blockquote className="border-l-4 border-medium-coffee pl-4 italic text-medium-coffee mb-2">{children}</blockquote>,
     br: () => <br />,
   };
 
-  const codeFixMarkdownComponents = {
-    p: ({ children }: { children: React.ReactNode }) => <p className="mb-4 whitespace-pre-line text-base leading-relaxed">{children}</p>,
-    strong: ({ children }: { children: React.ReactNode }) => <strong className="font-bold text-white">{children}</strong>,
-    ul: ({ children }: { children: React.ReactNode }) => <span className="ml-8">{children}</span>,
-    li: ({ children }: { children: React.ReactNode }) => <span className="block mb-3">{children}</span>,
-    code: ({ inline, children }: { inline?: boolean; children: React.ReactNode }) =>
+  const codeFixMarkdownComponents: { [key: string]: React.ElementType } = {
+    p: ({ children }) => <p className="mb-4 whitespace-pre-line text-base leading-relaxed">{children}</p>,
+    strong: ({ children }) => <strong className="font-bold text-dark-charcoal">{children}</strong>,
+    ul: ({ children }) => <span className="ml-8">{children}</span>,
+    li: ({ children }) => <span className="block mb-3">{children}</span>,
+    code: ({ inline, children }) =>
       inline ? (
-        <code className="bg-[#06224a] text-[#5adbff] px-1 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
+        <code className="bg-light-cream text-medium-coffee px-1 py-0.5 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
       ) : (
         <div className="relative group">
-          <pre className="bg-[#06224a] text-[#5adbff] p-3 rounded-lg overflow-x-auto mb-2 font-mono text-sm">
+          <pre className="bg-light-cream text-medium-coffee p-3 rounded-lg overflow-x-auto mb-2 font-mono text-sm whitespace-pre-wrap break-words">
             {children}
           </pre>
           <button
-            className="absolute top-2 right-2 bg-[#5adbff] text-[#06224a] rounded px-2 py-1 text-xs opacity-80 hover:opacity-100 transition"
+            className="absolute top-2 right-2 bg-medium-coffee text-dark-charcoal rounded px-2 py-1 text-xs opacity-80 hover:opacity-100 transition"
             onClick={() => navigator.clipboard.writeText(children as string)}
             title="Copy code"
           >
@@ -981,25 +981,25 @@ ${nextStep.instruction}`,
           </button>
         </div>
       ),
-    h1: ({ children }: { children: React.ReactNode }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
-    h2: ({ children }: { children: React.ReactNode }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
-    h3: ({ children }: { children: React.ReactNode }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
-    blockquote: ({ children }: { children: React.ReactNode }) => <blockquote className="border-l-4 border-[#5adbff] pl-4 italic text-[#5adbff] mb-2">{children}</blockquote>,
+    h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
+    blockquote: ({ children }) => <blockquote className="border-l-4 border-medium-coffee pl-4 italic text-medium-coffee mb-2">{children}</blockquote>,
     br: () => <br />,
   };
 
   return (
     <ProtectedRoute>
-      <div className="flex flex-col h-screen bg-[#094074] text-white transition-colors duration-300">
+      <div className="flex flex-col h-screen bg-light-cream text-dark-charcoal transition-colors duration-300">
         {/* Header */}
-        <header className="flex items-center justify-between p-4 border-b border-[#3c6997] bg-[#094074] shadow-lg">
+        <header className="flex items-center justify-between p-4 border-b border-cream-beige bg-light-cream shadow-lg">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-[#5adbff] rounded-lg flex items-center justify-center">
-                <Code2 className="h-5 w-5 text-[#094074]" />
+              <div className="w-8 h-8 bg-medium-coffee rounded-lg flex items-center justify-center">
+                <Code2 className="h-5 w-5 text-light-cream" />
               </div>
-              <h1 className="text-xl font-bold text-[#5adbff]">
-                CodeCraft IDE
+              <h1 className="text-xl font-bold text-deep-espresso">
+                CafeCode IDE
               </h1>
             </div>
           </div>
@@ -1015,7 +1015,7 @@ ${nextStep.instruction}`,
             {!guidedProject && (
               <Button
                 onClick={() => setShowProjectModal(true)}
-                className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
+                className="bg-medium-coffee hover:bg-deep-espresso text-white font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Start Guided Project</span>
@@ -1028,7 +1028,7 @@ ${nextStep.instruction}`,
               <Button
                 onClick={handleStopGuidedProject}
                 variant="outline"
-                className="border-[#ff960d] text-[#ff960d] hover:bg-[#ff960d] hover:text-white"
+                className="border-medium-coffee text-medium-coffee hover:bg-medium-coffee hover:text-white"
               >
                 <X className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Stop Guide</span>
@@ -1078,25 +1078,25 @@ ${nextStep.instruction}`,
             <ResizablePanel defaultSize={isExplorerCollapsed ? 70 : 50} minSize={30}>
               <div className="flex flex-col h-full relative">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-[#3c6997] bg-[#3c6997]">
-                    <TabsList className="bg-[#094074] border border-[#3c6997]">
-                      <TabsTrigger value="editor" className="data-[state=active]:bg-[#5adbff] data-[state=active]:text-[#094074]">
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-cream-beige bg-cream-beige">
+                    <TabsList className="bg-light-cream border border-cream-beige">
+                      <TabsTrigger value="editor" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
                         <Code2 className="mr-2 h-4 w-4" />
                         Editor
                       </TabsTrigger>
-                      <TabsTrigger value="preview" className="data-[state=active]:bg-[#ffdd4a] data-[state=active]:text-[#094074]">
+                      <TabsTrigger value="preview" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
                         <Play className="mr-2 h-4 w-4" />
                         Preview
                       </TabsTrigger>
-                      <TabsTrigger value="terminal" className="data-[state=active]:bg-[#ff960d] data-[state=active]:text-white">
+                      <TabsTrigger value="terminal" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
                         <Terminal className="mr-2 h-4 w-4" />
                         Output
                       </TabsTrigger>
                     </TabsList>
 
                     {selectedFile && (
-                      <div className="flex items-center space-x-2 text-sm text-[#5adbff]">
-                        <div className="w-2 h-2 bg-[#5adbff] rounded-full"></div>
+                      <div className="flex items-center space-x-2 text-sm text-deep-espresso">
+                        <div className="w-2 h-2 bg-deep-espresso rounded-full"></div>
                         <span className="font-mono">{selectedFile.name}</span>
                       </div>
                     )}
@@ -1113,11 +1113,11 @@ ${nextStep.instruction}`,
                         readOnly={isEditorReadOnly}
                       />
                     ) : (
-                      <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
+                      <div className="flex items-center justify-center h-full bg-cream-beige/20">
                         <div className="text-center">
-                          <Code2 className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
-                          <p className="text-[#5adbff] text-lg">Create a file to start coding</p>
-                          <p className="text-[#5adbff]/70 text-sm mt-2">Use the file explorer to create your first file</p>
+                          <Code2 className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
+                          <p className="text-deep-espresso text-lg">Create a file to start coding</p>
+                          <p className="text-deep-espresso/70 text-sm mt-2">Use the file explorer to create your first file</p>
                         </div>
                       </div>
                     )}
@@ -1132,33 +1132,33 @@ ${nextStep.instruction}`,
                         onConsoleLog={(message) => setOutput(prev => [...prev, message])}
                       />
                     ) : (
-                      <div className="flex items-center justify-center h-full bg-[#3c6997]/20">
+                      <div className="flex items-center justify-center h-full bg-cream-beige/20">
                         <div className="text-center">
-                          <Play className="h-16 w-16 text-[#5adbff] mx-auto mb-4" />
-                          <p className="text-[#5adbff] text-lg">Preview available for HTML files</p>
-                          <p className="text-[#5adbff]/70 text-sm mt-2">Create an HTML file to see the preview</p>
+                          <Play className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
+                          <p className="text-deep-espresso text-lg">Preview available for HTML files</p>
+                          <p className="text-deep-espresso/70 text-sm mt-2">Create an HTML file to see the preview</p>
                         </div>
                       </div>
                     )}
                   </TabsContent>
 
                   <TabsContent value="terminal" className="flex-1 m-0">
-                    <div className="h-full bg-[#094074] p-4 font-mono text-sm overflow-y-auto">
-                      <div className="flex items-center space-x-2 mb-4 text-[#ffdd4a]">
+                    <div className="h-full bg-dark-charcoal text-light-cream p-4 font-mono text-sm overflow-y-auto">
+                      <div className="flex items-center space-x-2 mb-4 text-medium-coffee">
                         <Terminal className="h-4 w-4" />
                         <span>Output Console</span>
                       </div>
                       {output.length > 0 ? (
                         <div className="space-y-1">
                           {output.map((line, index) => (
-                            <div key={index} className="text-[#5adbff]">
-                              <span className="text-[#ffdd4a] mr-2">{'>'}</span>
+                            <div key={index} className="text-light-cream">
+                              <span className="text-medium-coffee mr-2">{'>'}</span>
                               {line}
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-[#5adbff] italic">
+                        <div className="text-light-cream italic">
                           Run your code to see output here...
                         </div>
                       )}
@@ -1170,34 +1170,30 @@ ${nextStep.instruction}`,
 
             {/* Chat Panel */}
             <ResizablePanel defaultSize={30} minSize={25} maxSize={50}>
-              <div className="flex flex-col h-full bg-[#3c6997] border-l border-[#094074]">
+              <div className="flex flex-col h-full bg-cream-beige border-l border-cream-beige">
                 {/* Chat Header */}
-                <div className="flex items-center justify-between p-4 border-b border-[#094074] bg-[#094074]">
+                <div className="flex items-center justify-between p-4 border-b border-light-cream bg-light-cream">
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-[#5adbff] rounded-full flex items-center justify-center">
-                      <Brain className="h-4 w-4 text-[#094074]" />
+                    <div className="w-8 h-8 bg-medium-coffee rounded-full flex items-center justify-center">
+                      <Sparkles className="h-4 w-4 text-light-cream" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-[#5adbff]">AI Assistant</h3>
+                      <h3 className="font-semibold text-deep-espresso">AI Assistant</h3>
                     </div>
                   </div>
                 </div>
 
                 {/* Chat Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#3c6997]">
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-cream-beige/50">
                   {chatMessages.map((msg, idx) => (
                     <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
-                      <div className={`max-w-[70%] px-4 py-2 rounded-lg shadow ${msg.type === 'user' ? 'bg-[#5adbff] text-[#094074]' : 'bg-[#06224a] text-white border border-[#3c6997] shadow-lg'}`}>
-                        {msg.type === 'assistant' && msg.content.includes('You need to attempt something substantial for me to fix.') ? (
-                          <div className="bg-[#06224a] text-[#5adbff] px-6 py-4 rounded-lg mb-2 font-semibold">
+                      <div className={`max-w-[80%] px-4 py-3 rounded-lg shadow-md ${msg.type === 'user' ? 'bg-medium-coffee text-light-cream' : 'bg-white text-dark-charcoal border border-cream-beige'}`}>
+                        {msg.type === 'assistant' && (msg.content.includes('substantial') || msg.content.startsWith('🛠️ Fixing code')) ? (
+                          <div className="font-semibold">
                             {msg.content}
                           </div>
-                        ) : msg.type === 'assistant' && msg.content.startsWith('🛠️ Fixing code') ? (
-                          <div className="bg-[#06224a] text-[#5adbff] px-4 py-3 rounded-lg mb-2 font-semibold">
-                            {msg.content}
-                          </div>
-                        ) : msg.type === 'assistant' && msg.content.startsWith('�� **Code Fix Suggestions**') ? (
-                          <div className="bg-[#06224a] text-[#5adbff] py-4 rounded-lg font-mono relative">
+                        ) : msg.type === 'assistant' && msg.content.startsWith('🔧 **Code Fix Suggestions**') ? (
+                          <div className="bg-dark-charcoal text-light-cream p-3 rounded-lg font-mono relative">
                             <ReactMarkdown
                               children={msg.content}
                               remarkPlugins={[remarkGfm]}
@@ -1205,7 +1201,7 @@ ${nextStep.instruction}`,
                             />
                           </div>
                         ) : msg.type === 'assistant' ? (
-                          <div className="bg-[#06224a] text-[#5adbff] py-4 rounded-lg">
+                          <div>
                             <ReactMarkdown
                               children={msg.content}
                               remarkPlugins={[remarkGfm]}
@@ -1221,7 +1217,7 @@ ${nextStep.instruction}`,
                   
                   {isTyping && (
                     <div className="flex justify-start">
-                      <div className="bg-[#094074] rounded-2xl px-4 py-3 mr-4 border border-[#5adbff]/20">
+                      <div className="bg-white rounded-2xl px-4 py-3 mr-4 border border-cream-beige">
                         <TypingIndicator />
                       </div>
                     </div>
@@ -1230,7 +1226,7 @@ ${nextStep.instruction}`,
                 </div>
 
                 {/* Chat Input */}
-                <div className="p-4 border-t border-[#094074] bg-[#094074]">
+                <div className="p-4 border-t border-cream-beige bg-light-cream">
                   <div className="flex space-x-2">
                     <input
                       type="text"
@@ -1238,12 +1234,12 @@ ${nextStep.instruction}`,
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                       placeholder="Ask me anything about coding..."
-                      className="flex-1 bg-[#3c6997] border border-[#5adbff] rounded-xl px-4 py-3 text-white placeholder-[#5adbff]/70 focus:outline-none focus:ring-2 focus:ring-[#5adbff] focus:border-transparent transition-all duration-200"
+                      className="flex-1 bg-white border border-medium-coffee/50 rounded-xl px-4 py-3 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200"
                     />
                     <Button
                       onClick={handleSendMessage}
                       disabled={!chatInput.trim() || isTyping}
-                      className="bg-[#5adbff] hover:bg-[#ffdd4a] text-[#094074] px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       <ArrowRight className="h-4 w-4" />
                     </Button>
@@ -1255,7 +1251,7 @@ ${nextStep.instruction}`,
                       onClick={handleGetHint}
                       variant="outline"
                       size="sm"
-                      className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
+                      className="btn-coffee-secondary"
                     >
                       <Lightbulb className="mr-2 h-4 w-4" />
                       Get Hint
@@ -1265,7 +1261,7 @@ ${nextStep.instruction}`,
                       onClick={handleFixCode}
                       variant="outline"
                       size="sm"
-                      className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
+                      className="btn-coffee-secondary"
                     >
                       <Zap className="mr-2 h-4 w-4" />
                       Fix Code
@@ -1275,7 +1271,7 @@ ${nextStep.instruction}`,
                       onClick={handleExplainCode}
                       variant="outline"
                       size="sm"
-                      className="bg-[#ff960d] hover:bg-[#ffdd4a] text-white hover:text-[#094074] border-[#ff960d] hover:border-[#ffdd4a] px-4 py-2 font-semibold transition-all duration-200 transform hover:scale-105"
+                      className="btn-coffee-secondary"
                     >
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Explain

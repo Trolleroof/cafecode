@@ -30,15 +30,15 @@ const getFileIcon = (fileName: string) => {
   const extension = fileName.split('.').pop()?.toLowerCase();
   switch (extension) {
     case 'html':
-      return <Globe className="h-4 w-4 text-[#ff960d] flex-shrink-0" />;
+      return <Globe className="h-4 w-4 text-medium-coffee flex-shrink-0" />;
     case 'css':
-      return <FileText className="h-4 w-4 text-[#5adbff] flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-deep-espresso flex-shrink-0" />;
     case 'js':
-      return <Code className="h-4 w-4 text-[#ffdd4a] flex-shrink-0" />;
+      return <Code className="h-4 w-4 text-medium-coffee flex-shrink-0" />;
     case 'py':
-      return <Code className="h-4 w-4 text-[#ffdd4a] flex-shrink-0" />;
+      return <Code className="h-4 w-4 text-medium-coffee flex-shrink-0" />;
     default:
-      return <File className="h-4 w-4 text-[#5adbff] flex-shrink-0" />;
+      return <File className="h-4 w-4 text-deep-espresso flex-shrink-0" />;
   }
 };
 
@@ -164,10 +164,10 @@ const FileTreeNode: React.FC<{
   return (
     <div>
       <div
-        className={`flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-[#3c6997] rounded group relative ${
-          selectedFileId === node.id ? 'bg-[#5adbff] text-[#094074]' : 'text-[#5adbff]'
+        className={`flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-cream-beige rounded group relative ${
+          selectedFileId === node.id ? 'bg-medium-coffee text-light-cream' : 'text-deep-espresso'
         } ${
-          isDragOver ? 'bg-[#5adbff]/20 border-2 border-[#5adbff] border-dashed' : ''
+          isDragOver ? 'bg-medium-coffee/20 border-2 border-medium-coffee border-dashed' : ''
         }`}
         style={{ paddingLeft: `${Math.min(level * 16 + 8, 200)}px` }}
         onClick={handleClick}
@@ -183,15 +183,15 @@ const FileTreeNode: React.FC<{
         {/* Drag handle */}
         {onMove && (
           <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
-            <GripVertical className="h-3 w-3 text-[#5adbff]/50 flex-shrink-0" />
+            <GripVertical className="h-3 w-3 text-deep-espresso/50 flex-shrink-0" />
           </div>
         )}
         
         {node.type === 'folder' ? (
           isExpanded ? (
-            <FolderOpen className="h-4 w-4 text-[#ffdd4a] flex-shrink-0" />
+            <FolderOpen className="h-4 w-4 text-medium-coffee flex-shrink-0" />
           ) : (
-            <Folder className="h-4 w-4 text-[#ffdd4a] flex-shrink-0" />
+            <Folder className="h-4 w-4 text-medium-coffee flex-shrink-0" />
           )
         ) : (
           getFileIcon(node.name)
@@ -212,20 +212,20 @@ const FileTreeNode: React.FC<{
                     e.stopPropagation();
                     onCreateFile(node.id);
                   }}
-                  className="p-1 hover:bg-[#094074] rounded"
+                  className="p-1 hover:bg-cream-beige rounded"
                   title="New File"
                 >
-                  <Plus className="h-3 w-3 text-[#5adbff]" />
+                  <Plus className="h-3 w-3 text-deep-espresso" />
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onCreateFolder(node.id);
                   }}
-                  className="p-1 hover:bg-[#094074] rounded"
+                  className="p-1 hover:bg-cream-beige rounded"
                   title="New Folder"
                 >
-                  <Folder className="h-3 w-3 text-[#5adbff]" />
+                  <Folder className="h-3 w-3 text-deep-espresso" />
                 </button>
               </>
             )}
@@ -234,10 +234,10 @@ const FileTreeNode: React.FC<{
                 e.stopPropagation();
                 onDelete(node.id);
               }}
-              className="p-1 hover:bg-[#ff960d] rounded"
+              className="p-1 hover:bg-deep-espresso rounded"
               title="Delete"
             >
-              <X className="h-3 w-3 text-[#5adbff]" />
+              <X className="h-3 w-3 text-deep-espresso" />
             </button>
           </div>
         )}
@@ -333,24 +333,24 @@ export default function FileExplorer({
 
   if (isCollapsed) {
     return (
-      <div className="h-full bg-[#094074] border-r border-[#3c6997] flex flex-col w-12">
-        <div className="flex items-center justify-center p-2 border-b border-[#3c6997]">
+      <div className="h-full bg-light-cream border-r border-cream-beige flex flex-col w-12">
+        <div className="flex items-center justify-center p-2 border-b border-cream-beige">
           <button
             onClick={onToggleCollapse}
-            className="p-1.5 hover:bg-[#3c6997] rounded transition-colors duration-200"
+            className="p-1.5 hover:bg-cream-beige rounded transition-colors duration-200"
             title="Expand Explorer"
           >
-            <Menu className="h-4 w-4 text-[#5adbff] hover:text-[#ffdd4a]" />
+            <Menu className="h-4 w-4 text-deep-espresso hover:text-medium-coffee" />
           </button>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center space-y-2">
-          <div className="p-2 rounded-lg bg-[#3c6997]/50 hover:bg-[#3c6997] transition-colors duration-200">
-            <File className="h-5 w-5 text-[#5adbff]" />
+          <div className="p-2 rounded-lg bg-cream-beige/50 hover:bg-cream-beige transition-colors duration-200">
+            <File className="h-5 w-5 text-deep-espresso" />
           </div>
           <div className="text-center">
-            <div className="w-1 h-1 bg-[#5adbff] rounded-full mx-auto mb-1"></div>
-            <div className="w-1 h-1 bg-[#5adbff] rounded-full mx-auto mb-1"></div>
-            <div className="w-1 h-1 bg-[#5adbff] rounded-full mx-auto"></div>
+            <div className="w-1 h-1 bg-deep-espresso rounded-full mx-auto mb-1"></div>
+            <div className="w-1 h-1 bg-deep-espresso rounded-full mx-auto mb-1"></div>
+            <div className="w-1 h-1 bg-deep-espresso rounded-full mx-auto"></div>
           </div>
         </div>
       </div>
@@ -358,47 +358,47 @@ export default function FileExplorer({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-light-cream">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-[#3c6997] flex-shrink-0">
+      <div className="flex items-center justify-between p-3 border-b border-cream-beige flex-shrink-0">
         <div className="flex items-center gap-2">
           <button
             onClick={onToggleCollapse}
-            className="p-1 hover:bg-[#3c6997] rounded"
+            className="p-1 hover:bg-cream-beige rounded"
             title="Collapse Explorer"
           >
-            <Menu className="h-4 w-4 text-[#5adbff]" />
+            <Menu className="h-4 w-4 text-deep-espresso" />
           </button>
-          <h3 className="text-sm font-semibold text-[#5adbff]">Explorer</h3>
+          <h3 className="text-sm font-semibold text-deep-espresso">Explorer</h3>
         </div>
         <div className="flex gap-1">
           <button
             onClick={() => handleCreateFile(null)}
-            className="p-1 hover:bg-[#3c6997] rounded"
+            className="p-1 hover:bg-cream-beige rounded"
             title="New File"
           >
-            <Plus className="h-4 w-4 text-[#5adbff]" />
+            <Plus className="h-4 w-4 text-deep-espresso" />
           </button>
           <button
             onClick={() => handleCreateFolder(null)}
-            className="p-1 hover:bg-[#3c6997] rounded"
+            className="p-1 hover:bg-cream-beige rounded"
             title="New Folder"
           >
-            <Folder className="h-4 w-4 text-[#5adbff]" />
+            <Folder className="h-4 w-4 text-deep-espresso" />
           </button>
         </div>
       </div>
 
       {/* Search Bar */}
-      <div className="p-2 border-b border-[#3c6997] flex-shrink-0">
+      <div className="p-2 border-b border-cream-beige flex-shrink-0">
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#5adbff]/70" />
+          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-deep-espresso/70" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search files..."
-            className="w-full pl-8 pr-3 py-1 bg-[#3c6997] text-white text-sm border border-[#5adbff]/30 rounded focus:outline-none focus:ring-2 focus:ring-[#5adbff] focus:border-transparent"
+            className="w-full pl-8 pr-3 py-1 bg-cream-beige text-dark-charcoal text-sm border border-medium-coffee/30 rounded focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent"
           />
         </div>
       </div>
@@ -408,9 +408,9 @@ export default function FileExplorer({
         <div className="min-w-max">
           {files.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center p-4">
-              <File className="h-8 w-8 text-[#5adbff]/50 mb-2" />
-              <p className="text-[#5adbff]/70 text-sm">No files yet</p>
-              <p className="text-[#5adbff]/50 text-xs mt-1">Create your first file to get started</p>
+              <File className="h-8 w-8 text-deep-espresso/50 mb-2" />
+              <p className="text-deep-espresso/70 text-sm">No files yet</p>
+              <p className="text-deep-espresso/50 text-xs mt-1">Create your first file to get started</p>
             </div>
           ) : (
             files.map((file) => (
@@ -439,12 +439,12 @@ export default function FileExplorer({
       {/* Create Dialog */}
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-[#094074] p-4 rounded-lg border border-[#5adbff] min-w-[300px]">
-            <h2 className="text-[#5adbff] mb-2 font-semibold">
+          <div className="bg-light-cream p-4 rounded-lg border border-medium-coffee min-w-[300px]">
+            <h2 className="text-deep-espresso mb-2 font-semibold">
               Create New {createType === 'file' ? 'File' : 'Folder'}
             </h2>
             {createType === 'file' && (
-              <p className="text-[#5adbff]/70 text-xs mb-4">
+              <p className="text-deep-espresso/70 text-xs mb-4">
                 Allowed extensions: .py, .css, .html, .js
               </p>
             )}
@@ -453,20 +453,20 @@ export default function FileExplorer({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={createType === 'file' ? 'filename.html' : 'folder-name'}
-              className="w-full px-3 py-2 bg-[#3c6997] text-white rounded mb-3 focus:outline-none focus:ring-2 focus:ring-[#5adbff]"
+              className="w-full px-3 py-2 bg-cream-beige text-dark-charcoal rounded mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee"
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               autoFocus
             />
             <div className="flex gap-2">
               <button
                 onClick={handleCreate}
-                className="px-3 py-1 bg-[#5adbff] text-[#094074] rounded hover:bg-[#ffdd4a] font-semibold"
+                className="px-3 py-1 bg-medium-coffee text-light-cream rounded hover:bg-deep-espresso font-semibold"
               >
                 Create
               </button>
               <button
                 onClick={() => setShowCreateDialog(false)}
-                className="px-3 py-1 bg-[#3c6997] text-[#5adbff] rounded hover:bg-[#ff960d] hover:text-white"
+                className="px-3 py-1 bg-cream-beige text-deep-espresso rounded hover:bg-deep-espresso hover:text-light-cream"
               >
                 Cancel
               </button>
