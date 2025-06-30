@@ -63,7 +63,7 @@ export default function Home() {
           </div>
 
           {/* Enhanced Main heading */}
-          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black text-gray-900 mb-6 leading-tight">
+          <h1 className="font-heading text-6xl sm:text-7xl lg:text-8xl font-black text-gray-900 mb-6 leading-tight">
             <span className="block">Learn to Code</span>
             <span className="block bg-gradient-to-r from-[#094074] via-[#3c6997] to-[#5adbff] bg-clip-text text-transparent animate-gradient">
               Without the BS
@@ -136,7 +136,7 @@ export default function Home() {
               <span className="text-red-700 font-semibold text-sm">The Problem</span>
           </div>
             
-            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-red-700 mb-8 leading-tight">
+            <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-red-700 mb-8 leading-tight">
               Modern Coding is
               <span className="block text-red-800">Broken</span>
             </h2>
@@ -173,7 +173,7 @@ export default function Home() {
               <span className="text-[#094074] font-semibold text-sm">The Solution</span>
             </div>
             
-            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
+            <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               HelloWurld to the
               <span className="block bg-gradient-to-r from-[#094074] to-[#5adbff] bg-clip-text text-transparent"> Rescue!</span>
             </h2>
@@ -234,7 +234,7 @@ export default function Home() {
                 <div className={`inline-flex p-5 rounded-2xl bg-gradient-to-r ${feature.color} mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                   <feature.icon weight="fill" className="h-10 w-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-6 group-hover:text-[#094074] transition-colors">
+                <h3 className="font-heading text-2xl font-bold text-gray-900 mb-6 group-hover:text-[#094074] transition-colors">
                   {feature.title}
                 </h3>
                 <p className="text-gray-600 leading-relaxed text-lg">
@@ -257,7 +257,7 @@ export default function Home() {
               <span className="text-[#094074] font-semibold text-sm">How It Works</span>
             </div>
             
-            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
+            <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               Three Steps to
               <span className="block bg-gradient-to-r from-[#094074] to-[#5adbff] bg-clip-text text-transparent"> Success</span>
             </h2>
@@ -304,7 +304,7 @@ export default function Home() {
                       <step.icon weight="fill" className="h-10 w-10 text-white" />
                     </div>
                   </div>
-                  <h3 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 leading-tight">
+                  <h3 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 leading-tight">
                     {step.title}
                   </h3>
                   <p className="text-2xl text-gray-600 leading-relaxed">
@@ -347,7 +347,7 @@ export default function Home() {
               <span className="text-[#094074] font-semibold text-sm">Student Success</span>
             </div>
             
-            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
+            <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               What Our
               <span className="block bg-gradient-to-r from-[#094074] to-[#5adbff] bg-clip-text text-transparent"> Students Say</span>
             </h2>
@@ -429,7 +429,7 @@ export default function Home() {
               <span className="text-[#094074] font-semibold text-sm">Simple Pricing</span>
             </div>
             
-            <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
+            <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               Simple, Transparent
               <span className="block bg-gradient-to-r from-[#094074] to-[#5adbff] bg-clip-text text-transparent"> Pricing</span>
             </h2>
@@ -511,7 +511,7 @@ export default function Home() {
                 )}
 
                 <div className="text-center mb-12">
-                  <h3 className="text-4xl font-black text-gray-900 mb-6">{plan.name}</h3>
+                  <h3 className="font-heading text-4xl font-black text-gray-900 mb-6">{plan.name}</h3>
                   <div className="mb-8">
                     <span className="text-6xl font-black text-gray-900">{plan.price}</span>
                     <span className="text-gray-600 ml-3 text-2xl">/{plan.period}</span>

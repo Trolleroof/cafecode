@@ -12,9 +12,9 @@ const Footer = () => {
               <div className="bg-gradient-to-r from-[#094074] to-[#5adbff] p-2 rounded-lg">
                 <BracketsCurly className="h-6 w-6 text-white" />
               </div>
-              <span className="text-xl font-bold">CodeCraft IDE</span>
+              <span className="font-heading text-xl font-bold">CodeCraft IDE</span>
             </div>
-            <p className="text-gray-400 mb-6 max-w-md">
+            <p className="font-body text-gray-400 mb-6 max-w-md">
               Empowering the next generation of developers with an intuitive, 
               beginner-friendly coding environment that makes learning to code accessible to everyone.
             </p>
@@ -36,7 +36,7 @@ const Footer = () => {
 
           {/* Product */}
           <div>
-            <h3 className="text-lg font-semibold mb-6">Product</h3>
+            <h3 className="font-heading text-lg font-semibold mb-6">Product</h3>
             <ul className="space-y-4">
               <li><a href="#features" className="text-gray-400 hover:text-white transition-colors">Features</a></li>
               <li><a href="#pricing" className="text-gray-400 hover:text-white transition-colors">Pricing</a></li>
@@ -47,7 +47,7 @@ const Footer = () => {
 
           {/* Support */}
           <div>
-            <h3 className="text-lg font-semibold mb-6">Support</h3>
+            <h3 className="font-heading text-lg font-semibold mb-6">Support</h3>
             <ul className="space-y-4">
               <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Documentation</a></li>
               <li><a href="#" className="text-gray-400 hover:text-white transition-colors">Tutorials</a></li>
@@ -58,7 +58,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-gray-400 text-sm">
+          <p className="font-body text-gray-400 text-sm">
             © 2025 CodeCraft IDE. All rights reserved.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">

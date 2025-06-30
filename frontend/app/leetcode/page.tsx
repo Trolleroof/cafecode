@@ -12,6 +12,7 @@ import {
   SparklesIcon,
   TrophyIcon
 } from '@heroicons/react/24/outline';
+import { Target } from 'phosphor-react';
 import { useRouter } from 'next/navigation';
 import MonacoEditor from '@/components/MonacoEditor';
 import { Button } from '@/components/ui/button';
@@ -526,7 +527,7 @@ export default function LeetCodePage() {
           </Button>
           <div className="flex items-center space-x-3">
             <div className="bg-gradient-to-r from-[#5adbff] to-[#ffdd4a] p-2 rounded-lg">
-              <TargetIcon className="h-6 w-6 text-[#094074]" />
+              <Target className="h-6 w-6 text-[#094074]" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-[#5adbff]">LeetCode Practice</h1>

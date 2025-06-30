@@ -11,6 +11,9 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ['var(--font-poppins)', 'system-ui', 'sans-serif'],
+        heading: ['Space Grotesk Variable', 'Space Grotesk', 'ui-sans-serif', 'system-ui'],
+        body: ['Sora Variable', 'Sora', 'ui-sans-serif', 'system-ui'],
+        mono: ['JetBrains Mono Variable', 'JetBrains Mono', 'ui-monospace', 'SFMono-Regular'],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
