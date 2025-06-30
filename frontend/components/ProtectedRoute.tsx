@@ -1,8 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
