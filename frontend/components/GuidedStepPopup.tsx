@@ -45,7 +45,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     setDragging(true);
     dragStart.current = {
       x: e.clientX - position.x,
@@ -54,7 +54,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
     document.body.style.userSelect = 'none';
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: MouseEvent) => {
     if (!dragging) return;
     setPosition({
       x: e.clientX - dragStart.current.x,
