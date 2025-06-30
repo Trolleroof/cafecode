@@ -1,27 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Menu, X, Code2, User, LogOut } from 'lucide-react';
+import { Menu, X, Code2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-interface HeaderProps {
-  onSignUpClick?: () => void;
-}
-
-const Header = ({ onSignUpClick }: HeaderProps) => {
+const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
-  const { user, signOut } = useAuth();
 
   const handleStartCoding = () => {
-    if (user) {
-      router.push('/ide');
-    }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push('/');
+    router.push('/ide');
   };
 
   const handleNavClick = (href: string) => {
@@ -80,55 +68,16 @@ const Header = ({ onSignUpClick }: HeaderProps) => {
 
           {/* Desktop CTA Buttons */}
           <div className="hidden lg:flex items-center space-x-4">
-            {user ? (
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 text-gray-700">
-                  <User className="h-4 w-4" />
-                  <span className="font-medium">{user.username}</span>
-                </div>
-                <button 
-                  onClick={handleSignOut}
-                  className="text-gray-700 hover:text-red-600 transition-colors font-medium text-lg flex items-center space-x-1"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
-            ) : (
-              <>
-                <button 
-                  onClick={onSignUpClick}
-                  className="text-blue-600 hover:text-blue-800 transition-colors font-medium text-lg border border-blue-600 px-4 py-1.5 rounded-xl ml-2"
-                >
-                  Sign Up
-                </button>
-               
-              </>
-            )}
             <button 
               onClick={handleStartCoding}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              {user ? 'Start Coding' : 'Start Coding'}
+              Start Coding
             </button>
           </div>
 
           {/* Mobile CTA Button */}
           <div className="flex lg:hidden items-center space-x-3">
-            {user && (
-              <div className="flex items-center space-x-2 text-gray-700">
-                <User className="h-4 w-4" />
-                <span className="font-medium text-sm">{user.username}</span>
-              </div>
-            )}
-            {!user && (
-              <button 
-                onClick={onSignUpClick}
-                className="text-blue-600 hover:text-blue-800 transition-colors font-medium text-lg py-2 border border-blue-600 rounded-xl mt-2"
-              >
-                Sign Up
-              </button>
-            )}
             <button 
               onClick={handleStartCoding}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-300"
@@ -182,38 +131,6 @@ const Header = ({ onSignUpClick }: HeaderProps) => {
             >
               About
             </button>
-            <div className="flex flex-col space-y-3 pt-4 border-t border-gray-200">
-              {user ? (
-                <>
-                  <div className="flex items-center space-x-2 text-gray-700 py-2">
-                    <User className="h-4 w-4" />
-                    <span className="font-medium">{user.username}</span>
-                  </div>
-                  <button 
-                    onClick={handleSignOut}
-                    className="text-left text-gray-700 hover:text-red-600 transition-colors font-medium text-lg py-2 flex items-center space-x-2"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Sign Out</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button 
-                    onClick={onSignUpClick}
-                    className="text-blue-600 hover:text-blue-800 transition-colors font-medium text-lg py-2 border border-blue-600 rounded-xl mt-2"
-                  >
-                    Sign Up
-                  </button>
-                  <button 
-                    onClick={handleStartCoding}
-                    className="text-left text-gray-700 hover:text-blue-600 transition-colors font-medium text-lg py-2"
-                  >
-                    Sign In
-                  </button>
-                </>
-              )}
-            </div>
           </nav>
         </div>
       </div>

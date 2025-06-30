@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Menu, X, Code2, Play, ArrowRight, Sparkles, Github, Twitter, Lightbulb, MessageSquare, Edit3, MessageCircle, CheckCircle, Star, Quote, Zap, Shield, Users, BookOpen, Check, Target, TrendingUp, Award, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -10,46 +10,17 @@ import Footer from '@/components/Footer';
 export default function Home() {
   const router = useRouter();
 
-  // Check for auth parameter in URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('auth') === 'required') {
-      setShowAuthModal(true);
-      // Clean up the URL
-      router.replace('/', { scroll: false });
-    }
-  }, [router]);
-
   const handleStartCoding = () => {
-    if (user) {
-      router.push('/ide');
-    } else {
-      setShowAuthModal(true);
-    }
+    router.push('/ide');
   };
 
   const handleLeetCodePractice = () => {
-    if (user) {
-      router.push('/leetcode');
-    } else {
-      setShowAuthModal(true);
-    }
+    router.push('/leetcode');
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#094074] to-[#3c6997]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ffdd4a] mx-auto mb-4"></div>
-          <p className="text-[#5adbff]">Loading...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-white">
-      <Header onSignUpClick={() => { setAuthTab('signup'); setShowAuthModal(true); }} />
+      <Header />
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-16">
@@ -576,8 +547,6 @@ export default function Home() {
       </section>
 
       <Footer />
-      
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} defaultTab={authTab} />
     </div>
   );
 }
