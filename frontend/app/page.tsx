@@ -7,7 +7,6 @@ import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { AuthModal } from '@/components/AuthModal';
-import { useAuth } from '@/contexts/AuthContext';
 
 export default function Home() {
   const router = useRouter();
