@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
+import UserMenu from './UserMenu';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -70,7 +71,7 @@ const Header = () => {
             </button>
           </nav>
 
-          {/* Desktop CTA Buttons */}
+          {/* Desktop CTA Buttons & User Menu */}
           <div className="hidden lg:flex items-center space-x-4">
             <button 
               onClick={handleStartCoding}
@@ -78,9 +79,10 @@ const Header = () => {
             >
               Start Brewing
             </button>
+            <UserMenu />
           </div>
 
-          {/* Mobile CTA Button */}
+          {/* Mobile CTA Button & User Menu */}
           <div className="flex lg:hidden items-center space-x-3">
             <button 
               onClick={handleStartCoding}
@@ -88,6 +90,8 @@ const Header = () => {
             >
               Start Brewing
             </button>
+            
+            <UserMenu />
             
             {/* Mobile menu button */}
             <button
