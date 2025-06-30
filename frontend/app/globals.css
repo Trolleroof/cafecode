@@ -2,80 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Garet:wght@300;400;500;600;700;800;900&display=swap');
+
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --foreground-rgb: 28, 28, 28;
+  --background-start-rgb: 243, 228, 212;
+  --background-end-rgb: 228, 207, 171;
+
+  /* Coffee Shop Color Palette */
+  --cream-beige: #E4CFAB;
+  --medium-coffee: #A36A3E;
+  --dark-charcoal: #1C1C1C;
+  --light-cream: #F3E4D4;
+  --deep-espresso: #814D33;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --foreground-rgb: 243, 228, 212;
+    --background-start-rgb: 28, 28, 28;
+    --background-end-rgb: 129, 77, 51;
   }
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --background: 243 228 212;
+    --foreground: 28 28 28;
+    --card: 228 207 171;
+    --card-foreground: 28 28 28;
+    --popover: 228 207 171;
+    --popover-foreground: 28 28 28;
+    --primary: 163 106 62;
+    --primary-foreground: 243 228 212;
+    --secondary: 129 77 51;
+    --secondary-foreground: 243 228 212;
+    --muted: 228 207 171;
+    --muted-foreground: 129 77 51;
+    --accent: 163 106 62;
+    --accent-foreground: 243 228 212;
+    --destructive: 220 38 38;
+    --destructive-foreground: 243 228 212;
+    --border: 163 106 62;
+    --input: 228 207 171;
+    --ring: 163 106 62;
+    --chart-1: 163 106 62;
+    --chart-2: 129 77 51;
+    --chart-3: 28 28 28;
+    --chart-4: 228 207 171;
+    --chart-5: 243 228 212;
     --radius: 0.75rem;
-
-    /* Custom color palette */
-    --indigo-dye: #094074;
-    --lapis-lazuli: #3c6997;
-    --vivid-sky-blue: #5adbff;
-    --mustard: #ffdd4a;
-    --princeton-orange: #ff960d;
   }
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --background: 28 28 28;
+    --foreground: 243 228 212;
+    --card: 129 77 51;
+    --card-foreground: 243 228 212;
+    --popover: 129 77 51;
+    --popover-foreground: 243 228 212;
+    --primary: 163 106 62;
+    --primary-foreground: 28 28 28;
+    --secondary: 228 207 171;
+    --secondary-foreground: 28 28 28;
+    --muted: 129 77 51;
+    --muted-foreground: 163 106 62;
+    --accent: 163 106 62;
+    --accent-foreground: 28 28 28;
+    --destructive: 220 38 38;
+    --destructive-foreground: 243 228 212;
+    --border: 163 106 62;
+    --input: 129 77 51;
+    --ring: 163 106 62;
   }
 }
 
@@ -85,34 +82,63 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-poppins), system-ui, -apple-system, sans-serif;
+    font-family: 'Garet', system-ui, -apple-system, sans-serif;
   }
 }
 
-/* Custom animations */
-@keyframes bounce-gentle {
+/* Coffee Shop Custom Animations */
+@keyframes steam-rise {
   0%, 100% {
-    transform: translateY(0);
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.7;
   }
   50% {
-    transform: translateY(-12px);
+    transform: translateY(-20px) rotate(5deg);
+    opacity: 1;
+  }
+}
+
+@keyframes coffee-drip {
+  0% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes bean-bounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-15px) rotate(90deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+  }
+  75% {
+    transform: translateY(-10px) rotate(270deg);
+  }
+}
+
+@keyframes warm-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(163, 106, 62, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(163, 106, 62, 0.6);
   }
 }
 
 @keyframes slide-up {
   from {
     transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slide-up-fast {
-  from {
-    transform: translateY(20px);
     opacity: 0;
   }
   to {
@@ -136,15 +162,6 @@
   }
 }
 
-@keyframes pulse-fast {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-
 @keyframes float {
   0%, 100% {
     transform: translateY(0px);
@@ -164,16 +181,24 @@
 }
 
 @layer utilities {
-  .animate-bounce-gentle {
-    animation: bounce-gentle 4s ease-in-out infinite;
+  .animate-steam-rise {
+    animation: steam-rise 3s ease-in-out infinite;
+  }
+
+  .animate-coffee-drip {
+    animation: coffee-drip 2s ease-in-out infinite;
+  }
+
+  .animate-bean-bounce {
+    animation: bean-bounce 4s ease-in-out infinite;
+  }
+
+  .animate-warm-glow {
+    animation: warm-glow 2s ease-in-out infinite;
   }
 
   .animate-slide-up {
     animation: slide-up 0.8s ease-out;
-  }
-
-  .animate-slide-up-fast {
-    animation: slide-up-fast 0.3s ease-out;
   }
 
   .animate-fade-in {
@@ -182,10 +207,6 @@
 
   .animate-pulse {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .animate-pulse-fast {
-    animation: pulse-fast 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
   .animate-float {
@@ -197,145 +218,127 @@
     animation: gradient-shift 4s ease infinite;
   }
 
-  /* Enhanced color utilities using the new palette */
-  .text-indigo-dye { color: var(--indigo-dye); }
-  .text-lapis-lazuli { color: var(--lapis-lazuli); }
-  .text-vivid-sky-blue { color: var(--vivid-sky-blue); }
-  .text-mustard { color: var(--mustard); }
-  .text-princeton-orange { color: var(--princeton-orange); }
+  /* Coffee Shop Color Utilities */
+  .text-cream-beige { color: var(--cream-beige); }
+  .text-medium-coffee { color: var(--medium-coffee); }
+  .text-dark-charcoal { color: var(--dark-charcoal); }
+  .text-light-cream { color: var(--light-cream); }
+  .text-deep-espresso { color: var(--deep-espresso); }
 
-  .bg-indigo-dye { background-color: var(--indigo-dye); }
-  .bg-lapis-lazuli { background-color: var(--lapis-lazuli); }
-  .bg-vivid-sky-blue { background-color: var(--vivid-sky-blue); }
-  .bg-mustard { background-color: var(--mustard); }
-  .bg-princeton-orange { background-color: var(--princeton-orange); }
+  .bg-cream-beige { background-color: var(--cream-beige); }
+  .bg-medium-coffee { background-color: var(--medium-coffee); }
+  .bg-dark-charcoal { background-color: var(--dark-charcoal); }
+  .bg-light-cream { background-color: var(--light-cream); }
+  .bg-deep-espresso { background-color: var(--deep-espresso); }
 
-  .border-indigo-dye { border-color: var(--indigo-dye); }
-  .border-lapis-lazuli { border-color: var(--lapis-lazuli); }
-  .border-vivid-sky-blue { border-color: var(--vivid-sky-blue); }
-  .border-mustard { border-color: var(--mustard); }
-  .border-princeton-orange { border-color: var(--princeton-orange); }
+  .border-cream-beige { border-color: var(--cream-beige); }
+  .border-medium-coffee { border-color: var(--medium-coffee); }
+  .border-dark-charcoal { border-color: var(--dark-charcoal); }
+  .border-light-cream { border-color: var(--light-cream); }
+  .border-deep-espresso { border-color: var(--deep-espresso); }
 
-  .hover\:text-indigo-dye:hover { color: var(--indigo-dye); }
-  .hover\:text-lapis-lazuli:hover { color: var(--lapis-lazuli); }
-  .hover\:text-vivid-sky-blue:hover { color: var(--vivid-sky-blue); }
-  .hover\:text-mustard:hover { color: var(--mustard); }
-  .hover\:text-princeton-orange:hover { color: var(--princeton-orange); }
+  .hover\:text-cream-beige:hover { color: var(--cream-beige); }
+  .hover\:text-medium-coffee:hover { color: var(--medium-coffee); }
+  .hover\:text-dark-charcoal:hover { color: var(--dark-charcoal); }
+  .hover\:text-light-cream:hover { color: var(--light-cream); }
+  .hover\:text-deep-espresso:hover { color: var(--deep-espresso); }
 
-  .hover\:bg-indigo-dye:hover { background-color: var(--indigo-dye); }
-  .hover\:bg-lapis-lazuli:hover { background-color: var(--lapis-lazuli); }
-  .hover\:bg-vivid-sky-blue:hover { background-color: var(--vivid-sky-blue); }
-  .hover\:bg-mustard:hover { background-color: var(--mustard); }
-  .hover\:bg-princeton-orange:hover { background-color: var(--princeton-orange); }
+  .hover\:bg-cream-beige:hover { background-color: var(--cream-beige); }
+  .hover\:bg-medium-coffee:hover { background-color: var(--medium-coffee); }
+  .hover\:bg-dark-charcoal:hover { background-color: var(--dark-charcoal); }
+  .hover\:bg-light-cream:hover { background-color: var(--light-cream); }
+  .hover\:bg-deep-espresso:hover { background-color: var(--deep-espresso); }
 
-  /* Gradient utilities for custom colors */
-  .from-indigo-dye { --tw-gradient-from: var(--indigo-dye) var(--tw-gradient-from-position); --tw-gradient-to: rgb(9 64 116 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-  .from-lapis-lazuli { --tw-gradient-from: var(--lapis-lazuli) var(--tw-gradient-from-position); --tw-gradient-to: rgb(60 105 151 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-  .from-vivid-sky-blue { --tw-gradient-from: var(--vivid-sky-blue) var(--tw-gradient-from-position); --tw-gradient-to: rgb(90 219 255 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-  .from-mustard { --tw-gradient-from: var(--mustard) var(--tw-gradient-from-position); --tw-gradient-to: rgb(255 221 74 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-  .from-princeton-orange { --tw-gradient-from: var(--princeton-orange) var(--tw-gradient-from-position); --tw-gradient-to: rgb(255 150 13 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  /* Coffee Shop Gradient Utilities */
+  .from-cream-beige { --tw-gradient-from: var(--cream-beige) var(--tw-gradient-from-position); --tw-gradient-to: rgb(228 207 171 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-medium-coffee { --tw-gradient-from: var(--medium-coffee) var(--tw-gradient-from-position); --tw-gradient-to: rgb(163 106 62 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-dark-charcoal { --tw-gradient-from: var(--dark-charcoal) var(--tw-gradient-from-position); --tw-gradient-to: rgb(28 28 28 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-light-cream { --tw-gradient-from: var(--light-cream) var(--tw-gradient-from-position); --tw-gradient-to: rgb(243 228 212 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  .from-deep-espresso { --tw-gradient-from: var(--deep-espresso) var(--tw-gradient-from-position); --tw-gradient-to: rgb(129 77 51 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
 
-  .to-indigo-dye { --tw-gradient-to: var(--indigo-dye) var(--tw-gradient-to-position); }
-  .to-lapis-lazuli { --tw-gradient-to: var(--lapis-lazuli) var(--tw-gradient-to-position); }
-  .to-vivid-sky-blue { --tw-gradient-to: var(--vivid-sky-blue) var(--tw-gradient-to-position); }
-  .to-mustard { --tw-gradient-to: var(--mustard) var(--tw-gradient-to-position); }
-  .to-princeton-orange { --tw-gradient-to: var(--princeton-orange) var(--tw-gradient-to-position); }
+  .to-cream-beige { --tw-gradient-to: var(--cream-beige) var(--tw-gradient-to-position); }
+  .to-medium-coffee { --tw-gradient-to: var(--medium-coffee) var(--tw-gradient-to-position); }
+  .to-dark-charcoal { --tw-gradient-to: var(--dark-charcoal) var(--tw-gradient-to-position); }
+  .to-light-cream { --tw-gradient-to: var(--light-cream) var(--tw-gradient-to-position); }
+  .to-deep-espresso { --tw-gradient-to: var(--deep-espresso) var(--tw-gradient-to-position); }
 
   /* Background with opacity utilities */
-  .bg-vivid-sky-blue\/10 { background-color: rgb(90 219 255 / 0.1); }
-  .bg-vivid-sky-blue\/20 { background-color: rgb(90 219 255 / 0.2); }
-  .bg-vivid-sky-blue\/30 { background-color: rgb(90 219 255 / 0.3); }
-  .bg-indigo-dye\/10 { background-color: rgb(9 64 116 / 0.1); }
-  .bg-indigo-dye\/20 { background-color: rgb(9 64 116 / 0.2); }
-  .bg-indigo-dye\/30 { background-color: rgb(9 64 116 / 0.3); }
-  .bg-lapis-lazuli\/10 { background-color: rgb(60 105 151 / 0.1); }
-  .bg-lapis-lazuli\/20 { background-color: rgb(60 105 151 / 0.2); }
-  .bg-lapis-lazuli\/30 { background-color: rgb(60 105 151 / 0.3); }
-  .bg-mustard\/10 { background-color: rgb(255 221 74 / 0.1); }
-  .bg-mustard\/20 { background-color: rgb(255 221 74 / 0.2); }
-  .bg-mustard\/30 { background-color: rgb(255 221 74 / 0.3); }
+  .bg-medium-coffee\/10 { background-color: rgb(163 106 62 / 0.1); }
+  .bg-medium-coffee\/20 { background-color: rgb(163 106 62 / 0.2); }
+  .bg-medium-coffee\/30 { background-color: rgb(163 106 62 / 0.3); }
+  .bg-deep-espresso\/10 { background-color: rgb(129 77 51 / 0.1); }
+  .bg-deep-espresso\/20 { background-color: rgb(129 77 51 / 0.2); }
+  .bg-deep-espresso\/30 { background-color: rgb(129 77 51 / 0.3); }
+  .bg-cream-beige\/10 { background-color: rgb(228 207 171 / 0.1); }
+  .bg-cream-beige\/20 { background-color: rgb(228 207 171 / 0.2); }
+  .bg-cream-beige\/30 { background-color: rgb(228 207 171 / 0.3); }
 
-  /* Hover background with opacity utilities */
-  .hover\:bg-vivid-sky-blue\/10:hover { background-color: rgb(90 219 255 / 0.1); }
-  .hover\:bg-vivid-sky-blue\/20:hover { background-color: rgb(90 219 255 / 0.2); }
-  .hover\:bg-vivid-sky-blue\/30:hover { background-color: rgb(90 219 255 / 0.3); }
-  .hover\:bg-indigo-dye\/10:hover { background-color: rgb(9 64 116 / 0.1); }
-  .hover\:bg-indigo-dye\/20:hover { background-color: rgb(9 64 116 / 0.2); }
-  .hover\:bg-indigo-dye\/30:hover { background-color: rgb(9 64 116 / 0.3); }
-
-  /* Glass morphism effect */
-  .glass {
-    background: rgba(255, 255, 255, 0.1);
+  /* Coffee Shop Glass Effect */
+  .coffee-glass {
+    background: rgba(228, 207, 171, 0.1);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(163, 106, 62, 0.2);
   }
 
-  /* Enhanced shadows using new palette */
-  .shadow-glow {
-    box-shadow: 0 0 30px rgba(9, 64, 116, 0.3);
+  /* Enhanced shadows using coffee palette */
+  .shadow-coffee {
+    box-shadow: 0 0 30px rgba(163, 106, 62, 0.3);
   }
 
-  .shadow-glow-accent {
-    box-shadow: 0 0 30px rgba(90, 219, 255, 0.3);
+  .shadow-espresso {
+    box-shadow: 0 0 30px rgba(129, 77, 51, 0.3);
   }
 
   /* Monaco Editor Line Highlighting */
   .highlighted-code-line {
-    background-color: rgba(255, 221, 74, 0.2) !important; /* mustard with opacity */
-    border-left: 3px solid var(--mustard) !important;
+    background-color: rgba(163, 106, 62, 0.2) !important;
+    border-left: 3px solid var(--medium-coffee) !important;
   }
 
   .highlighted-code-line-glyph {
-    background-color: var(--mustard) !important;
+    background-color: var(--medium-coffee) !important;
     width: 4px !important;
-  }
-
-  /* Ensure proper white-space and font for code editor */
-  .prism-code-editor-pre,
-  .prism-code-editor-pre code {
-    white-space: pre !important;
-    word-wrap: normal !important;
-    font-family: '"Fira code", "Fira Mono", monospace' !important;
-    font-size: 14px !important;
-  }
-
-  .token.comment {
-    color: #888; /* Darker gray for comments */
   }
 }
 
 @layer components {
-  /* Enhanced button styles using new palette */
-  .btn-primary {
-    @apply relative overflow-hidden bg-gradient-to-r from-indigo-dye to-vivid-sky-blue text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl;
+  /* Coffee Shop Button Styles */
+  .btn-coffee-primary {
+    @apply relative overflow-hidden bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream font-semibold rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-coffee;
     background-size: 200% 200%;
     animation: gradient-shift 4s ease infinite;
   }
 
-  .btn-primary::before {
+  .btn-coffee-primary::before {
     content: '';
     position: absolute;
     top: 0;
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(243, 228, 212, 0.2), transparent);
     transition: left 0.5s;
   }
 
-  .btn-primary:hover::before {
+  .btn-coffee-primary:hover::before {
     left: 100%;
   }
 
-  .btn-primary:active {
+  .btn-coffee-primary:active {
     transform: scale(0.98);
   }
 
-  .btn-primary .group-hover\:translate-x-2 {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  .btn-coffee-secondary {
+    @apply relative bg-light-cream text-dark-charcoal font-semibold rounded-xl border-2 border-medium-coffee transition-all duration-300 hover:border-deep-espresso hover:bg-cream-beige hover:text-deep-espresso hover:shadow-lg;
   }
 
-  .btn-secondary {
-    @apply relative bg-white text-gray-700 font-semibold rounded-xl border-2 border-gray-200 transition-all duration-300 hover:border-lapis-lazuli hover:bg-vivid-sky-blue/10 hover:text-indigo-dye hover:shadow-lg;
+  /* Coffee Shop Card Styles */
+  .coffee-card {
+    @apply bg-cream-beige/80 backdrop-blur-sm rounded-3xl border border-medium-coffee/20 shadow-xl hover:shadow-coffee transition-all duration-500 transform hover:-translate-y-3 hover:scale-105;
+  }
+
+  /* Coffee Shop Navigation */
+  .coffee-nav {
+    @apply bg-deep-espresso/95 backdrop-blur-md border-b border-medium-coffee/50;
   }
 }

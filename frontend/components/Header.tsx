@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { List, X, BracketsCurly } from 'phosphor-react';
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 
 const Header = () => {
@@ -22,19 +22,19 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
+    <header className="fixed top-0 left-0 right-0 z-50 coffee-nav shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 lg:h-20">
-          {/* Logo */}
+          {/* Coffee Shop Logo */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => router.push('/')}>
-            <div className="bg-gradient-to-r from-[#094074] to-[#5adbff] p-2.5 lg:p-3 rounded-xl shadow-lg">
-              <BracketsCurly className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
+            <div className="bg-gradient-to-r from-medium-coffee to-deep-espresso p-2.5 lg:p-3 rounded-xl shadow-coffee animate-warm-glow">
+              <span className="text-light-cream text-xl lg:text-2xl">☕</span>
             </div>
-            <span className="font-heading text-xl lg:text-2xl font-bold text-gray-900 hidden sm:block">
-              HelloWurld
+            <span className="font-heading text-xl lg:text-2xl font-bold text-light-cream hidden sm:block">
+              CodeCraft Café
             </span>
-            <span className="font-heading text-lg font-bold text-gray-900 sm:hidden">
-              HelloWurld
+            <span className="font-heading text-lg font-bold text-light-cream sm:hidden">
+              CodeCraft
             </span>
           </div>
 
@@ -42,27 +42,31 @@ const Header = () => {
           <nav className="hidden lg:flex items-center space-x-8">
             <button 
               onClick={() => handleNavClick('#features')}
-              className="font-body text-gray-700 hover:text-[#094074] transition-colors font-medium text-lg"
+              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
             >
-              Features
+              Our Blend
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button 
               onClick={() => handleNavClick('#how-it-works')}
-              className="font-body text-gray-700 hover:text-[#094074] transition-colors font-medium text-lg"
+              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
             >
-              How it Works
+              Brewing Process
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button 
               onClick={() => handleNavClick('#pricing')}
-              className="font-body text-gray-700 hover:text-[#094074] transition-colors font-medium text-lg"
+              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
             >
-              Pricing
+              Menu
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button 
               onClick={() => handleNavClick('#about')}
-              className="font-body text-gray-700 hover:text-[#094074] transition-colors font-medium text-lg"
+              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
             >
-              About
+              About Us
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
           </nav>
 
@@ -70,9 +74,9 @@ const Header = () => {
           <div className="hidden lg:flex items-center space-x-4">
             <button 
               onClick={handleStartCoding}
-              className="font-body bg-gradient-to-r from-[#094074] to-[#5adbff] hover:from-[#3c6997] hover:to-[#ffdd4a] text-white px-6 py-2.5 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
+              className="btn-coffee-primary px-6 py-2.5 text-lg shadow-lg hover:shadow-coffee"
             >
-              Start Coding
+              Start Brewing
             </button>
           </div>
 
@@ -80,21 +84,21 @@ const Header = () => {
           <div className="flex lg:hidden items-center space-x-3">
             <button 
               onClick={handleStartCoding}
-              className="font-body bg-gradient-to-r from-[#094074] to-[#5adbff] hover:from-[#3c6997] hover:to-[#ffdd4a] text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-300"
+              className="btn-coffee-primary px-4 py-2 text-sm shadow-md hover:shadow-coffee"
             >
-              Start Coding
+              Start Brewing
             </button>
             
             {/* Mobile menu button */}
             <button
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg hover:bg-medium-coffee/20 transition-colors"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Toggle menu"
             >
               {isMenuOpen ? (
-                <X className="h-6 w-6 text-gray-700" />
+                <XMarkIcon className="h-6 w-6 text-cream-beige" />
               ) : (
-                <List className="h-6 w-6 text-gray-700" />
+                <Bars3Icon className="h-6 w-6 text-cream-beige" />
               )}
             </button>
           </div>
@@ -106,30 +110,30 @@ const Header = () => {
             ? 'max-h-96 opacity-100 pb-6' 
             : 'max-h-0 opacity-0 overflow-hidden'
         }`}>
-          <nav className="flex flex-col space-y-4 pt-4 border-t border-gray-200">
+          <nav className="flex flex-col space-y-4 pt-4 border-t border-medium-coffee/30">
             <button 
               onClick={() => handleNavClick('#features')}
-              className="font-body text-left text-gray-700 hover:text-[#094074] transition-colors font-medium text-lg py-2"
+              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
             >
-              Features
+              Our Blend
             </button>
             <button 
               onClick={() => handleNavClick('#how-it-works')}
-              className="font-body text-left text-gray-700 hover:text-[#094074] transition-colors font-medium text-lg py-2"
+              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
             >
-              How it Works
+              Brewing Process
             </button>
             <button 
               onClick={() => handleNavClick('#pricing')}
-              className="font-body text-left text-gray-700 hover:text-[#094074] transition-colors font-medium text-lg py-2"
+              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
             >
-              Pricing
+              Menu
             </button>
             <button 
               onClick={() => handleNavClick('#about')}
-              className="font-body text-left text-gray-700 hover:text-[#094074] transition-colors font-medium text-lg py-2"
+              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
             >
-              About
+              About Us
             </button>
           </nav>
         </div>

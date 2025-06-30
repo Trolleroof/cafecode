@@ -10,9 +10,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-poppins)', 'system-ui', 'sans-serif'],
-        heading: ['Space Grotesk Variable', 'Space Grotesk', 'ui-sans-serif', 'system-ui'],
-        body: ['Sora Variable', 'Sora', 'ui-sans-serif', 'system-ui'],
+        sans: ['Garet', 'system-ui', 'sans-serif'],
+        heading: ['Garet', 'ui-sans-serif', 'system-ui'],
+        body: ['Garet', 'ui-sans-serif', 'system-ui'],
         mono: ['JetBrains Mono Variable', 'JetBrains Mono', 'ui-monospace', 'SFMono-Regular'],
       },
       backgroundImage: {
@@ -66,12 +66,12 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
-        // Custom color palette
-        'indigo-dye': 'var(--indigo-dye)',
-        'lapis-lazuli': 'var(--lapis-lazuli)',
-        'vivid-sky-blue': 'var(--vivid-sky-blue)',
-        'mustard': 'var(--mustard)',
-        'princeton-orange': 'var(--princeton-orange)',
+        // Coffee Shop Color Palette
+        'cream-beige': 'var(--cream-beige)',
+        'medium-coffee': 'var(--medium-coffee)',
+        'dark-charcoal': 'var(--dark-charcoal)',
+        'light-cream': 'var(--light-cream)',
+        'deep-espresso': 'var(--deep-espresso)',
       },
       keyframes: {
         'accordion-down': {
@@ -90,10 +90,59 @@ const config: Config = {
             height: '0',
           },
         },
+        'steam-rise': {
+          '0%, 100%': {
+            transform: 'translateY(0) rotate(0deg)',
+            opacity: '0.7',
+          },
+          '50%': {
+            transform: 'translateY(-20px) rotate(5deg)',
+            opacity: '1',
+          },
+        },
+        'coffee-drip': {
+          '0%': {
+            transform: 'translateY(-10px)',
+            opacity: '0',
+          },
+          '50%': {
+            opacity: '1',
+          },
+          '100%': {
+            transform: 'translateY(20px)',
+            opacity: '0',
+          },
+        },
+        'bean-bounce': {
+          '0%, 100%': {
+            transform: 'translateY(0) rotate(0deg)',
+          },
+          '25%': {
+            transform: 'translateY(-15px) rotate(90deg)',
+          },
+          '50%': {
+            transform: 'translateY(-20px) rotate(180deg)',
+          },
+          '75%': {
+            transform: 'translateY(-10px) rotate(270deg)',
+          },
+        },
+        'warm-glow': {
+          '0%, 100%': {
+            boxShadow: '0 0 20px rgba(163, 106, 62, 0.3)',
+          },
+          '50%': {
+            boxShadow: '0 0 30px rgba(163, 106, 62, 0.6)',
+          },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'steam-rise': 'steam-rise 3s ease-in-out infinite',
+        'coffee-drip': 'coffee-drip 2s ease-in-out infinite',
+        'bean-bounce': 'bean-bounce 4s ease-in-out infinite',
+        'warm-glow': 'warm-glow 2s ease-in-out infinite',
       },
     },
   },
