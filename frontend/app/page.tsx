@@ -2,36 +2,23 @@
 
 import React from 'react';
 import { 
-  Bars3Icon, 
-  XMarkIcon, 
-  CodeBracketIcon, 
-  PlayIcon, 
-  ArrowRightIcon, 
-  StarIcon, 
-  GlobeAltIcon, 
-  ChatBubbleLeftRightIcon, 
-  PencilIcon, 
-  EnvelopeIcon, 
-  CheckIcon, 
-  ChatBubbleOvalLeftEllipsisIcon, 
-  BoltIcon, 
-  ShieldCheckIcon, 
-  UsersIcon, 
-  BookOpenIcon, 
-  TargetIcon, 
-  TrendingUpIcon, 
-  TrophyIcon, 
-  UserIcon, 
-  BrainIcon, 
-  RocketLaunchIcon, 
-  HeartIcon, 
-  PaintBrushIcon, 
-  CoffeeIcon, 
-  GamepadIcon,
-  SparklesIcon,
-  FireIcon,
-  GemIcon
-} from '@heroicons/react/24/outline';
+  Play, 
+  ArrowRight, 
+  Code, 
+  Star, 
+  Chat, 
+  Check, 
+  Pencil, 
+  RocketLaunch, 
+  Heart, 
+  Coffee, 
+  GameController, 
+  Sparkle, 
+  Trophy, 
+  Target, 
+  TrendUp,
+  Brain
+} from 'phosphor-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Header from '@/components/Header';
@@ -70,7 +57,7 @@ export default function Home() {
           {/* Enhanced Badge */}
           <div className="inline-flex items-center space-x-3 bg-white/80 backdrop-blur-sm rounded-full px-8 py-4 mb-8 shadow-xl border border-white/20">
             <div className="w-2 h-2 bg-[#5adbff] rounded-full animate-pulse"></div>
-            <SparklesIcon className="h-5 w-5 text-[#094074]" />
+            <Sparkle weight="fill" className="h-5 w-5 text-[#094074]" />
             <span className="text-sm font-bold text-gray-700 tracking-wide">Built for Real Learning</span>
             <div className="w-2 h-2 bg-[#5adbff] rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
           </div>
@@ -97,9 +84,9 @@ export default function Home() {
             >
               <div className="absolute inset-0 bg-gradient-to-r from-[#094074] to-[#5adbff] rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
               <div className="relative flex items-center space-x-4">
-                <PlayIcon className="h-8 w-8 group-hover:scale-110 transition-transform" />
+                <Play weight="fill" className="h-8 w-8 group-hover:scale-110 transition-transform" />
                 <span className="tracking-wide">Start Coding Now</span>
-                <ArrowRightIcon className="h-8 w-8 group-hover:translate-x-2 transition-transform" />
+                <ArrowRight weight="bold" className="h-8 w-8 group-hover:translate-x-2 transition-transform" />
               </div>
             </button>
             
@@ -108,9 +95,9 @@ export default function Home() {
               className="group px-12 py-6 text-xl font-bold text-[#094074] bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl border-2 border-[#3c6997] hover:border-[#5adbff] transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
             >
               <div className="flex items-center space-x-4">
-                <CodeBracketIcon className="h-8 w-8 group-hover:scale-110 transition-transform" />
+                <Code weight="bold" className="h-8 w-8 group-hover:scale-110 transition-transform" />
                 <span className="tracking-wide">Practice LeetCode</span>
-                <ArrowRightIcon className="h-8 w-8 group-hover:translate-x-2 transition-transform" />
+                <ArrowRight weight="bold" className="h-8 w-8 group-hover:translate-x-2 transition-transform" />
               </div>
             </button>
           </div>
@@ -182,7 +169,7 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
             <div className="inline-flex items-center space-x-3 bg-blue-100 rounded-full px-6 py-3 mb-8">
-              <SparklesIcon className="h-5 w-5 text-[#094074]" />
+              <Sparkle weight="fill" className="h-5 w-5 text-[#094074]" />
               <span className="text-[#094074] font-semibold text-sm">The Solution</span>
             </div>
             
@@ -198,42 +185,42 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                icon: BrainIcon,
+                icon: Brain,
                 title: 'AI-Powered Chat Assistant',
                 description: 'Get instant help and contextual hints while you code. Our AI understands your learning journey and provides personalized guidance.',
                 color: 'from-[#094074] to-[#5adbff]',
                 gradient: 'from-blue-50 to-cyan-50'
               },
               {
-                icon: BoltIcon,
+                icon: RocketLaunch,
                 title: 'Line-by-Line Code Fixes',
                 description: 'Apply suggested fixes directly to your code with one click. Learn from mistakes and understand corrections in real-time.',
                 color: 'from-[#ffdd4a] to-[#ff960d]',
                 gradient: 'from-yellow-50 to-orange-50'
               },
               {
-                icon: RocketLaunchIcon,
+                icon: Heart,
                 title: 'Interactive Learning',
                 description: 'Write single-file programs and see results instantly. Perfect for beginners who want to focus on core concepts.',
                 color: 'from-[#3c6997] to-[#5adbff]',
                 gradient: 'from-purple-50 to-pink-50'
               },
               {
-                icon: HeartIcon,
+                icon: Coffee,
                 title: 'Beginner-Friendly Interface',
                 description: 'Clean, distraction-free environment designed specifically for self-taught developers and bootcamp students.',
                 color: 'from-[#5adbff] to-[#ffdd4a]',
                 gradient: 'from-green-50 to-teal-50'
               },
               {
-                icon: CoffeeIcon,
+                icon: GameController,
                 title: 'Community Support',
                 description: 'Connect with other learners, share your progress, and get help from experienced developers in our community.',
                 color: 'from-[#094074] to-[#3c6997]',
                 gradient: 'from-indigo-50 to-purple-50'
               },
               {
-                icon: GamepadIcon,
+                icon: Sparkle,
                 title: 'Safe Learning Environment',
                 description: 'Practice coding without fear of breaking anything. Our sandboxed environment lets you experiment freely.',
                 color: 'from-[#ff960d] to-[#ffdd4a]',
@@ -245,7 +232,7 @@ export default function Home() {
                 className="group bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-500 border border-white/20 transform hover:-translate-y-3 hover:scale-105"
               >
                 <div className={`inline-flex p-5 rounded-2xl bg-gradient-to-r ${feature.color} mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <feature.icon className="h-10 w-10 text-white" />
+                  <feature.icon weight="fill" className="h-10 w-10 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-6 group-hover:text-[#094074] transition-colors">
                   {feature.title}
@@ -266,7 +253,7 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
             <div className="inline-flex items-center space-x-3 bg-emerald-100 rounded-full px-6 py-3 mb-8">
-              <TargetIcon className="h-5 w-5 text-[#5adbff]" />
+              <Target weight="bold" className="h-5 w-5 text-[#5adbff]" />
               <span className="text-[#094074] font-semibold text-sm">How It Works</span>
             </div>
             
@@ -282,21 +269,21 @@ export default function Home() {
           <div className="space-y-32">
             {[
               {
-                icon: PencilIcon,
+                icon: Pencil,
                 title: 'Escape Tutorial Hell',
                 description: 'Work on projects that matter to you, and receive guidance that helps you make real progress on your programs.',
                 image: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=600',
                 color: 'from-[#094074] to-[#5adbff]'
               },
               {
-                icon: ChatBubbleLeftRightIcon,
+                icon: Chat,
                 title: 'Get Instant Help',
                 description: 'Stuck on something? Our AI chat assistant provides contextual hints and applies small code fixes to help you understand what you code quicker.',
                 image: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=600',
                 color: 'from-[#3c6997] to-[#ffdd4a]'
               },
               {
-                icon: CheckIcon,
+                icon: Check,
                 title: 'Practice for Interviews',
                 description: 'Learn and practice the most common LeetCode patterns asked to applicants during SWE interviews to get the job.',
                 image: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=600',
@@ -314,7 +301,7 @@ export default function Home() {
                       {index + 1}
                     </div>
                     <div className={`bg-gradient-to-r ${step.color} p-5 rounded-2xl shadow-xl`}>
-                      <step.icon className="h-10 w-10 text-white" />
+                      <step.icon weight="fill" className="h-10 w-10 text-white" />
                     </div>
                   </div>
                   <h3 className="text-4xl sm:text-5xl lg:text-6xl font-black text-gray-900 leading-tight">
@@ -325,7 +312,7 @@ export default function Home() {
                   </p>
                   <button className="inline-flex items-center text-[#094074] font-bold text-xl hover:text-[#3c6997] transition-colors group">
                     Learn more
-                    <ArrowRightIcon className="ml-4 h-6 w-6 group-hover:translate-x-2 transition-transform" />
+                    <ArrowRight weight="bold" className="ml-4 h-6 w-6 group-hover:translate-x-2 transition-transform" />
                   </button>
                 </div>
 
@@ -356,7 +343,7 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
             <div className="inline-flex items-center space-x-3 bg-purple-100 rounded-full px-6 py-3 mb-8">
-              <TrophyIcon className="h-5 w-5 text-[#3c6997]" />
+              <Trophy weight="fill" className="h-5 w-5 text-[#3c6997]" />
               <span className="text-[#094074] font-semibold text-sm">Student Success</span>
             </div>
             
@@ -402,11 +389,11 @@ export default function Home() {
               >
                 <div className="flex items-center mb-8">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <StarIcon key={i} className="h-7 w-7 text-[#ffdd4a] fill-current" />
+                    <Star key={i} weight="fill" className="h-7 w-7 text-[#ffdd4a]" />
                   ))}
                 </div>
                 
-                <ChatBubbleOvalLeftEllipsisIcon className="h-12 w-12 text-gray-300 mb-8" />
+                <Chat weight="fill" className="h-12 w-12 text-gray-300 mb-8" />
                 
                 <p className="text-gray-700 mb-10 leading-relaxed text-xl">
                   "{testimonial.content}"
@@ -438,7 +425,7 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
             <div className="inline-flex items-center space-x-3 bg-emerald-100 rounded-full px-6 py-3 mb-8">
-              <TrendingUpIcon className="h-5 w-5 text-[#5adbff]" />
+              <TrendUp weight="bold" className="h-5 w-5 text-[#5adbff]" />
               <span className="text-[#094074] font-semibold text-sm">Simple Pricing</span>
             </div>
             
@@ -517,7 +504,7 @@ export default function Home() {
                 {plan.popular && (
                   <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
                     <div className="bg-gradient-to-r from-[#094074] to-[#5adbff] text-white px-8 py-4 rounded-full text-sm font-bold flex items-center space-x-3 shadow-xl">
-                      <SparklesIcon className="h-6 w-6" />
+                      <Sparkle weight="fill" className="h-6 w-6" />
                       <span>Most Popular</span>
                     </div>
                   </div>
@@ -535,7 +522,7 @@ export default function Home() {
                 <ul className="space-y-6 mb-12">
                   {plan.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center">
-                      <CheckIcon className="h-7 w-7 text-[#5adbff] mr-5 flex-shrink-0" />
+                      <Check weight="bold" className="h-7 w-7 text-[#5adbff] mr-5 flex-shrink-0" />
                       <span className="text-gray-700 text-xl">{feature}</span>
                     </li>
                   ))}
@@ -560,15 +547,15 @@ export default function Home() {
             </p>
             <div className="flex items-center justify-center space-x-12 text-gray-500 font-semibold text-lg">
               <span className="flex items-center">
-                <CheckIcon className="h-6 w-6 text-[#5adbff] mr-3" />
+                <Check weight="bold" className="h-6 w-6 text-[#5adbff] mr-3" />
                 Cancel anytime
               </span>
               <span className="flex items-center">
-                <CheckIcon className="h-6 w-6 text-[#5adbff] mr-3" />
+                <Check weight="bold" className="h-6 w-6 text-[#5adbff] mr-3" />
                 30-day money back guarantee
               </span>
               <span className="flex items-center">
-                <CheckIcon className="h-6 w-6 text-[#5adbff] mr-3" />
+                <Check weight="bold" className="h-6 w-6 text-[#5adbff] mr-3" />
                 No setup fees
               </span>
             </div>

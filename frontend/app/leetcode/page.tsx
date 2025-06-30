@@ -5,13 +5,11 @@ import {
   PlayIcon, 
   ChatBubbleLeftRightIcon, 
   PaperAirplaneIcon, 
-  LightbulbIcon, 
   ArrowPathIcon, 
   CheckIcon, 
   CodeBracketIcon,
   ArrowLeftIcon,
   SparklesIcon,
-  TargetIcon,
   TrophyIcon
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
