@@ -9,7 +9,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center space-x-2 mb-6">
-              <div className="bg-gradient-to-r from-primary-500 to-accent-500 p-2 rounded-lg">
+              <div className="bg-gradient-to-r from-[#094074] to-[#5adbff] p-2 rounded-lg">
                 <Code2 className="h-6 w-6 text-white" />
               </div>
               <span className="text-xl font-bold">CodeCraft IDE</span>
@@ -19,16 +19,16 @@ const Footer = () => {
               beginner-friendly coding environment that makes learning to code accessible to everyone.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-400 hover:text-primary-400 transition-colors">
+              <a href="#" className="text-gray-400 hover:text-[#5adbff] transition-colors">
                 <Github className="h-6 w-6" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-primary-400 transition-colors">
+              <a href="#" className="text-gray-400 hover:text-[#5adbff] transition-colors">
                 <Twitter className="h-6 w-6" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-primary-400 transition-colors">
+              <a href="#" className="text-gray-400 hover:text-[#5adbff] transition-colors">
                 <Linkedin className="h-6 w-6" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-primary-400 transition-colors">
+              <a href="#" className="text-gray-400 hover:text-[#5adbff] transition-colors">
                 <Mail className="h-6 w-6" />
               </a>
             </div>

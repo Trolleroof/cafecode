@@ -24,31 +24,31 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-16">
-        {/* Enhanced background with multiple layers */}
+        {/* Enhanced background with new color palette */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-emerald-50"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-emerald-500/5"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.1),transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(16,185,129,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#094074]/5 via-[#5adbff]/5 to-[#ffdd4a]/5"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(9,64,116,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(90,219,255,0.1),transparent_50%)]"></div>
         
-        {/* Animated floating elements */}
-        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full opacity-10 animate-pulse blur-xl"></div>
-        <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full opacity-10 animate-pulse blur-xl" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-1/3 left-20 w-20 h-20 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full opacity-10 animate-pulse blur-xl" style={{ animationDelay: '4s' }}></div>
-        <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full opacity-10 animate-bounce" style={{ animationDelay: '1s' }}></div>
+        {/* Animated floating elements with new colors */}
+        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-[#094074] to-[#3c6997] rounded-full opacity-10 animate-pulse blur-xl"></div>
+        <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-[#5adbff] to-[#ffdd4a] rounded-full opacity-10 animate-pulse blur-xl" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute bottom-1/3 left-20 w-20 h-20 bg-gradient-to-br from-[#ff960d] to-[#ffdd4a] rounded-full opacity-10 animate-pulse blur-xl" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-gradient-to-br from-[#3c6997] to-[#5adbff] rounded-full opacity-10 animate-bounce" style={{ animationDelay: '1s' }}></div>
 
         <div className="relative z-10 w-full max-w-7xl mx-auto text-center flex flex-col items-center px-4">
           {/* Enhanced Badge */}
           <div className="inline-flex items-center space-x-3 bg-white/80 backdrop-blur-sm rounded-full px-8 py-4 mb-8 shadow-xl border border-white/20">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            <Sparkles className="h-5 w-5 text-blue-600" />
+            <div className="w-2 h-2 bg-[#5adbff] rounded-full animate-pulse"></div>
+            <Sparkles className="h-5 w-5 text-[#094074]" />
             <span className="text-sm font-bold text-gray-700 tracking-wide">Built for Real Learning</span>
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+            <div className="w-2 h-2 bg-[#5adbff] rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
           </div>
 
           {/* Enhanced Main heading */}
           <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black text-gray-900 mb-6 leading-tight">
             <span className="block">Learn to Code</span>
-            <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 bg-clip-text text-transparent animate-gradient">
+            <span className="block bg-gradient-to-r from-[#094074] via-[#3c6997] to-[#5adbff] bg-clip-text text-transparent animate-gradient">
               Without the BS
             </span>
           </h1>
@@ -63,9 +63,9 @@ export default function Home() {
           <div className="relative flex flex-col sm:flex-row justify-center gap-6 mb-12">
             <button 
               onClick={handleStartCoding}
-              className="group relative px-12 py-6 text-xl font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-600 rounded-2xl shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
+              className="group relative px-12 py-6 text-xl font-bold text-white bg-gradient-to-r from-[#094074] to-[#5adbff] rounded-2xl shadow-2xl hover:shadow-[#094074]/25 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-[#094074] to-[#5adbff] rounded-2xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity"></div>
               <div className="relative flex items-center space-x-4">
                 <Play className="h-8 w-8 group-hover:scale-110 transition-transform" />
                 <span className="tracking-wide">Start Coding Now</span>
@@ -75,7 +75,7 @@ export default function Home() {
             
             <button 
               onClick={handleLeetCodePractice}
-              className="group px-12 py-6 text-xl font-bold text-gray-700 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
+              className="group px-12 py-6 text-xl font-bold text-[#094074] bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl hover:shadow-2xl border-2 border-[#3c6997] hover:border-[#5adbff] transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
             >
               <div className="flex items-center space-x-4">
                 <Code2 className="h-8 w-8 group-hover:scale-110 transition-transform" />
@@ -96,11 +96,11 @@ export default function Home() {
             </div>
               <div className="p-10 font-mono text-lg leading-relaxed bg-gradient-to-br from-gray-900 to-gray-800">
                 <div className="text-gray-500 mb-4">// Your first real JavaScript function</div>
-                <div className="text-blue-400 mb-2">function <span className="text-yellow-400">calculateSum</span>(<span className="text-orange-400">numbers</span>) {'{'}</div>
+                <div className="text-[#5adbff] mb-2">function <span className="text-[#ffdd4a]">calculateSum</span>(<span className="text-[#ff960d]">numbers</span>) {'{'}</div>
                 <div className="ml-6 text-green-400 mb-2">return numbers.reduce((sum, num) => sum + num, 0);</div>
-                <div className="text-blue-400 mb-4">{'}'}</div>
+                <div className="text-[#5adbff] mb-4">{'}'}</div>
                 <div className="text-gray-500 mb-2">// Test your function</div>
-                <div className="text-yellow-400">console.log(calculateSum([1, 2, 3, 4, 5])); <span className="text-gray-500">// Output: 15</span></div>
+                <div className="text-[#ffdd4a]">console.log(calculateSum([1, 2, 3, 4, 5])); <span className="text-gray-500">// Output: 15</span></div>
               </div>
             </div>
           </div>
@@ -109,8 +109,8 @@ export default function Home() {
 
       {/* Enhanced Problem Statement Section */}
       <section id="problemStatement" className='py-32 bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 relative overflow-hidden'>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(239,68,68,0.1),transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(245,158,11,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,150,13,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,221,74,0.1),transparent_50%)]"></div>
         
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -146,19 +146,19 @@ export default function Home() {
 
       {/* Enhanced Features Section */}
       <section id="features" className="py-32 bg-gradient-to-br from-gray-50 via-blue-50 to-emerald-50 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(59,130,246,0.1),transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(16,185,129,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(9,64,116,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(90,219,255,0.1),transparent_50%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
             <div className="inline-flex items-center space-x-3 bg-blue-100 rounded-full px-6 py-3 mb-8">
-              <Sparkles className="h-5 w-5 text-blue-600" />
-              <span className="text-blue-700 font-semibold text-sm">The Solution</span>
+              <Sparkles className="h-5 w-5 text-[#094074]" />
+              <span className="text-[#094074] font-semibold text-sm">The Solution</span>
             </div>
             
             <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               HelloWurld to the
-              <span className="block bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent"> Rescue!</span>
+              <span className="block bg-gradient-to-r from-[#094074] to-[#5adbff] bg-clip-text text-transparent"> Rescue!</span>
             </h2>
             <p className="text-2xl lg:text-3xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-medium">
               Our IDE is specifically designed for beginners, with features that make learning to code intuitive and enjoyable.
@@ -171,42 +171,42 @@ export default function Home() {
                 icon: MessageSquare,
                 title: 'AI-Powered Chat Assistant',
                 description: 'Get instant help and contextual hints while you code. Our AI understands your learning journey and provides personalized guidance.',
-                color: 'from-blue-500 to-cyan-500',
+                color: 'from-[#094074] to-[#5adbff]',
                 gradient: 'from-blue-50 to-cyan-50'
               },
               {
                 icon: Zap,
                 title: 'Line-by-Line Code Fixes',
                 description: 'Apply suggested fixes directly to your code with one click. Learn from mistakes and understand corrections in real-time.',
-                color: 'from-yellow-500 to-orange-500',
+                color: 'from-[#ffdd4a] to-[#ff960d]',
                 gradient: 'from-yellow-50 to-orange-50'
               },
               {
                 icon: Lightbulb,
                 title: 'Interactive Learning',
                 description: 'Write single-file programs and see results instantly. Perfect for beginners who want to focus on core concepts.',
-                color: 'from-purple-500 to-pink-500',
+                color: 'from-[#3c6997] to-[#5adbff]',
                 gradient: 'from-purple-50 to-pink-50'
               },
               {
                 icon: BookOpen,
                 title: 'Beginner-Friendly Interface',
                 description: 'Clean, distraction-free environment designed specifically for self-taught developers and bootcamp students.',
-                color: 'from-green-500 to-teal-500',
+                color: 'from-[#5adbff] to-[#ffdd4a]',
                 gradient: 'from-green-50 to-teal-50'
               },
               {
                 icon: Users,
                 title: 'Community Support',
                 description: 'Connect with other learners, share your progress, and get help from experienced developers in our community.',
-                color: 'from-indigo-500 to-purple-500',
+                color: 'from-[#094074] to-[#3c6997]',
                 gradient: 'from-indigo-50 to-purple-50'
               },
               {
                 icon: Shield,
                 title: 'Safe Learning Environment',
                 description: 'Practice coding without fear of breaking anything. Our sandboxed environment lets you experiment freely.',
-                color: 'from-red-500 to-pink-500',
+                color: 'from-[#ff960d] to-[#ffdd4a]',
                 gradient: 'from-red-50 to-pink-50'
               }
             ].map((feature, index) => (
@@ -217,7 +217,7 @@ export default function Home() {
                 <div className={`inline-flex p-5 rounded-2xl bg-gradient-to-r ${feature.color} mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                   <feature.icon className="h-10 w-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-6 group-hover:text-blue-600 transition-colors">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6 group-hover:text-[#094074] transition-colors">
                   {feature.title}
                 </h3>
                 <p className="text-gray-600 leading-relaxed text-lg">
@@ -231,18 +231,18 @@ export default function Home() {
 
       {/* Enhanced How It Works Section */}
       <section id="how-it-works" className="py-32 bg-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(59,130,246,0.05),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(9,64,116,0.05),transparent_50%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
             <div className="inline-flex items-center space-x-3 bg-emerald-100 rounded-full px-6 py-3 mb-8">
-              <Target className="h-5 w-5 text-emerald-600" />
-              <span className="text-emerald-700 font-semibold text-sm">How It Works</span>
+              <Target className="h-5 w-5 text-[#5adbff]" />
+              <span className="text-[#094074] font-semibold text-sm">How It Works</span>
             </div>
             
             <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               Three Steps to
-              <span className="block bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent"> Success</span>
+              <span className="block bg-gradient-to-r from-[#094074] to-[#5adbff] bg-clip-text text-transparent"> Success</span>
             </h2>
             <p className="text-2xl lg:text-3xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-medium">
               Start your coding journey with confidence and support every step of the way.
@@ -256,21 +256,21 @@ export default function Home() {
                 title: 'Escape Tutorial Hell',
                 description: 'Work on projects that matter to you, and receive guidance that helps you make real progress on your programs.',
                 image: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=600',
-                color: 'from-blue-500 to-cyan-500'
+                color: 'from-[#094074] to-[#5adbff]'
               },
               {
                 icon: MessageCircle,
                 title: 'Get Instant Help',
                 description: 'Stuck on something? Our AI chat assistant provides contextual hints and applies small code fixes to help you understand what you code quicker.',
                 image: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=600',
-                color: 'from-purple-500 to-pink-500'
+                color: 'from-[#3c6997] to-[#ffdd4a]'
               },
               {
                 icon: CheckCircle,
                 title: 'Practice for Interviews',
                 description: 'Learn and practice the most common LeetCode patterns asked to applicants during SWE interviews to get the job.',
                 image: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=600',
-                color: 'from-emerald-500 to-teal-500'
+                color: 'from-[#5adbff] to-[#ff960d]'
               }
             ].map((step, index) => (
               <div
@@ -280,7 +280,7 @@ export default function Home() {
                 {/* Content */}
                 <div className="flex-1 space-y-10">
                   <div className="flex items-center space-x-8">
-                    <div className="flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full text-white font-black text-3xl shadow-2xl">
+                    <div className="flex items-center justify-center w-20 h-20 bg-gradient-to-r from-[#094074] to-[#5adbff] rounded-full text-white font-black text-3xl shadow-2xl">
                       {index + 1}
                     </div>
                     <div className={`bg-gradient-to-r ${step.color} p-5 rounded-2xl shadow-xl`}>
@@ -293,7 +293,7 @@ export default function Home() {
                   <p className="text-2xl text-gray-600 leading-relaxed">
                     {step.description}
                   </p>
-                  <button className="inline-flex items-center text-blue-600 font-bold text-xl hover:text-blue-700 transition-colors group">
+                  <button className="inline-flex items-center text-[#094074] font-bold text-xl hover:text-[#3c6997] transition-colors group">
                     Learn more
                     <ArrowRight className="ml-4 h-6 w-6 group-hover:translate-x-2 transition-transform" />
                   </button>
@@ -320,19 +320,19 @@ export default function Home() {
 
       {/* Enhanced Testimonials Section */}
       <section className="py-32 bg-gradient-to-br from-blue-50 via-purple-50 to-emerald-50 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(59,130,246,0.1),transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,rgba(16,185,129,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(9,64,116,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,rgba(90,219,255,0.1),transparent_50%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
             <div className="inline-flex items-center space-x-3 bg-purple-100 rounded-full px-6 py-3 mb-8">
-              <Award className="h-5 w-5 text-purple-600" />
-              <span className="text-purple-700 font-semibold text-sm">Student Success</span>
+              <Award className="h-5 w-5 text-[#3c6997]" />
+              <span className="text-[#094074] font-semibold text-sm">Student Success</span>
             </div>
             
             <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               What Our
-              <span className="block bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent"> Students Say</span>
+              <span className="block bg-gradient-to-r from-[#094074] to-[#5adbff] bg-clip-text text-transparent"> Students Say</span>
             </h2>
             <p className="text-2xl lg:text-3xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-medium">
               Join thousands of beginners who have successfully started their coding journey with CodeCraft IDE.
@@ -347,7 +347,7 @@ export default function Home() {
                 image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150',
                 content: 'CodeCraft IDE made learning JavaScript so much easier. The AI assistant helped me understand concepts I was struggling with for weeks.',
                 rating: 5,
-                color: 'from-blue-500 to-cyan-500'
+                color: 'from-[#094074] to-[#5adbff]'
               },
               {
                 name: 'Marcus Johnson',
@@ -355,7 +355,7 @@ export default function Home() {
                 image: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150',
                 content: 'The line-by-line code fixes feature is incredible. I learned more about debugging in a month than I did in my entire bootcamp.',
                 rating: 5,
-                color: 'from-purple-500 to-pink-500'
+                color: 'from-[#3c6997] to-[#ffdd4a]'
               },
               {
                 name: 'Emily Rodriguez',
@@ -363,7 +363,7 @@ export default function Home() {
                 image: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150',
                 content: 'As someone switching careers, CodeCraft gave me the confidence to code. The beginner-friendly interface is exactly what I needed.',
                 rating: 5,
-                color: 'from-emerald-500 to-teal-500'
+                color: 'from-[#5adbff] to-[#ff960d]'
               }
             ].map((testimonial, index) => (
               <div
@@ -372,7 +372,7 @@ export default function Home() {
               >
                 <div className="flex items-center mb-8">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="h-7 w-7 text-yellow-400 fill-current" />
+                    <Star key={i} className="h-7 w-7 text-[#ffdd4a] fill-current" />
                   ))}
                 </div>
                 
@@ -403,18 +403,18 @@ export default function Home() {
 
       {/* Enhanced Pricing Section */}
       <section id="pricing" className="py-32 bg-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.05),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(9,64,116,0.05),transparent_50%)]"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-24">
             <div className="inline-flex items-center space-x-3 bg-emerald-100 rounded-full px-6 py-3 mb-8">
-              <TrendingUp className="h-5 w-5 text-emerald-600" />
-              <span className="text-emerald-700 font-semibold text-sm">Simple Pricing</span>
+              <TrendingUp className="h-5 w-5 text-[#5adbff]" />
+              <span className="text-[#094074] font-semibold text-sm">Simple Pricing</span>
             </div>
             
             <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-tight">
               Simple, Transparent
-              <span className="block bg-gradient-to-r from-blue-600 to-emerald-600 bg-clip-text text-transparent"> Pricing</span>
+              <span className="block bg-gradient-to-r from-[#094074] to-[#5adbff] bg-clip-text text-transparent"> Pricing</span>
             </h2>
             <p className="text-2xl lg:text-3xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-medium">
               Start free and upgrade as you grow. No hidden fees, no complicated tiers.
@@ -455,7 +455,7 @@ export default function Home() {
                 ],
                 cta: 'Start Pro Trial',
                 popular: true,
-                color: 'from-blue-500 to-emerald-500'
+                color: 'from-[#094074] to-[#5adbff]'
               },
               {
                 name: 'Team',
@@ -473,20 +473,20 @@ export default function Home() {
                 ],
                 cta: 'Contact Sales',
                 popular: false,
-                color: 'from-purple-500 to-pink-500'
+                color: 'from-[#3c6997] to-[#ff960d]'
               }
             ].map((plan, index) => (
               <div
                 key={index}
                 className={`relative bg-white/80 backdrop-blur-sm rounded-3xl border-2 p-10 ${
                   plan.popular
-                    ? 'border-blue-500 shadow-2xl scale-105 shadow-blue-500/25'
+                    ? 'border-[#094074] shadow-2xl scale-105 shadow-[#094074]/25'
                     : 'border-gray-200 shadow-xl hover:shadow-2xl'
                 } transition-all duration-500 transform hover:-translate-y-3 hover:scale-105`}
               >
                 {plan.popular && (
                   <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-gradient-to-r from-blue-500 to-emerald-500 text-white px-8 py-4 rounded-full text-sm font-bold flex items-center space-x-3 shadow-xl">
+                    <div className="bg-gradient-to-r from-[#094074] to-[#5adbff] text-white px-8 py-4 rounded-full text-sm font-bold flex items-center space-x-3 shadow-xl">
                       <Sparkles className="h-6 w-6" />
                       <span>Most Popular</span>
                     </div>
@@ -505,7 +505,7 @@ export default function Home() {
                 <ul className="space-y-6 mb-12">
                   {plan.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center">
-                      <Check className="h-7 w-7 text-emerald-500 mr-5 flex-shrink-0" />
+                      <Check className="h-7 w-7 text-[#5adbff] mr-5 flex-shrink-0" />
                       <span className="text-gray-700 text-xl">{feature}</span>
                     </li>
                   ))}
@@ -514,7 +514,7 @@ export default function Home() {
                 <button
                   className={`w-full py-6 px-8 rounded-2xl font-bold text-xl transition-all duration-300 ${
                     plan.popular
-                      ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white shadow-xl hover:shadow-2xl'
+                      ? 'bg-gradient-to-r from-[#094074] to-[#5adbff] text-white shadow-xl hover:shadow-2xl'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -530,15 +530,15 @@ export default function Home() {
             </p>
             <div className="flex items-center justify-center space-x-12 text-gray-500 font-semibold text-lg">
               <span className="flex items-center">
-                <Check className="h-6 w-6 text-emerald-500 mr-3" />
+                <Check className="h-6 w-6 text-[#5adbff] mr-3" />
                 Cancel anytime
               </span>
               <span className="flex items-center">
-                <Check className="h-6 w-6 text-emerald-500 mr-3" />
+                <Check className="h-6 w-6 text-[#5adbff] mr-3" />
                 30-day money back guarantee
               </span>
               <span className="flex items-center">
-                <Check className="h-6 w-6 text-emerald-500 mr-3" />
+                <Check className="h-6 w-6 text-[#5adbff] mr-3" />
                 No setup fees
               </span>
             </div>

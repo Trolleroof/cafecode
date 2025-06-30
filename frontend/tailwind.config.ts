@@ -63,6 +63,12 @@ const config: Config = {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        // Custom color palette
+        'indigo-dye': 'var(--indigo-dye)',
+        'lapis-lazuli': 'var(--lapis-lazuli)',
+        'vivid-sky-blue': 'var(--vivid-sky-blue)',
+        'mustard': 'var(--mustard)',
+        'princeton-orange': 'var(--princeton-orange)',
       },
       keyframes: {
         'accordion-down': {
