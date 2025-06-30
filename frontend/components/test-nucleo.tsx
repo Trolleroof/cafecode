@@ -1,16 +1,7 @@
 'use client';
 
 import React from 'react';
-import { 
-  NucleoCode, 
-  NucleoPlay, 
-  NucleoChat, 
-  NucleoSend,
-  NucleoBulb,
-  NucleoMagic,
-  NucleoRocket,
-  NucleoHeart
-} from '@nucleoapp/react-icons';
+
 
 // Test component to verify Nucleo icons are working
 export default function TestNucleo() {
