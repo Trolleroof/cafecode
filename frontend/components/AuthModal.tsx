@@ -88,16 +88,16 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
             <div className="w-12 h-12 bg-light-cream/20 rounded-full flex items-center justify-center mb-1">
               <Coffee className="h-7 w-7" />
             </div>
-            <h2 className="text-2xl font-bold">
-              {mode === 'signin' ? 'Welcome Back' : 'Join Cafécode'}
-            </h2>
-            <p className="text-light-cream/80 text-sm">
-              {mode === 'signin' 
-                ? 'Sign in to continue your coding journey' 
-                : 'Start your coding adventure today'
-              }
-            </p>
-          </div>
+              <h2 className="text-2xl font-bold">
+                {mode === 'signin' ? 'Welcome Back' : 'Join Cafécode'}
+              </h2>
+              <p className="text-light-cream/80 text-sm">
+                {mode === 'signin' 
+                  ? 'Sign in to continue your coding journey' 
+                  : 'Start your coding adventure today'
+                }
+              </p>
+            </div>
           {/* Mode Switcher */}
           <div className="flex justify-center items-center gap-2 mt-2 mb-1">
             <button
