@@ -20,6 +20,8 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { Dialog, DialogTrigger, DialogContent } from '@/components/ui/dialog';
+import UserMenu from '@/components/UserMenu';
 
 export default function Home() {
   const router = useRouter();
@@ -49,7 +51,7 @@ export default function Home() {
         <div className="absolute bottom-1/3 left-20 w-20 h-20 bg-gradient-to-br from-medium-coffee to-cream-beige rounded-full opacity-10 animate-bean-bounce blur-xl" style={{ animationDelay: '4s' }}></div>
         <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-gradient-to-br from-deep-espresso to-medium-coffee rounded-full opacity-10 animate-float" style={{ animationDelay: '1s' }}></div>
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center px-4 gap-8 md:gap-12 lg:gap-20">
+        <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center px-4 gap-12 md:gap-20">
           {/* Left: Text Content */}
           <div className="flex-1 flex flex-col items-start md:items-start text-left max-w-xl">
             {/* Coffee Shop Badge */}
@@ -71,52 +73,25 @@ export default function Home() {
               A cozy coding environment where every line of code is crafted with care.
               <span className="block mt-2 font-bold text-dark-charcoal text-base sm:text-lg">Fresh code, perfect blend, endless possibilities.</span>
             </p>
-            {/* Coffee-themed CTA Buttons */}
-            <div className="relative flex flex-col sm:flex-row gap-4 mb-8">
-              <button 
-                onClick={handleStartCoding}
-                className="group btn-coffee-primary px-8 py-4 text-lg font-bold animate-warm-glow"
-              >
-                <div className="relative flex items-center space-x-3">
-                  <PlayIcon className="h-7 w-7 group-hover:scale-110 transition-transform" />
-                  <span className="tracking-wide">Start Brewing Code</span>
-                  <ArrowRightIcon className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
-                </div>
-              </button>
-              <button 
-                onClick={handleLeetCodePractice}
-                className="group btn-coffee-secondary px-8 py-4 text-lg font-bold"
-              >
-                <div className="flex items-center space-x-3">
-                  <CodeBracketIcon className="h-7 w-7 group-hover:scale-110 transition-transform" />
-                  <span className="tracking-wide">Practice Algorithms</span>
-                  <ArrowRightIcon className="h-7 w-7 group-hover:translate-x-2 transition-transform" />
-                </div>
-              </button>
-            </div>
+            {/* Sign In Popup Button */}
+            <Dialog>
+              <DialogTrigger asChild>
+                <button className="btn-coffee-primary px-8 py-4 text-lg font-bold animate-warm-glow mb-8">Sign In</button>
+              </DialogTrigger>
+              <DialogContent>
+                <UserMenu />
+              </DialogContent>
+            </Dialog>
           </div>
           {/* Right: Hero Image */}
-          <div className="flex-1 flex justify-center items-center w-full max-w-xl">
-            <div className="relative group">
-              <Image
-                src="/images/971e8cd232d73c3d92f0124a1092b6ce05bf3ac7dad2b8d7c318d71a41e5cbd1.png"
-                alt="Cafécode IDE Interface - Code editor with AI assistant and guided project features"
-                width={700}
-                height={500}
-                className="rounded-3xl shadow-2xl object-cover w-full h-[300px] md:h-[400px] lg:h-[450px] group-hover:scale-105 transition-transform duration-500"
-                priority
-              />
-              {/* Coffee-themed overlay effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-medium-coffee/10 to-deep-espresso/10 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              
-              {/* Floating feature badges */}
-              <div className="absolute -top-4 -left-4 bg-medium-coffee text-light-cream px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-float">
-                ☕ AI Assistant
-              </div>
-              <div className="absolute -bottom-4 -right-4 bg-deep-espresso text-light-cream px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-float" style={{ animationDelay: '1s' }}>
-                🚀 Guided Projects
-              </div>
-            </div>
+          <div className="flex-1 flex justify-center items-center w-full max-w-md">
+            <Image
+              src="/images/demo.png"
+              alt="demo screen"
+              width={400}
+              height={300}
+              className="rounded-3xl shadow-2xl object-cover w-full h-[180px] md:h-[250px] lg:h-[300px]"
+            />
           </div>
         </div>
       </section>

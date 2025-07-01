@@ -42,17 +42,24 @@ const Header = () => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-8">
             <button 
-              onClick={() => handleNavClick('#features')}
-              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
-            >
-              The Truth
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
-            </button>
-            <button 
               onClick={() => handleNavClick('#how-it-works')}
               className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
             >
+              How It Works
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
+            </button>
+            <button 
+              onClick={() => handleNavClick('#features')}
+              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
+            >
               Our Features
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
+            </button>
+            <button 
+              onClick={() => handleNavClick('#problemStatement')}
+              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
+            >
+              The Truth
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button 
@@ -62,17 +69,10 @@ const Header = () => {
               Menu
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
-            <button 
-              onClick={() => handleNavClick('#about')}
-              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-lg relative group"
-            >
-              About Us
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
-            </button>
           </nav>
 
           {/* Desktop CTA Buttons & User Menu */}
-          <div className="hidden lg:flex items-center space-x-4">
+          {/* <div className="hidden lg:flex items-center space-x-4">
             <button 
               onClick={handleStartCoding}
               className="btn-coffee-primary px-6 py-2.5 text-lg shadow-lg hover:shadow-coffee"
@@ -80,19 +80,10 @@ const Header = () => {
               Start Brewing
             </button>
             <UserMenu />
-          </div>
+          </div> */}
 
           {/* Mobile CTA Button & User Menu */}
           <div className="flex lg:hidden items-center space-x-3">
-            <button 
-              onClick={handleStartCoding}
-              className="btn-coffee-primary px-4 py-2 text-sm shadow-md hover:shadow-coffee"
-            >
-              Start Brewing
-            </button>
-            
-            <UserMenu />
-            
             {/* Mobile menu button */}
             <button
               className="p-2 rounded-lg hover:bg-medium-coffee/20 transition-colors"
@@ -116,28 +107,28 @@ const Header = () => {
         }`}>
           <nav className="flex flex-col space-y-4 pt-4 border-t border-medium-coffee/30">
             <button 
-              onClick={() => handleNavClick('#features')}
-              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
-            >
-              Our Blend
-            </button>
-            <button 
               onClick={() => handleNavClick('#how-it-works')}
               className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
             >
-              Brewing Process
+              How It Works
+            </button>
+            <button 
+              onClick={() => handleNavClick('#features')}
+              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
+            >
+              Our Features
+            </button>
+            <button 
+              onClick={() => handleNavClick('#problemStatement')}
+              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
+            >
+              The Truth
             </button>
             <button 
               onClick={() => handleNavClick('#pricing')}
               className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
             >
               Menu
-            </button>
-            <button 
-              onClick={() => handleNavClick('#about')}
-              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
-            >
-              About Us
             </button>
           </nav>
         </div>

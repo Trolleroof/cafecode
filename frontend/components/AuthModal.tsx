@@ -75,37 +75,50 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-light-cream rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden">
+      <div className="bg-light-cream/95 border border-medium-coffee/20 rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden backdrop-blur-md">
         {/* Coffee-themed header */}
-        <div className="bg-gradient-to-r from-medium-coffee to-deep-espresso p-6 text-light-cream">
+        <div className="bg-gradient-to-r from-medium-coffee to-deep-espresso p-6 text-light-cream flex flex-col items-center relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 hover:bg-light-cream/20 rounded-full transition-colors"
+            className="absolute top-4 right-4 p-2 hover:bg-light-cream/20 rounded-full transition-colors opacity-60 hover:opacity-100"
           >
             <X className="h-5 w-5" />
           </button>
-          
-          <div className="flex items-center space-x-3 mb-2">
-            <div className="w-10 h-10 bg-light-cream/20 rounded-xl flex items-center justify-center">
-              <Coffee className="h-6 w-6" />
+          <div className="flex flex-col items-center space-y-2 mb-2">
+            <div className="w-12 h-12 bg-light-cream/20 rounded-full flex items-center justify-center mb-1">
+              <Coffee className="h-7 w-7" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">
-                {mode === 'signin' ? 'Welcome Back' : 'Join Cafécode'}
-              </h2>
-              <p className="text-light-cream/80 text-sm">
-                {mode === 'signin' 
-                  ? 'Sign in to continue your coding journey' 
-                  : 'Start your coding adventure today'
-                }
-              </p>
-            </div>
+            <h2 className="text-2xl font-bold">
+              {mode === 'signin' ? 'Welcome Back' : 'Join Cafécode'}
+            </h2>
+            <p className="text-light-cream/80 text-sm">
+              {mode === 'signin' 
+                ? 'Sign in to continue your coding journey' 
+                : 'Start your coding adventure today'
+              }
+            </p>
+          </div>
+          {/* Mode Switcher */}
+          <div className="flex justify-center items-center gap-2 mt-2 mb-1">
+            <button
+              type="button"
+              onClick={() => { setMode('signin'); resetForm(); }}
+              className={`px-5 py-2 rounded-full font-semibold transition-colors text-base ${mode === 'signin' ? 'bg-light-cream text-medium-coffee shadow' : 'bg-transparent text-light-cream/70 hover:bg-light-cream/10'}`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('signup'); resetForm(); }}
+              className={`px-5 py-2 rounded-full font-semibold transition-colors text-base ${mode === 'signup' ? 'bg-light-cream text-medium-coffee shadow' : 'bg-transparent text-light-cream/70 hover:bg-light-cream/10'}`}
+            >
+              Get Started
+            </button>
           </div>
         </div>
-
         {/* Form */}
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="p-8 pt-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="email" className="text-deep-espresso font-semibold">
@@ -197,19 +210,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }: A
               )}
             </Button>
           </form>
-
-          {/* Switch Mode */}
-          <div className="mt-6 text-center">
-            <p className="text-deep-espresso">
-              {mode === 'signin' ? "Don't have an account?" : "Already have an account?"}
-              <button
-                onClick={switchMode}
-                className="ml-2 text-medium-coffee font-semibold hover:text-deep-espresso transition-colors"
-              >
-                {mode === 'signin' ? 'Sign Up' : 'Sign In'}
-              </button>
-            </p>
-          </div>
         </div>
       </div>
     </div>
