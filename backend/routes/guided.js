@@ -113,6 +113,12 @@ IMPORTANT GUIDELINES:
 - Be specific about file names and content requirements
 - For file creation steps, include what content should be in the file
 - For code writing steps, be clear about what the code should do
+- Make the steps as granular and detailed as possible, even if it results in 12-20 steps for a typical project. Err on the side of making more, smaller steps.
+- If the solution involves a common algorithmic pattern (such as two pointers, sliding window, recursion, dynamic programming, etc.), explicitly mention the pattern in the relevant step(s) and explain what part of the pattern is being implemented in that step. Do this every time a new part of the pattern is coded.
+- Use language like: "This step implements the first part of the two pointers pattern: initializing the pointers." or "Now, apply the sliding window pattern by moving the right pointer."
+- Do not repeat the full pattern explanation in every step, but always reference the pattern and the sub-part being implemented.
+- Emphasize that steps should be much smaller and more numerous than typical guides, and each step should be easy for a beginner to follow.
+- Do NOT use markdown formatting, asterisks, bold, or italics in the step instructions. Only use plain text.
 
 Example format:
 [
@@ -138,7 +144,7 @@ Example format:
   }
 ]
 
-Make sure each step is clear, specific, and achievable. Focus on one task per step.`;
+Make sure each step is clear, specific, and achievable. Focus on one task per step. If a step is part of a larger pattern, mention the pattern and what part of it is being implemented in that step. Use very beginner-friendly language throughout.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const response = await result.response;

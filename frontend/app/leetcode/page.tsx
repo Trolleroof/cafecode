@@ -41,6 +41,7 @@ interface LeetCodeProblem {
   difficulty: 'Easy' | 'Medium' | 'Hard';
   steps: LeetCodeStep[];
   slug?: string;
+  exampleTestcases?: string;
 }
 
 interface Problem {
@@ -107,6 +108,17 @@ function ExamplesBox({ examples }: { examples: string }) {
   );
 }
 
+// Helper to parse LeetCode testcases string into structured objects
+function parseLeetCodeTestCases(raw: string): { input: string; output: string }[] {
+  if (!raw) return [];
+  const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const cases: { input: string; output: string }[] = [];
+  for (let i = 0; i < lines.length - 1; i += 2) {
+    cases.push({ input: lines[i], output: lines[i + 1] });
+  }
+  return cases;
+}
+
 function LeetCodeTestCases({ testCases, height }: { testCases: any[], height: number }): JSX.Element | null {
   const [active, setActive] = useState(0);
   if (!testCases || testCases.length === 0) return null;
@@ -141,57 +153,32 @@ function LeetCodeTestCases({ testCases, height }: { testCases: any[], height: nu
   );
 }
 
-function AdjustableOutputBox({ output, height, setHeight }: { output: string[], height: number, setHeight: (h: number) => void }) {
-  const resizerRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!dragging.current || !resizerRef.current) return;
-      const container = resizerRef.current.parentElement;
-      if (!container) return;
-      const containerRect = container.getBoundingClientRect();
-      const mouseY = e.clientY - containerRect.top;
-      const minHeight = 60;
-      const maxHeight = 250;
-    };
-    const handleMouseUp = () => { dragging.current = false; };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [setHeight]);
-
-  const hasOutput = output.length > 0 && !(output.length === 1 && output[0] === 'No output yet.');
-
+function ConstraintsSection({ constraints, followup }: { constraints: string[], followup?: string }) {
   return (
-    <div className="mb-0">
-      <div className="font-bold text-medium-coffee mb-0">Output</div>
-      <div
-        className={`bg-light-cream rounded-xl overflow-auto ${hasOutput ? 'border border-medium-coffee' : ''}`}
-        style={{ height, display: 'flex', alignItems: 'flex-start', paddingLeft: 24, paddingRight: 24 }}
-      >
-        <pre className="pt-1 pb-4 text-deep-espresso font-mono text-sm whitespace-pre-wrap w-full m-0" style={{ background: 'none', border: 'none', boxShadow: 'none' }}>
-          {output.length ? output.join('\n') : 'No output yet. Select problem to recieve test cases.'}
-        </pre>
+    <div className="my-6">
+      <div className="font-bold text-orange-400 mb-2 text-lg tracking-tight">Constraints:</div>
+      <div className="flex flex-col gap-2 mb-2">
+        {constraints.map((c, i) => (
+          <div key={i} className="bg-[#23272f] text-[#ffb86c] rounded-lg px-4 py-2 font-mono text-base shadow border border-orange-400/30">
+            {c}
+          </div>
+        ))}
       </div>
-      <div
-        ref={resizerRef}
-        onMouseDown={() => { dragging.current = true; }}
-        className="h-2 bg-cream-beige cursor-row-resize hover:bg-medium-coffee/50 transition-colors rounded-b-xl"
-      />
+      {followup && (
+        <>
+          <div className="font-bold text-orange-400 mt-4 mb-2 text-lg tracking-tight">Follow-up:</div>
+          <div className="bg-[#23272f] text-[#ffb86c] rounded-lg px-4 py-2 font-mono text-base shadow border border-orange-400/30">{followup}</div>
+        </>
+      )}
     </div>
   );
 }
 
-function MarkdownProblemDescription({ description, examples, output, outputHeight, setOutputHeight }: { description: string, examples: string, output: string[], outputHeight: number, setOutputHeight: (h: number) => void }) {
+function MarkdownProblemDescription({ description, examples }: { description: string, examples: string }) {
   return (
     <>
       <div className="text-dark-charcoal/80 leading-relaxed mb-2 whitespace-pre-line">{description.trim()}</div>
       {examples && <ExamplesBox examples={examples} />}
-      <AdjustableOutputBox output={output} height={outputHeight} setHeight={setOutputHeight} />
     </>
   );
 }
@@ -200,37 +187,36 @@ function MarkdownProblemDescription({ description, examples, output, outputHeigh
 function StructuredExamples({ structured }: { structured: any }) {
   if (!structured) return null;
   return (
-    <div className="mt-6 bg-cream-beige/60 rounded-xl p-4">
+    <div className="mt-2 bg-cream-beige/60 rounded-xl p-6 shadow-lg">
       {structured.instructions && (
-        <div className="mb-6">
-          <h4 className="font-semibold text-medium-coffee mb-2 text-lg">Instructions</h4>
-          <div className="bg-white rounded-lg p-4 border border-cream-beige text-dark-charcoal/90 whitespace-pre-line shadow-sm">
+        <div className="mb-8">
+          <h4 className="font-semibold text-lg text-deep-espresso mb-3 tracking-tight">Instructions</h4>
+          <div className="bg-white rounded-xl p-5 border border-medium-coffee/30 text-dark-charcoal/90 shadow-sm text-base leading-relaxed">
             {structured.instructions}
           </div>
         </div>
       )}
-      <h4 className="font-semibold text-medium-coffee mb-4 text-lg">Examples</h4>
+      <h4 className="font-semibold text-lg text-deep-espresso mb-2 tracking-tight">Examples</h4>
       {structured.examples && structured.examples.length > 0 ? (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col">
           {structured.examples.map((ex: any, i: number) => (
-            <div key={i}>
-              <div className="bg-white rounded-xl p-4 border border-cream-beige shadow-md">
-                <div className="mb-2 text-sm text-dark-charcoal/70 font-semibold">Example {i + 1}</div>
-                <div className="mb-1"><span className="font-bold">Input:</span> <span className="font-mono bg-cream-beige px-2 py-1 rounded">{ex.input}</span></div>
-                <div className="mb-1"><span className="font-bold">Output:</span> <span className="font-mono bg-cream-beige px-2 py-1 rounded">{ex.output}</span></div>
-                {ex.explanation && <div className="mt-1"><span className="font-bold">Explanation:</span> <span className="bg-cream-beige px-2 py-1 rounded">{ex.explanation}</span></div>}
+            <div key={i} className="bg-white rounded-xl p-5 border border-cream-beige shadow-md mb-4 last:mb-0">
+              <div className="mb-2 text-sm text-medium-coffee font-semibold">Example {i + 1}</div>
+              <div className="mb-2 flex flex-col gap-1">
+                <div><span className="font-bold text-deep-espresso">Input:</span> <span className="font-mono bg-cream-beige px-2 py-1 rounded text-dark-charcoal">{ex.input}</span></div>
+                <div><span className="font-bold text-deep-espresso">Output:</span> <span className="font-mono bg-cream-beige px-2 py-1 rounded text-dark-charcoal">{ex.output}</span></div>
+                {ex.explanation && <div><span className="font-bold text-deep-espresso">Explanation:</span> <span className="bg-cream-beige px-2 py-1 rounded text-dark-charcoal">{ex.explanation}</span></div>}
               </div>
-              {i < structured.examples.length - 1 && <div className="my-4 border-t border-cream-beige" />}
             </div>
           ))}
         </div>
       ) : <div className="text-dark-charcoal/60">No examples found.</div>}
-      <div className="mt-6 space-y-2">
+      <div className="mt-8 space-y-2">
         {structured.inputs && structured.inputs.length > 0 && (
-          <div><span className="font-bold">Inputs:</span> <span className="font-mono bg-white px-2 py-1 rounded border border-cream-beige">{structured.inputs.join(', ')}</span></div>
+          <div><span className="font-bold text-deep-espresso">Inputs:</span> <span className="font-mono bg-white px-2 py-1 rounded border border-cream-beige text-dark-charcoal">{structured.inputs.join(', ')}</span></div>
         )}
         {structured.outputs && structured.outputs.length > 0 && (
-          <div><span className="font-bold">Outputs:</span> <span className="font-mono bg-white px-2 py-1 rounded border border-cream-beige">{structured.outputs.join(', ')}</span></div>
+          <div><span className="font-bold text-deep-espresso">Outputs:</span> <span className="font-mono bg-white px-2 py-1 rounded border border-cream-beige text-dark-charcoal">{structured.outputs.join(', ')}</span></div>
         )}
       </div>
     </div>
@@ -241,9 +227,9 @@ function StructuredExamples({ structured }: { structured: any }) {
 const markdownComponents = {
   code({node, inline, className, children, ...props}: any) {
     return inline ? (
-      <code className="bg-cream-beige text-dark-charcoal px-2 py-1 rounded font-mono text-base" style={{display: 'inline'}} {...props}>{children}</code>
+      <code className="font-mono text-base text-deep-espresso" style={{background: 'none', border: 'none', padding: 0, margin: 0}} {...props}>{children}</code>
     ) : (
-      <pre className="bg-[#23272f] text-[#e6e6e6] p-3 rounded-lg overflow-x-auto my-2"><code>{children}</code></pre>
+      <span className="font-mono text-base text-deep-espresso" style={{background: 'none', border: 'none', padding: 0, margin: 0, display: 'inline-block', whiteSpace: 'pre-wrap', verticalAlign: 'middle'}} {...props}>{children}</span>
     );
   },
   em({children, ...props}: any) {
@@ -277,6 +263,34 @@ const markdownComponents = {
     return <blockquote className="border-l-4 border-[#5adbff] pl-4 italic text-dark-charcoal/80 my-2" {...props}>{children}</blockquote>;
   },
 };
+
+// Move AdjustableOutputBox above LeetCodePage definition
+function AdjustableOutputBox({ testCases, height }: { testCases: any[], height: number }) {
+  if (!testCases || testCases.length === 0) {
+    return (
+      <div className="mb-4 px-6 pt-6">
+        <div className="font-bold text-medium-coffee mb-2 text-lg">Test Cases</div>
+        <div className="bg-light-cream rounded-xl border border-medium-coffee flex items-center justify-center" style={{ height, padding: 24 }}>
+          <span className="text-medium-coffee font-mono text-base">No test cases yet for this problem.</span>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mb-4 px-6 pt-6">
+      <div className="font-bold text-medium-coffee mb-2 text-lg">Test Cases</div>
+      <div className="bg-light-cream rounded-xl border border-medium-coffee overflow-auto" style={{ height, padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {testCases.map((tc, i) => (
+          <div key={i} className="mb-4 last:mb-0 bg-white rounded-lg shadow border border-cream-beige px-5 py-4 flex flex-col gap-2">
+            <div className="font-semibold text-medium-coffee mb-1">Case {i + 1}</div>
+            <div><span className="font-bold text-deep-espresso">Input:</span> <span className="font-mono bg-cream-beige px-2 py-1 rounded text-dark-charcoal">{tc.input}</span></div>
+            <div><span className="font-bold text-deep-espresso">Output:</span> <span className="font-mono bg-cream-beige px-2 py-1 rounded text-dark-charcoal">{tc.output}</span></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function LeetCodePage() {
   const router = useRouter();
@@ -375,7 +389,9 @@ export default function LeetCodePage() {
         .then(data => {
           setTestCaseContent(data.testcases || '');
           // Parse test cases if they exist
-          if (data.testcases && Array.isArray(data.testcases)) {
+          if (data.testcases && typeof data.testcases === 'string') {
+            setTestCases(parseLeetCodeTestCases(data.testcases));
+          } else if (data.testcases && Array.isArray(data.testcases)) {
             setTestCases(data.testcases);
           } else {
             setTestCases([]);
@@ -386,6 +402,17 @@ export default function LeetCodePage() {
       setTestCases([]);
     }
   }, [currentProblem?.slug]);
+
+  // Parse exampleTestcases string into testCases array if available
+  useEffect(() => {
+    if (currentProblem && currentProblem.exampleTestcases && typeof currentProblem.exampleTestcases === 'string') {
+      const parsedTestCases = currentProblem.exampleTestcases
+        .split(/\n\n|\n/)
+        .map((tc: string) => tc.trim())
+        .filter((tc: string) => tc.length > 0);
+      setTestCases(parsedTestCases);
+    }
+  }, [currentProblem?.exampleTestcases]);
 
   const handleCodeChange: OnChange = (value) => {
     setCode(value || '');
@@ -841,7 +868,7 @@ export default function LeetCodePage() {
 
       <div className="flex-1 flex max-h-[calc(100vh-80px)] overflow-hidden">
         {/* Left Panel - Problem Description & Steps */}
-        <div ref={leftPanelRef} className="w-1/3 bg-light-cream border-r border-cream-beige flex flex-col relative">
+        <div ref={leftPanelRef} className="w-1/4 bg-light-cream border-r border-cream-beige flex flex-col relative">
           {currentProblem ? (
             <>
               {/* --- Top Section: Problem Header, Description, Examples, Output --- */}
@@ -849,16 +876,16 @@ export default function LeetCodePage() {
                 style={{ height: descSectionHeight, minHeight: 120, maxHeight: '60%' }}
                 className="overflow-y-auto transition-all duration-100 border-b border-cream-beige"
               >
-                <div className="p-6 pb-2 bg-[#181a20] rounded-b-xl">
+                <div className="p-6 pb-2 bg-cream-beige rounded-b-xl">
                   {/* Render the problem title and description as readable markdown/text */}
                   {structuredProblem && structuredProblem.meta && (
                     <>
-                      <h2 className="text-xl font-bold mb-3 text-white">{structuredProblem.meta.title}</h2>
+                      <h2 className="text-2xl font-bold mb-3 text-deep-espresso">{structuredProblem.meta.title}</h2>
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         rehypePlugins={[rehypeRaw]}
                         components={markdownComponents}
-                        className="prose max-w-none mb-6 prose-invert"
+                        className="prose max-w-none mb-6 text-deep-espresso"
                       >
                         {structuredProblem.meta.description}
                       </ReactMarkdown>
@@ -994,15 +1021,15 @@ export default function LeetCodePage() {
           {/* Monaco Editor + Test Cases Ratio Container */}
           <div style={{ height: 800, display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: '0 0 65%', minHeight: 0 }} className="bg-[#1E1E1E] pt-2">
-            <MonacoEditor
-              language={language}
-              value={code}
-              onChange={handleCodeChange}
-              theme="vs-dark"
-            />
-          </div>
-          {testCases && testCases.length > 0 && (
-              <div style={{ flex: '0 0 35%', minHeight: 0, overflow: 'auto' }}>
+              <MonacoEditor
+                language={language}
+                value={code}
+                onChange={handleCodeChange}
+                theme="vs-dark"
+              />
+            </div>
+            {testCases && testCases.length > 0 && (
+              <div style={{ flex: '0 0 35%', minHeight: 0, overflow: 'auto', paddingTop: 24 }}>
                 <div className="w-full max-w-xl mx-auto mb-4 bg-cream-beige border-2 border-medium-coffee rounded-xl shadow-sm h-full">
                   <div className="flex mb-2">
                     {testCases.map((_, i) => (
@@ -1033,9 +1060,6 @@ export default function LeetCodePage() {
               </div>
             )}
           </div>
-
-          {/* Output Box */}
-          <AdjustableOutputBox output={output} height={outputHeight} setHeight={setOutputHeight} />
         </div>
 
         {/* Right Panel - Chat */}
