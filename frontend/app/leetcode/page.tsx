@@ -21,6 +21,7 @@ import LeetCodeProjectModal from '@/components/LeetCodeProjectModal';
 import { OnChange } from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 interface ChatMessage {
   type: 'user' | 'assistant';
@@ -232,6 +233,47 @@ function StructuredExamples({ structured }: { structured: any }) {
     </div>
   );
 }
+
+// Custom renderers for markdown elements
+const markdownComponents = {
+  code({node, inline, className, children, ...props}: any) {
+    return inline ? (
+      <code className="bg-cream-beige text-dark-charcoal px-2 py-1 rounded font-mono text-base" style={{display: 'inline'}} {...props}>{children}</code>
+    ) : (
+      <pre className="bg-[#23272f] text-[#e6e6e6] p-3 rounded-lg overflow-x-auto my-2"><code>{children}</code></pre>
+    );
+  },
+  em({children, ...props}: any) {
+    return <em className="italic text-dark-charcoal/80" {...props}>{children}</em>;
+  },
+  strong({children, ...props}: any) {
+    return <strong className="font-bold text-deep-espresso" {...props}>{children}</strong>;
+  },
+  h1({children, ...props}: any) {
+    return <h1 className="text-2xl font-bold text-deep-espresso mb-2" {...props}>{children}</h1>;
+  },
+  h2({children, ...props}: any) {
+    return <h2 className="text-xl font-bold text-deep-espresso mt-4 mb-2" {...props}>{children}</h2>;
+  },
+  h3({children, ...props}: any) {
+    return <h3 className="text-lg font-semibold text-deep-espresso mt-3 mb-1" {...props}>{children}</h3>;
+  },
+  p({children, ...props}: any) {
+    return <p className="mb-3 text-dark-charcoal/90" {...props}>{children}</p>;
+  },
+  li({children, ...props}: any) {
+    return <li className="ml-6 list-disc text-dark-charcoal/90" {...props}>{children}</li>;
+  },
+  ul({children, ...props}: any) {
+    return <ul className="mb-3 ml-4" {...props}>{children}</ul>;
+  },
+  img({src, alt, ...props}: any) {
+    return <img src={src} alt={alt} className="my-3 rounded shadow max-w-full" {...props} />;
+  },
+  blockquote({children, ...props}: any) {
+    return <blockquote className="border-l-4 border-[#5adbff] pl-4 italic text-dark-charcoal/80 my-2" {...props}>{children}</blockquote>;
+  },
+};
 
 export default function LeetCodePage() {
   const router = useRouter();
@@ -552,6 +594,9 @@ export default function LeetCodePage() {
         timestamp: new Date().toISOString()
       }
     ]);
+    setSelectedProblem(null); // Reset selected problem for modal
+    setStructuredProblem(null); // Reset structured problem
+    setShowProjectModal(false); // Ensure modal is closed
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -770,7 +815,7 @@ export default function LeetCodePage() {
               <Button
                 onClick={handleGenerateSimilarProblem}
                 disabled={isLoading}
-                className="btn-coffee-secondary"
+                className="bg-medium-coffee text-light-cream border-2 border-medium-coffee rounded-xl shadow-coffee font-semibold px-6 py-2 flex items-center justify-center transition-colors duration-150 hover:bg-medium-coffee/90 focus:outline-none focus:ring-2 focus:ring-medium-coffee"
               >
                 <SparklesIcon className="h-4 w-4 mr-2" />
                 Similar Problem
@@ -798,10 +843,20 @@ export default function LeetCodePage() {
                 style={{ height: descSectionHeight, minHeight: 120, maxHeight: '60%' }}
                 className="overflow-y-auto transition-all duration-100 border-b border-cream-beige"
               >
-                <div className="p-6 pb-2">
-                  {/* RAW JSON OUTPUT ONLY, NO FORMATTING */}
-                  {structuredProblem && (
-                    <pre>{JSON.stringify(structuredProblem, null, 2)}</pre>
+                <div className="p-6 pb-2 bg-[#181a20] rounded-b-xl">
+                  {/* Render the problem title and description as readable markdown/text */}
+                  {structuredProblem && structuredProblem.meta && (
+                    <>
+                      <h2 className="text-xl font-bold mb-3 text-white">{structuredProblem.meta.title}</h2>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw]}
+                        components={markdownComponents}
+                        className="prose max-w-none mb-6 prose-invert"
+                      >
+                        {structuredProblem.meta.description}
+                      </ReactMarkdown>
+                    </>
                   )}
                 </div>
               </div>
@@ -937,7 +992,6 @@ export default function LeetCodePage() {
               value={code}
               onChange={handleCodeChange}
               theme="vs-dark"
-              highlightedLines={currentProblem?.steps?.[currentStepIndex]?.lineRanges || []}
             />
           </div>
 

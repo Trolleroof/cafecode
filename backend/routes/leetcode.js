@@ -290,7 +290,7 @@ router.get('/testcases', async (req, res) => {
     // Try to get the most relevant test case field
     const testcases = problem.exampleTestcases || problem.sampleTestCase || problem.sampleTestcases || '';
     res.json({ testcases });
-    console.log("THESE ARE TESTCASES: " + testcases)
+    console.log("TESTCASES: " + testcases)
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch testcases', details: err.message });
   }
@@ -307,6 +307,13 @@ router.get('/problem/:slug/structured', checkGeminiService, async (req, res) => 
     const examples = problem.exampleTestcases || problem.sampleTestCase || problem.sampleTestcases || '';
     const inputs = problem.input || '';
     const outputs = problem.output || '';
+
+    // Log the slug and full problem description/content to the terminal
+    console.log('LEETCODE STRUCTURED PROBLEM FETCHED:');
+    console.log('Slug:', slug);
+    console.log('Description/Content:');
+    console.log(description);
+    console.log('-------------------');
 
     // Return the raw fields as structured data (no Gemini formatting)
     res.json({

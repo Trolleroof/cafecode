@@ -17,23 +17,75 @@ const TavusConversation: React.FC<TavusConversationProps> = ({ currentCode, curr
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const prevGuidedProjectRef = useRef<any>(null);
+  const [iframeError, setIframeError] = useState(false); // Track iframe load errors
+  const lastProjectIdRef = useRef<string | null>(null);
+  const isCreatingConversation = useRef(false);
 
-  // Remove sendProjectContext and backend update-context call
+  // Helper to clear localStorage and state
+  const clearConversation = () => {
+    setConversationId(null);
+    setConversationUrl(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tavus_conversation_id');
+      localStorage.removeItem('tavus_conversation_url');
+    }
+  };
 
+  // Only create conversation when guidedProject and guidedProject.projectContext are available
   useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).process && (window as any).process.stdout) {
+      (window as any).process.stdout.write('[TAVUS DEBUG] useEffect triggered\n');
+      (window as any).process.stdout.write('[TAVUS DEBUG] guidedProject: ' + JSON.stringify(guidedProject) + '\n');
+      (window as any).process.stdout.write('[TAVUS DEBUG] conversationId: ' + conversationId + '\n');
+      (window as any).process.stdout.write('[TAVUS DEBUG] conversationUrl: ' + conversationUrl + '\n');
+      (window as any).process.stdout.write('[TAVUS DEBUG] lastProjectIdRef: ' + lastProjectIdRef.current + '\n');
+    }
+    if (!guidedProject || !guidedProject.projectContext) return;
+    if (lastProjectIdRef.current === guidedProject.projectId) {
+      if (typeof window !== 'undefined' && (window as any).process && (window as any).process.stdout) {
+        (window as any).process.stdout.write('[TAVUS DEBUG] Skipping creation: projectId already used\n');
+      }
+      return;
+    }
+    if (conversationId !== null || conversationUrl !== null) {
+      if (typeof window !== 'undefined' && (window as any).process && (window as any).process.stdout) {
+        (window as any).process.stdout.write('[TAVUS DEBUG] Skipping creation: conversationId or conversationUrl already set\n');
+      }
+      return;
+    }
+    if (isCreatingConversation.current) return; // Prevent double POSTs
+
     const existingConversationId = typeof window !== 'undefined' ? localStorage.getItem('tavus_conversation_id') : null;
     const existingConversationUrl = typeof window !== 'undefined' ? localStorage.getItem('tavus_conversation_url') : null;
     if (existingConversationId && existingConversationUrl) {
+      if (typeof window !== 'undefined' && (window as any).process && (window as any).process.stdout) {
+        (window as any).process.stdout.write('[TAVUS DEBUG] Reusing existing conversation from localStorage\n');
+      }
       setConversationId(existingConversationId);
       setConversationUrl(existingConversationUrl);
       setIsLoading(false);
+      lastProjectIdRef.current = guidedProject.projectId;
       return;
     }
+
     const createConversation = async () => {
+      isCreatingConversation.current = true;
       try {
+        if (typeof window !== 'undefined' && (window as any).process && (window as any).process.stdout) {
+          (window as any).process.stdout.write('[TAVUS DEBUG] Creating new Tavus conversation via API\n');
+        }
         const response = await fetch('/api/tavus/create-conversation', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversational_context: guidedProject.projectContext,
+            currentCode,
+            currentLanguage,
+            output,
+            projectFiles,
+            persona_id: 'p630c84bf73c',
+            replica_id: 'r3a47ce45e68'
+          })
         });
         if (!response.ok) {
           const errorData = await response.json();
@@ -46,14 +98,15 @@ const TavusConversation: React.FC<TavusConversationProps> = ({ currentCode, curr
           localStorage.setItem('tavus_conversation_id', data.conversation_id);
           localStorage.setItem('tavus_conversation_url', data.conversation_url);
         }
+        lastProjectIdRef.current = guidedProject.projectId;
       } catch (err: any) {
         setError(err.message);
       } finally {
         setIsLoading(false);
+        isCreatingConversation.current = false;
       }
     };
     createConversation();
-    // Cleanup: delete conversation on unmount
     return () => {
       const convId = typeof window !== 'undefined' ? localStorage.getItem('tavus_conversation_id') : null;
       if (convId) {
@@ -69,7 +122,26 @@ const TavusConversation: React.FC<TavusConversationProps> = ({ currentCode, curr
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [guidedProject]);
+
+  // If the iframe fails to load (e.g., Tavus returns 404), clear and recreate
+  const handleIframeError = () => {
+    setIframeError(true);
+    clearConversation();
+  };
+
+  // If iframeError is set, try to create a new conversation
+  useEffect(() => {
+    if (iframeError) {
+      setError('Previous Tavus conversation was invalid or expired. Creating a new one...');
+      setIframeError(false);
+      setIsLoading(true);
+      setTimeout(() => {
+        setConversationId(null);
+        setConversationUrl(null);
+      }, 100); // Triggers useEffect to create a new conversation
+    }
+  }, [iframeError]);
 
   // Broadcast context update via Daily App Message
   useEffect(() => {
@@ -138,6 +210,7 @@ ${currentCode}`);
           src={conversationUrl}
           allow="camera; microphone; fullscreen; speaker; display-capture"
           className="w-full h-full border-0"
+          onError={handleIframeError}
         ></iframe>
       </div>
     );

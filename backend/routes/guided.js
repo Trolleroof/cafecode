@@ -175,13 +175,17 @@ Make sure each step is clear, specific, and achievable. Focus on one task per st
       projectFiles: projectFiles || []
     });
 
+    // Construct project context string for Tavus
+    const stepsList = steps.map((step, idx) => `${idx + 1}. ${step.instruction}`).join('\n');
+    const tavusProjectContext = `Project Overview: ${projectDescription}\nSteps:\n${stepsList}`;
+
     // Send initial chat message
     const welcomeMessage = {
       type: "assistant",
       content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nUse the "+" button in the file explorer to create folders and files as needed. Once you've completed a step, click "Check Step" to continue to the next step.`,
     };
 
-    res.json({ projectId, steps, welcomeMessage });
+    res.json({ projectId, steps, welcomeMessage, projectContext: tavusProjectContext });
   } catch (error) {
     console.error("Error starting project:", error);
     res.status(500).json({ error: "Failed to start project" });

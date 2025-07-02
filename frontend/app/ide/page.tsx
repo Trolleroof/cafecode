@@ -18,7 +18,8 @@ import {
   Zap,
   Loader2,
   ArrowLeftIcon,
-  Mic
+  Mic,
+  Video
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -63,6 +64,7 @@ interface GuidedProject {
   projectId: string;
   steps: GuidedStep[];
   currentStep: number;
+  projectContext?: string;
 }
 
 const getLanguageFromFileName = (fileName: string): string => {
@@ -198,6 +200,7 @@ export default function IDEPage() {
   // UI state
   const [activeTab, setActiveTab] = useState('editor');
   const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [showVideoWarning, setShowVideoWarning] = useState(false);
   const router = useRouter();
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -712,7 +715,8 @@ export default function IDEPage() {
         setGuidedProject({
           projectId: result.projectId,
           steps: result.steps,
-          currentStep: 0
+          currentStep: 0,
+          projectContext: result.projectContext
         });
 
         if (result.welcomeMessage) {
@@ -1280,30 +1284,53 @@ export default function IDEPage() {
                     type="single"
                     value={isVoiceMode ? 'voice' : 'text'}
                     onValueChange={(value) => {
-                      if (value) setIsVoiceMode(value === 'voice');
+                      if (value === 'voice') {
+                        if (!guidedProject) {
+                          setShowVideoWarning(true);
+                          setTimeout(() => setShowVideoWarning(false), 2500);
+                          return;
+                        }
+                        setIsVoiceMode(true);
+                      } else if (value === 'text') {
+                        setIsVoiceMode(false);
+                      }
                     }}
                     className="bg-cream-beige p-1 rounded-lg"
                   >
                     <ToggleGroupItem value="text" aria-label="Toggle text" className="data-[state=on]:bg-medium-coffee data-[state=on]:text-light-cream rounded-md px-2 py-1 hover:bg-cream-beige hover:text-deep-espresso">
                       <MessageSquare className="h-4 w-4" />
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="voice" aria-label="Toggle voice" className="data-[state=on]:bg-medium-coffee data-[state=on]:text-light-cream rounded-md px-2 py-1 hover:bg-cream-beige hover:text-deep-espresso">
-                      <Mic className="h-4 w-4" />
+                    <ToggleGroupItem value="voice" aria-label="Toggle video" className="data-[state=on]:bg-medium-coffee data-[state=on]:text-light-cream rounded-md px-2 py-1 hover:bg-cream-beige hover:text-deep-espresso">
+                      <Video className="h-4 w-4" />
                     </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
-
+                {showVideoWarning && (
+                  <div className="bg-red-100 text-red-700 text-center py-2 px-4 text-sm font-semibold">
+                    Please start a project before accessing the video assistant.
+                  </div>
+                )}
                 <div className="flex-1 overflow-hidden transition-all duration-300">
                   {isVoiceMode ? (
-                    <div className="h-full w-full bg-cream-beige/50">
-                      <TavusConversation 
-                        currentCode={selectedFile?.content || ''}
-                        currentLanguage={selectedFile?.language || 'plaintext'}
-                        output={output}
-                        projectFiles={files}
-                        guidedProject={guidedProject}
-                      />
-                    </div>
+                    guidedProject ? (
+                      <div className="h-full w-full bg-cream-beige/50">
+                        <TavusConversation 
+                          currentCode={selectedFile?.content || ''}
+                          currentLanguage={selectedFile?.language || 'plaintext'}
+                          output={output}
+                          projectFiles={files}
+                          guidedProject={guidedProject}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-cream-beige/50">
+                        <div className="text-center">
+                          <Video className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                          <p className="text-deep-espresso text-lg font-semibold">Start a project to use the video assistant</p>
+                          <p className="text-deep-espresso/70 text-sm mt-2">You must begin a guided project before accessing this feature.</p>
+                        </div>
+                      </div>
+                    )
                   ) : (
                     <>
                       {/* Chat Messages */}
