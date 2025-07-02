@@ -18,16 +18,13 @@ const conversationSteps = new Map();
  */
 router.post('/create-conversation', async (req, res) => {
   try {
-    // In a real application, you might want to configure a callback URL
-    // to receive webhooks about the conversation status.
-    // const { callback_url } = req.body;
-
+    const { persona_id } = req.body;
+    const payload = {
+      persona_id: persona_id || TAVUS_PERSONA_ID
+    };
     const response = await axios.post(
       TAVUS_API_URL,
-      {
-        persona_id: TAVUS_PERSONA_ID,
-        // callback_url: callback_url || 'YOUR_BACKEND_URL/api/tavus/webhook'
-      },
+      payload,
       {
         headers: {
           'x-api-key': TAVUS_API_KEY,
@@ -35,7 +32,6 @@ router.post('/create-conversation', async (req, res) => {
         },
       }
     );
-
     res.json(response.data);
   } catch (error) {
     console.error('Error creating Tavus conversation:', error.response ? error.response.data : error.message);
@@ -49,7 +45,7 @@ router.post('/create-conversation', async (req, res) => {
 /**
  * @route POST /api/tavus/webhook
  * @desc Handles incoming webhooks from Tavus with user's speech.
- * @access Public (called by Tavus)
+ * @access 
  */
 router.post('/webhook', async (req, res) => {
     const { transcript, conversation_id } = req.body;
@@ -68,7 +64,10 @@ router.post('/webhook', async (req, res) => {
             return res.status(500).json({ error: 'Gemini service not available' });
         }
 
-        const prompt = `You are a helpful coding assistant designed for voice conversations.\n\nUser said: "${transcript}"${goalsContext}\n\nRespond as a JSON object with a 'content' field. Your response should be concise, clear, and suitable for being read aloud. Always use the project goals/steps above to provide the most relevant and context-aware answer.`;
+        const prompt = `You are a helpful coding assistant designed for voice conversations.\n\nUser said: "${transcript}". 
+        Here are the goals of their coding project that you need to understand and guide then with: ${goalsContext}\n
+        \nRespond as a JSON object with a 'content' field. Your response should be concise, clear, and suitable for being read aloud. 
+        Always use the project goals/steps above to provide the most relevant and context-aware answer.`;
 
         const result = await geminiService.model.generateContent(prompt);
         const responseText = (await result.response).text();
@@ -94,7 +93,9 @@ router.post('/webhook', async (req, res) => {
  * @access Public
  */
 router.post('/update-context', async (req, res) => {
-  const { conversationId, guidedProject } = req.body;
+  const { conversationId, guidedProject, currentCode, currentLanguage, output, projectFiles } = req.body;
+  // Log the full request body for debugging
+  console.log('[TAVUS] /update-context received body:', JSON.stringify(req.body, null, 2));
   if (!conversationId) {
     return res.status(400).json({ error: 'conversationId is required' });
   }
@@ -106,34 +107,106 @@ router.post('/update-context', async (req, res) => {
   }
   conversationSteps.set(conversationId, steps);
 
-  // Compose the context string (for Tavus API, but only steps)
-  let goalsContext = '';
+  // Compose the full context string including all available information
+  let contextParts = [];
+  
+  // Add project goals/steps
   if (steps.length > 0) {
-    goalsContext = `Project Goals/Steps:\n` + steps.join('\n');
+    contextParts.push(`Project Goals/Steps:\n${steps.join('\n')}`);
   } else {
-    goalsContext = 'Project Goals/Steps: [No guided project steps]';
+    contextParts.push('Project Goals/Steps: [No guided project steps]');
   }
-  const conversationalContext = `${goalsContext}`;
+  
+  // Add current code and language
+  if (currentCode && currentLanguage) {
+    contextParts.push(`Current Code (${currentLanguage}):\n\`\`\`${currentLanguage}\n${currentCode}\n\`\`\``);
+  }
+  
+  // Add output
+  if (output && output.length > 0) {
+    contextParts.push(`Recent Output:\n${output.join('\n')}`);
+  }
+  
+  // Add project files
+  if (projectFiles && projectFiles.length > 0) {
+    const filesInfo = projectFiles.map(file => `${file.name} (${file.type})`).join(', ');
+    contextParts.push(`Project Files: ${filesInfo}`);
+  }
+  
+  const conversationalContext = contextParts.join('\n\n');
+
+  // Log the context update
+  console.log(`[TAVUS] Updating context for conversationId: ${conversationId}`);
+  console.log(`[TAVUS] New conversationalContext:\n${conversationalContext}`);
 
   try {
-    // Tavus "Overwrite Conversational Context" event
+    // Build the correct Tavus event payload and endpoint (per your provided example)
+    const tavusUrl = `https://tavusapi.com/v2/conversations`;
+    const eventPayload = {
+      message_type: "conversation",
+      event_type: "conversation.overwrite_llm_context",
+      conversation_id: conversationId,
+      properties: {
+        context: conversationalContext
+      }
+
+      
+    };
+    console.log(`[TAVUS] Posting context update to URL: ${tavusUrl}`);
+    console.log(`[TAVUS] Event payload:`, JSON.stringify(eventPayload, null, 2));
     await axios.post(
-      `https://tavusapi.com/v2/conversations/${conversationId}/events`,
-      {
-        type: "overwrite_conversational_context",
-        conversational_context: conversationalContext
-      },
+      tavusUrl,
+      eventPayload,
       {
         headers: {
-          'x-api-key': TAVUS_API_KEY,
           'Content-Type': 'application/json',
+          'x-api-key': TAVUS_API_KEY,
         },
       }
     );
     res.json({ success: true });
   } catch (error) {
-    console.error('Error updating Tavus context:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Failed to update Tavus context', details: error.response ? error.response.data : error.message });
+    if (error.response) {
+      console.error('Error updating Tavus context:');
+      console.error('Status:', error.response.status);
+      console.error('Headers:', error.response.headers);
+      console.error('Data:', error.response.data);
+    } else {
+      console.error('Error:', error.message);
+    }
+    res.status(500).json({ error: 'Failed to update Tavus context' });
+  }
+});
+
+/**
+ * @route DELETE /api/tavus/delete-conversation
+ * @desc Deletes a Tavus conversation by ID
+ * @access Public
+ */
+router.delete('/delete-conversation', async (req, res) => {
+  const { conversationId } = req.body;
+  if (!conversationId) {
+    return res.status(400).json({ error: 'conversationId is required' });
+  }
+  try {
+    const tavusUrl = `https://tavusapi.com/v2/conversations/${conversationId}`;
+    console.log(`[TAVUS] Deleting conversation at URL: ${tavusUrl}`);
+    await axios.delete(tavusUrl, {
+      headers: {
+        'x-api-key': TAVUS_API_KEY,
+      },
+    });
+    res.json({ success: true });
+  } catch (error) {
+    if (error.response) {
+      console.error('Error deleting Tavus conversation:');
+      console.error('Status:', error.response.status);
+      console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
+      console.error('Data:', error.response.data);
+    } else {
+      console.error('Error deleting Tavus conversation:', error.message);
+    }
+    res.status(500).json({ error: 'Failed to delete Tavus conversation', details: error.message });
   }
 });
 

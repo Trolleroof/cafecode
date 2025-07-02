@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   PlayIcon, 
   ArrowRightIcon, 
@@ -14,24 +14,33 @@ import {
   SparklesIcon, 
   TrophyIcon, 
   ArrowTrendingUpIcon,
-  LightBulbIcon
+  LightBulbIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Dialog, DialogTrigger, DialogContent } from '@/components/ui/dialog';
-import UserMenu from '@/components/UserMenu';
+import dynamic from 'next/dynamic';
+const MenuBoard = dynamic(() => import('./features/MenuBoard'), { ssr: false });
 
 export default function Home() {
   const router = useRouter();
+  const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'leet'>(null);
 
   const handleStartCoding = () => {
-    router.push('/ide');
+    setLoadingButton('ide');
+    setTimeout(() => {
+      router.push('/ide');
+    }, 900);
   };
 
   const handleLeetCodePractice = () => {
-    router.push('/leetcode');
+    setLoadingButton('leet');
+    setTimeout(() => {
+      router.push('/leetcode');
+    }, 900);
   };
 
   return (
@@ -39,7 +48,7 @@ export default function Home() {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-16">
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-16 w-full">
         {/* Coffee Shop Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-light-cream via-cream-beige to-medium-coffee/20"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(163,106,62,0.1),transparent_50%)]"></div>
@@ -56,41 +65,61 @@ export default function Home() {
           <div className="flex-1 flex flex-col items-start md:items-start text-left max-w-xl">
           {/* Coffee Shop Badge */}
             <div className="inline-flex items-center space-x-3 coffee-glass rounded-full px-6 py-3 mb-6 shadow-xl border border-medium-coffee/20">
-            <div className="w-2 h-2 bg-medium-coffee rounded-full animate-pulse"></div>
             <SparklesIcon className="h-5 w-5 text-deep-espresso" />
               <span className="text-xs font-bold text-dark-charcoal tracking-wide">Brewed for Real Learning</span>
-            <div className="w-2 h-2 bg-medium-coffee rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
           </div>
           {/* Main heading with coffee theme */}
             <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal mb-4 leading-tight">
-            <span className="block">Brew Your Code</span>
-            <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient">
-              Like a Barista
-            </span>
-          </h1>
-          {/* Coffee-themed Subheading */}
-            <p className="text-lg sm:text-xl lg:text-2xl text-deep-espresso mb-8 max-w-2xl leading-relaxed font-medium">
-            A cozy coding environment where every line of code is crafted with care.
-              <span className="block mt-2 font-bold text-dark-charcoal text-base sm:text-lg">Fresh code, perfect blend, endless possibilities.</span>
-          </p>
-            {/* Sign In Popup Button */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <button className="btn-coffee-primary px-8 py-4 text-lg font-bold animate-warm-glow mb-8">Sign In</button>
-              </DialogTrigger>
-              <DialogContent>
-                <UserMenu />
-              </DialogContent>
-            </Dialog>
+              <span className="block">Ship Your Project,</span>
+              <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient">
+                Sip Your Coffee
+              </span>
+            </h1>
+            {/* Coffee-themed Subheading */}
+            <p className="text-lg sm:text-xl lg:text-2xl text-deep-espresso mb-8 pt-4 max-w-2xl leading-relaxed font-medium">
+              Actually learn to code anything that comes to your mind in the time it takes you to sip on coffee
+              <span className="block mt-2 font-bold text-dark-charcoal text-base sm:text-lg">The only rule? No vibecoding.</span>
+            </p>
+            {/* Hero action buttons */}
+            <div className="flex gap-4 mb-8">
+              <button
+                onClick={handleStartCoding}
+                className="btn-coffee-primary px-8 py-4 text-lg font-bold rounded-xl shadow hover:shadow-lg transition flex items-center justify-center gap-2"
+                disabled={loadingButton !== null}
+              >
+                {loadingButton === 'ide' ? (
+                  <>
+                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    Loading IDE...
+                  </>
+                ) : (
+                  'Go to IDE'
+                )}
+              </button>
+              <button
+                onClick={handleLeetCodePractice}
+                className="btn-coffee-secondary px-8 py-4 text-lg font-bold rounded-xl shadow hover:shadow-lg transition flex items-center justify-center gap-2"
+                disabled={loadingButton !== null}
+              >
+                {loadingButton === 'leet' ? (
+                  <>
+                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    Loading Practice...
+                  </>
+                ) : (
+                  'LeetCode Practice'
+                )}
+              </button>
+            </div>
           </div>
           {/* Right: Hero Image */}
-          <div className="flex-1 flex justify-center items-center w-full max-w-md">
+          <div className="flex-1 flex justify-center items-center w-full">
             <Image
               src="/images/demo.png"
               alt="demo screen"
-              width={400}
-              height={300}
-              className="rounded-3xl shadow-2xl object-cover w-full h-[180px] md:h-[250px] lg:h-[300px]"
+              width={1600}
+              height={1100}
+              className="rounded-3xl shadow-2xl object-contain w-full h-full border-4 border-medium-coffee"
             />
           </div>
         </div>
@@ -133,88 +162,8 @@ export default function Home() {
       </section>
 
       {/* Features Section - Coffee Shop themed */}
-      <section id="features" className="py-24 bg-gradient-to-br from-light-cream via-cream-beige to-light-cream relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(163,106,62,0.1),transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(129,77,51,0.1),transparent_50%)]"></div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-24">
-            <div className="inline-flex items-center space-x-3 bg-medium-coffee/10 rounded-full px-6 py-3 mb-8">
-              <SparklesIcon className="h-5 w-5 text-medium-coffee" />
-              <span className="text-deep-espresso font-semibold text-sm">Our Special Blend</span>
-            </div>
-            
-            <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-dark-charcoal mb-8 leading-tight">
-              Cafécode to the
-              <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Rescue!</span>
-            </h2>
-            <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium">
-              Our IDE is like a welcoming coffee shop, designed for beginners with features that make learning to code as comforting as your morning brew.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: LightBulbIcon,
-                title: 'AI Barista Assistant',
-                description: 'Get instant help and contextual hints while you code. Our AI understands your learning journey like a skilled barista knows your order.',
-                color: 'from-medium-coffee to-deep-espresso',
-                gradient: 'from-cream-beige to-light-cream'
-              },
-              {
-                icon: RocketLaunchIcon,
-                title: 'Espresso-Speed Fixes',
-                description: 'Apply suggested fixes directly to your code with one click. Learn from mistakes and understand corrections faster than pulling an espresso shot.',
-                color: 'from-deep-espresso to-medium-coffee',
-                gradient: 'from-medium-coffee/10 to-deep-espresso/10'
-              },
-              {
-                icon: HeartIcon,
-                title: 'Cozy Learning Environment',
-                description: 'Write single-file programs and see results instantly. Perfect for beginners who want to focus on core concepts in a warm, welcoming space.',
-                color: 'from-medium-coffee to-cream-beige',
-                gradient: 'from-light-cream to-cream-beige'
-              },
-              {
-                icon: ChatBubbleLeftRightIcon,
-                title: 'Friendly Café Atmosphere',
-                description: 'Clean, distraction-free environment designed specifically for self-taught developers and bootcamp students. Like your favorite study spot.',
-                color: 'from-cream-beige to-medium-coffee',
-                gradient: 'from-cream-beige/20 to-light-cream'
-              },
-              {
-                icon: TrophyIcon,
-                title: 'Community Coffee Table',
-                description: 'Connect with other learners, share your progress, and get help from experienced developers in our welcoming community.',
-                color: 'from-deep-espresso to-dark-charcoal',
-                gradient: 'from-medium-coffee/10 to-deep-espresso/10'
-              },
-              {
-                icon: SparklesIcon,
-                title: 'Safe Brewing Space',
-                description: 'Practice coding without fear of breaking anything. Our sandboxed environment lets you experiment freely, like trying new coffee recipes.',
-                color: 'from-medium-coffee to-deep-espresso',
-                gradient: 'from-cream-beige/30 to-light-cream/30'
-              }
-            ].map((feature, index) => (
-              <div
-                key={index}
-                className="group coffee-card p-8"
-              >
-                <div className={`inline-flex p-5 rounded-2xl bg-gradient-to-r ${feature.color} mb-8 shadow-coffee group-hover:scale-110 transition-transform duration-300`}>
-                  <feature.icon className="h-10 w-10 text-light-cream" />
-                </div>
-                <h3 className="font-heading text-2xl font-bold text-dark-charcoal mb-6 group-hover:text-medium-coffee transition-colors">
-                  {feature.title}
-                </h3>
-                <p className="text-deep-espresso leading-relaxed text-lg">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+      <section id="features" className="relative z-10">
+        <MenuBoard />
       </section>
 
       {/* How It Works Section - Coffee Process themed */}
@@ -229,7 +178,7 @@ export default function Home() {
               Three Steps to
               <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Perfect Code</span>
             </h2>
-            <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium">
+            <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium pb-4">
               Start your coding journey with the same care and attention as brewing the perfect cup of coffee.
             </p>
           </div>
@@ -320,7 +269,7 @@ export default function Home() {
               <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Regulars Say</span>
             </h2>
             <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium">
-              Join thousands of developers who have found their perfect coding blend at Cafécode.
+              These are what developers have said about Cafécode and how it helped them find the perfect coding brew.
             </p>
           </div>
 

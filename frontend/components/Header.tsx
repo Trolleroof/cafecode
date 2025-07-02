@@ -1,17 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
-import UserMenu from './UserMenu';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'leet'>(null);
   const router = useRouter();
-
-  const handleStartCoding = () => {
-    router.push('/ide');
-  };
 
   const handleNavClick = (href: string) => {
     setIsMenuOpen(false);
@@ -20,6 +16,20 @@ const Header = () => {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleGoToIDE = () => {
+    setLoadingButton('ide');
+    setTimeout(() => {
+      router.push('/ide');
+    }, 900);
+  };
+
+  const handleGoToLeet = () => {
+    setLoadingButton('leet');
+    setTimeout(() => {
+      router.push('/leetcode');
+    }, 900);
   };
 
   return (
@@ -71,16 +81,37 @@ const Header = () => {
             </button>
           </nav>
 
-          {/* Desktop CTA Buttons & User Menu */}
-          {/* <div className="hidden lg:flex items-center space-x-4">
-            <button 
-              onClick={handleStartCoding}
-              className="btn-coffee-primary px-6 py-2.5 text-lg shadow-lg hover:shadow-coffee"
+          {/* Desktop CTA Buttons */}
+          <div className="hidden lg:flex items-center space-x-4">
+            <button
+              onClick={handleGoToIDE}
+              className="btn-coffee-primary px-6 py-2.5 text-lg shadow-lg hover:shadow-coffee flex items-center gap-2"
+              disabled={loadingButton !== null}
             >
-              Start Brewing
+              {loadingButton === 'ide' ? (
+                <>
+                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                  Loading IDE...
+                </>
+              ) : (
+                'Go to IDE'
+              )}
             </button>
-            <UserMenu />
-          </div> */}
+            <button
+              onClick={handleGoToLeet}
+              className="btn-coffee-secondary px-6 py-2.5 text-lg shadow-lg hover:shadow-coffee flex items-center gap-2"
+              disabled={loadingButton !== null}
+            >
+              {loadingButton === 'leet' ? (
+                <>
+                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                  Loading Practice...
+                </>
+              ) : (
+                'LeetCode Practice'
+              )}
+            </button>
+          </div>
 
           {/* Mobile CTA Button & User Menu */}
           <div className="flex lg:hidden items-center space-x-3">
@@ -129,6 +160,34 @@ const Header = () => {
               className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
             >
               Menu
+            </button>
+            <button
+              onClick={handleGoToIDE}
+              className="btn-coffee-primary text-left text-lg py-2 flex items-center gap-2"
+              disabled={loadingButton !== null}
+            >
+              {loadingButton === 'ide' ? (
+                <>
+                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                  Loading IDE...
+                </>
+              ) : (
+                'Go to IDE'
+              )}
+            </button>
+            <button
+              onClick={handleGoToLeet}
+              className="btn-coffee-secondary text-left text-lg py-2 flex items-center gap-2"
+              disabled={loadingButton !== null}
+            >
+              {loadingButton === 'leet' ? (
+                <>
+                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                  Loading Practice...
+                </>
+              ) : (
+                'LeetCode Practice'
+              )}
             </button>
           </nav>
         </div>

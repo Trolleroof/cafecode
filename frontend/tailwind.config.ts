@@ -13,6 +13,8 @@ const config: Config = {
         heading: ['var(--font-heading)', 'ui-serif', 'Georgia', 'serif'],
         body: ['var(--font-poppins)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular'],
+        caveat: ['var(--font-caveat)', 'cursive'],
+        inter: ['var(--font-inter)', 'sans-serif'],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
@@ -71,6 +73,9 @@ const config: Config = {
         'dark-charcoal': 'rgb(var(--dark-charcoal) / <alpha-value>)',
         'light-cream': 'rgb(var(--light-cream) / <alpha-value>)',
         'deep-espresso': 'rgb(var(--deep-espresso) / <alpha-value>)',
+        'brown-200': '#e6d3c2',
+        'brown-300': '#c2a68d',
+        'brown-900': '#3c2414',
       },
       keyframes: {
         'accordion-down': {
@@ -134,6 +139,10 @@ const config: Config = {
             boxShadow: '0 0 30px rgba(163, 106, 62, 0.6)',
           },
         },
+        'chalk-float': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-8px)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -142,6 +151,7 @@ const config: Config = {
         'coffee-drip': 'coffee-drip 2s ease-in-out infinite',
         'bean-bounce': 'bean-bounce 4s ease-in-out infinite',
         'warm-glow': 'warm-glow 2s ease-in-out infinite',
+        'chalk-float': 'chalk-float 3s ease-in-out infinite',
       },
     },
   },

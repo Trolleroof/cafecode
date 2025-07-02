@@ -451,7 +451,8 @@ Guidelines:
 - Use beginner-friendly language
 - Focus on algorithmic thinking and problem-solving approach
 - Include edge cases and optimization hints
-- Make steps progressive (each builds on the previous)`;
+- Make steps progressive (each builds on the previous)
+- Do NOT use markdown, HTML, or formatting characters (like **, *, backtick, or >) in any field. Only return valid JSON.`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;

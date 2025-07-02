@@ -79,6 +79,11 @@ router.post('/startProblem',
       );
       
       const responseTime = Date.now() - startTime;
+      if (result && result.problem && result.problem.description) {
+        console.log('FULL PROBLEM DESCRIPTION (TERMINAL):');
+        console.log(result.problem.description);
+        console.log('-------------------');
+      }
       console.log(`✅ LeetCode problem started in ${responseTime}ms`);
 
       res.json({
@@ -288,6 +293,40 @@ router.get('/testcases', async (req, res) => {
     console.log("THESE ARE TESTCASES: " + testcases)
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch testcases', details: err.message });
+  }
+});
+
+// GET /api/leetcode/problem/:slug/structured - Get structured problem details (examples, inputs, outputs)
+router.get('/problem/:slug/structured', checkGeminiService, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    // Fetch full problem details from LeetCode
+    const problem = await lc.problem(slug);
+    // Extract fields directly from the problem object
+    const description = problem.content || problem.description || '';
+    const examples = problem.exampleTestcases || problem.sampleTestCase || problem.sampleTestcases || '';
+    const inputs = problem.input || '';
+    const outputs = problem.output || '';
+
+    // Return the raw fields as structured data (no Gemini formatting)
+    res.json({
+      success: true,
+      structured: {
+        instructions: '', // Not available directly
+        examples: examples,
+        inputs: Array.isArray(inputs) ? inputs : [inputs],
+        outputs: Array.isArray(outputs) ? outputs : [outputs]
+      },
+      meta: {
+        title: problem.title,
+        difficulty: problem.difficulty,
+        description: description,
+        slug: slug
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching structured LeetCode problem:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch structured problem', details: error.message });
   }
 });
 
