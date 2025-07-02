@@ -83,8 +83,8 @@ const TavusConversation: React.FC<TavusConversationProps> = ({ currentCode, curr
             currentLanguage,
             output,
             projectFiles,
-            persona_id: 'p630c84bf73c',
-            replica_id: 'r3a47ce45e68'
+            persona_id: process.env.NEXT_PUBLIC_TAVUS_PERSONA_ID!,
+            replica_id: process.env.NEXT_PUBLIC_TAVUS_REPLICA_ID!,
           })
         });
         if (!response.ok) {

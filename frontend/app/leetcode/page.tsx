@@ -154,8 +154,6 @@ function AdjustableOutputBox({ output, height, setHeight }: { output: string[], 
       const mouseY = e.clientY - containerRect.top;
       const minHeight = 60;
       const maxHeight = 250;
-      const newHeight = Math.max(minHeight, Math.min(mouseY, maxHeight));
-      setHeight(newHeight);
     };
     const handleMouseUp = () => { dragging.current = false; };
     window.addEventListener('mousemove', handleMouseMove);
@@ -166,12 +164,17 @@ function AdjustableOutputBox({ output, height, setHeight }: { output: string[], 
     };
   }, [setHeight]);
 
+  const hasOutput = output.length > 0 && !(output.length === 1 && output[0] === 'No output yet.');
+
   return (
-    <div className="mb-4">
-      <div className="font-bold text-medium-coffee mb-2">Output</div>
-      <div className="bg-light-cream border border-medium-coffee rounded-xl overflow-auto" style={{ height }}>
-        <pre className="p-4 text-deep-espresso font-mono text-sm whitespace-pre-wrap">
-          {output.length ? output.join('\n') : 'No output yet.'}
+    <div className="mb-0">
+      <div className="font-bold text-medium-coffee mb-0">Output</div>
+      <div
+        className={`bg-light-cream rounded-xl overflow-auto ${hasOutput ? 'border border-medium-coffee' : ''}`}
+        style={{ height, display: 'flex', alignItems: 'flex-start', paddingLeft: 24, paddingRight: 24 }}
+      >
+        <pre className="pt-1 pb-4 text-deep-espresso font-mono text-sm whitespace-pre-wrap w-full m-0" style={{ background: 'none', border: 'none', boxShadow: 'none' }}>
+          {output.length ? output.join('\n') : 'No output yet. Select problem to recieve test cases.'}
         </pre>
       </div>
       <div
@@ -307,6 +310,9 @@ export default function LeetCodePage() {
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const leftResizerRef = useRef<HTMLDivElement>(null);
   const leftDragging = useRef(false);
+
+  // Track which test case is active
+  const [activeTestCase, setActiveTestCase] = useState(0);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -985,8 +991,9 @@ export default function LeetCodePage() {
             </Button>
           </div>
 
-          {/* Monaco Editor */}
-          <div className="flex-1 pt-2 bg-[#1E1E1E]">
+          {/* Monaco Editor + Test Cases Ratio Container */}
+          <div style={{ height: 800, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: '0 0 65%', minHeight: 0 }} className="bg-[#1E1E1E] pt-2">
             <MonacoEditor
               language={language}
               value={code}
@@ -994,20 +1001,41 @@ export default function LeetCodePage() {
               theme="vs-dark"
             />
           </div>
-
-          {/* Resizer */}
           {testCases && testCases.length > 0 && (
-            <>
-              <div
-                ref={resizerRef}
-                onMouseDown={handleMouseDown}
-                className="h-2 bg-cream-beige cursor-row-resize hover:bg-medium-coffee/50 transition-colors"
-              />
+              <div style={{ flex: '0 0 35%', minHeight: 0, overflow: 'auto' }}>
+                <div className="w-full max-w-xl mx-auto mb-4 bg-cream-beige border-2 border-medium-coffee rounded-xl shadow-sm h-full">
+                  <div className="flex mb-2">
+                    {testCases.map((_, i) => (
+                      <button
+                        key={i}
+                        className={`px-4 py-1 rounded-t pt-2 font-mono text-base transition-colors duration-150 ${
+                          activeTestCase === i
+                            ? 'bg-medium-coffee text-light-cream'
+                            : 'bg-cream-beige text-dark-charcoal border-b-2 border-medium-coffee'
+                        }`}
+                        onClick={() => setActiveTestCase(i)}
+                      >
+                        Case {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="p-4 bg-white rounded-b-lg h-full overflow-auto">
+                    {Object.entries(testCases[activeTestCase]).map(([key, value]) => (
+                      <div key={key} className="mb-4">
+                        <div className="text-medium-coffee text-sm mb-1">{key} =</div>
+                        <div className="bg-cream-beige rounded px-3 py-2 text-base text-dark-charcoal font-mono border border-medium-coffee/20">
+                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
-              {/* Test Case Viewer */}
-              <LeetCodeTestCases testCases={testCases} height={testCaseHeight} />
-            </>
-          )}
+          {/* Output Box */}
+          <AdjustableOutputBox output={output} height={outputHeight} setHeight={setOutputHeight} />
         </div>
 
         {/* Right Panel - Chat */}
@@ -1039,7 +1067,7 @@ export default function LeetCodePage() {
                       : 'bg-white text-dark-charcoal shadow'
                   }`}
                 >
-                  <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                  <div className="text-base leading-relaxed whitespace-pre-wrap">
                     {message.content}
                   </div>
                 </div>
@@ -1066,7 +1094,7 @@ export default function LeetCodePage() {
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder={currentProblem ? "Ask for help or hints..." : "Describe a coding problem..."}
-                className="flex-1 bg-white text-dark-charcoal placeholder-dark-charcoal/50 border border-cream-beige rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medium-coffee"
+                className="flex-1 bg-white text-dark-charcoal placeholder-dark-charcoal/50 border border-cream-beige rounded-lg px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-medium-coffee"
                 disabled={isLoading}
               />
               <Button
