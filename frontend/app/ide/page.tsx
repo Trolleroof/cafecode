@@ -1334,7 +1334,7 @@ export default function IDEPage() {
                   ) : (
                     <>
                       {/* Chat Messages */}
-                      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-cream-beige/50 h-full" style={{paddingTop: '10rem'}}>
+                      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-cream-beige/50 h-full" style={{paddingTop: '12rem'}}>
                         {chatMessages.map((msg, idx) => (
                           <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
                             <div className={`max-w-[80%] px-4 py-3 rounded-lg shadow-md ${msg.type === 'user' ? 'bg-medium-coffee text-light-cream' : 'bg-white text-dark-charcoal border border-cream-beige'}`}>
@@ -1382,18 +1382,24 @@ export default function IDEPage() {
                             type="text"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                            onKeyPress={(e) => e.key === 'Enter' && guidedProject && handleSendMessage()}
                             placeholder="Ask me anything about coding..."
                             className="flex-1 bg-white border border-medium-coffee/50 rounded-xl px-4 py-3 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200"
+                            disabled={!guidedProject || isTyping}
                           />
                           <Button
-                            onClick={handleSendMessage}
-                            disabled={!chatInput.trim() || isTyping}
+                            onClick={guidedProject ? handleSendMessage : undefined}
+                            disabled={!guidedProject || !chatInput.trim() || isTyping}
                             className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                           >
                             <ArrowRight className="h-4 w-4" />
                           </Button>
                         </div>
+                        {!guidedProject && (
+                          <div className="text-center text-sm text-medium-coffee mt-2">
+                            Start a guided project to chat with the assistant.
+                          </div>
+                        )}
                         
                         {/* Enhanced Chat Action Buttons */}
                         <div className="flex items-center justify-center mt-4 space-x-3">

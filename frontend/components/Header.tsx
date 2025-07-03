@@ -39,7 +39,7 @@ const Header = () => {
           {/* Coffee Shop Logo */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => router.push('/')}>
             <div className="bg-gradient-to-r from-medium-coffee to-deep-espresso p-2.5 lg:p-3 rounded-xl shadow-coffee animate-warm-glow">
-              <span className="text-light-cream text-xl lg:text-2xl">☕</span>
+              <img src="/images/logo.png" alt="Cafécode Logo" className="h-7 w-7 lg:h-9 lg:w-9 object-contain" />
             </div>
             <span className="font-heading text-xl lg:text-2xl font-bold text-light-cream hidden sm:block">
               Cafécode

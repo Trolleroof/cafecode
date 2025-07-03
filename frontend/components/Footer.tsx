@@ -12,7 +12,7 @@ const Footer = () => {
               <div className="bg-gradient-to-r from-medium-coffee to-deep-espresso p-2 rounded-lg animate-warm-glow">
                 <span className="text-light-cream text-xl">☕</span>
               </div>
-              <span className="font-heading text-xl font-bold">CodeCraft Café</span>
+              <span className="font-heading text-xl font-bold">Cafécode</span>
             </div>
             <p className="font-body text-cream-beige mb-6 max-w-md">
               Brewing the perfect coding experience for the next generation of developers. 
@@ -59,7 +59,7 @@ const Footer = () => {
 
         <div className="border-t border-deep-espresso mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="font-body text-cream-beige text-sm">
-            © 2025 CodeCraft Café. All rights reserved. Brewed with ❤️ for developers.
+            © 2025 Cafécode. All rights reserved. Brewed with ❤️ for developers.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
             <a href="#" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Privacy Policy</a>

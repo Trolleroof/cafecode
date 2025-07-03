@@ -415,7 +415,7 @@ Use extremely simple language for complete beginners.`;
         throw new Error('Gemini service not initialized');
       }
 
-      const prompt = `You are a LeetCode interview coach. Create a step-by-step solution guide for this coding problem.
+      const prompt = `You are a LeetCode interview coach. Create a step-by-step coding guide for this coding problem.
 
 Problem Description: ${problemDescription}
 Programming Language: ${language}
@@ -423,18 +423,20 @@ Programming Language: ${language}
 Generate a structured response with:
 1. A clear problem title and description
 2. Difficulty level (Easy/Medium/Hard)
-3. Step-by-step solution approach broken into small, manageable steps
+3. Step-by-step coding instructions, where each step tells the user exactly what code to write or modify. Do not include any steps that only ask the user to think, plan, or analyze. Do not provide explanations, hints, or conceptual steps—just the coding actions required to solve the problem, broken down into logical steps.
 
 Return JSON:
 {
   "problem": {
     "title": "Problem Title",
+    "titleSlug": "problem-title-slug",
     "description": "Clear problem description with examples",
     "difficulty": "Easy|Medium|Hard",
+    "exampleTestcases": "Input: [1, 2, 3]\nOutput: 6\n\nInput: [4, 5, 6]\nOutput: 15",
     "steps": [
       {
         "id": "step_1",
-        "instruction": "Clear instruction for this step",
+        "instruction": "Direct coding instruction for this step",
         "lineRanges": [1, 5]
       }
     ]
@@ -446,12 +448,13 @@ Return JSON:
 }
 
 Guidelines:
-- Break the solution into 4-8 logical steps
-- Each step should be achievable in 3-5 lines of code
-- Use beginner-friendly language
-- Focus on algorithmic thinking and problem-solving approach
-- Include edge cases and optimization hints
-- Make steps progressive (each builds on the previous)
+- Break the solution into 4-8 logical coding steps
+- Each step must require the user to write or modify code
+- Do NOT include any conceptual, planning, or thinking steps
+- Do NOT provide hints or explanations
+- Each step should be a direct coding instruction
+- The titleSlug should be a URL-friendly version of the title (lowercase, hyphens instead of spaces)
+- Include 2-3 example test cases in the exampleTestcases field
 - Do NOT use markdown, HTML, or formatting characters (like **, *, backtick, or >) in any field. Only return valid JSON.`;
 
       const result = await this.model.generateContent(prompt);
@@ -597,12 +600,14 @@ Return JSON:
 {
   "problem": {
     "title": "New Problem Title",
+    "titleSlug": "new-problem-title-slug",
     "description": "New problem description with examples",
     "difficulty": "Easy|Medium|Hard",
+    "exampleTestcases": "Input: [1, 2, 3]\nOutput: 6\n\nInput: [4, 5, 6]\nOutput: 15",
     "steps": [
       {
         "id": "step_1",
-        "instruction": "Clear instruction for this step",
+        "instruction": "Direct coding instruction for this step",
         "lineRanges": [1, 5]
       }
     ]
@@ -613,7 +618,7 @@ Return JSON:
   }
 }
 
-Make it engaging and educational while maintaining the same learning objectives.`;
+Make it engaging and educational while maintaining the same learning objectives. The titleSlug should be a URL-friendly version of the title (lowercase, hyphens instead of spaces). Include 2-3 example test cases in the exampleTestcases field. Each step must require the user to write or modify code. Do NOT include any conceptual, planning, or thinking steps. Do NOT provide hints or explanations. Each step should be a direct coding instruction.`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;

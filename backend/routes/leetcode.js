@@ -285,14 +285,29 @@ router.get('/assigned', async (req, res) => {
 router.get('/testcases', async (req, res) => {
   const slug = req.query.slug;
   if (!slug) return res.status(400).json({ error: 'Missing slug parameter' });
+  
+  // Check if this is an AI-generated problem (not a real LeetCode slug)
+  if (slug === 'similar-problem' || slug.includes('similar') || slug.includes('generated')) {
+    // Return empty testcases for AI-generated problems
+    res.json({ testcases: '' });
+    return;
+  }
+  
   try {
     const problem = await lc.problem(slug);
+    if (!problem) {
+      // If problem is null, return empty testcases
+      res.json({ testcases: '' });
+      return;
+    }
     // Try to get the most relevant test case field
     const testcases = problem.exampleTestcases || problem.sampleTestCase || problem.sampleTestcases || '';
     res.json({ testcases });
     console.log("TESTCASES: " + testcases)
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch testcases', details: err.message });
+    console.error('Error fetching testcases for slug:', slug, err);
+    // Return empty testcases instead of error for better UX
+    res.json({ testcases: '' });
   }
 });
 
@@ -300,8 +315,50 @@ router.get('/testcases', async (req, res) => {
 router.get('/problem/:slug/structured', checkGeminiService, async (req, res) => {
   try {
     const { slug } = req.params;
+    
+    // Check if this is an AI-generated problem (not a real LeetCode slug)
+    if (slug === 'similar-problem' || slug.includes('similar') || slug.includes('generated')) {
+      // Return empty structured data for AI-generated problems
+      res.json({
+        success: true,
+        structured: {
+          instructions: '',
+          examples: '',
+          inputs: [],
+          outputs: []
+        },
+        meta: {
+          title: 'AI Generated Problem',
+          difficulty: 'Medium',
+          description: 'This is an AI-generated similar problem for practice.',
+          slug: slug
+        }
+      });
+      return;
+    }
+    
     // Fetch full problem details from LeetCode
     const problem = await lc.problem(slug);
+    if (!problem) {
+      // If problem is null, return empty structured data
+      res.json({
+        success: true,
+        structured: {
+          instructions: '',
+          examples: '',
+          inputs: [],
+          outputs: []
+        },
+        meta: {
+          title: 'Problem Not Found',
+          difficulty: 'Unknown',
+          description: 'Problem details not available.',
+          slug: slug
+        }
+      });
+      return;
+    }
+    
     // Extract fields directly from the problem object
     const description = problem.content || problem.description || '';
     const examples = problem.exampleTestcases || problem.sampleTestCase || problem.sampleTestcases || '';
@@ -333,7 +390,22 @@ router.get('/problem/:slug/structured', checkGeminiService, async (req, res) => 
     });
   } catch (error) {
     console.error('Error fetching structured LeetCode problem:', error);
-    res.status(500).json({ success: false, error: 'Failed to fetch structured problem', details: error.message });
+    // Return empty structured data instead of error for better UX
+    res.json({
+      success: true,
+      structured: {
+        instructions: '',
+        examples: '',
+        inputs: [],
+        outputs: []
+      },
+      meta: {
+        title: 'Error Loading Problem',
+        difficulty: 'Unknown',
+        description: 'Problem details could not be loaded.',
+        slug: req.params.slug
+      }
+    });
   }
 });
 

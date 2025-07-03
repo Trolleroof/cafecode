@@ -336,6 +336,49 @@ export default function LeetCodePage() {
   const [structuredProblem, setStructuredProblem] = useState<any>(null);
   const [isStructuredLoading, setIsStructuredLoading] = useState(false);
 
+  // Add state for code editor height percentage
+  const [editorHeightPercent, setEditorHeightPercent] = useState(70); // default to 70% for more code space
+  const resizerBarRef = useRef<HTMLDivElement>(null);
+  const isResizingEditor = useRef(false);
+
+  // Handler for starting the drag
+  const handleEditorResizerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingEditor.current = true;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  // Handler for dragging
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isResizingEditor.current) return;
+      const container = resizerBarRef.current?.parentElement;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const minEditor = 120;
+      const minTestCases = 80;
+      const maxEditor = rect.height - minTestCases;
+      const newEditorPx = Math.max(minEditor, Math.min(y, maxEditor));
+      const percent = (newEditorPx / rect.height) * 100;
+      setEditorHeightPercent(percent);
+    };
+    const onMouseUp = () => {
+      if (isResizingEditor.current) {
+        isResizingEditor.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
   useEffect(() => {
     // Use requestAnimationFrame to prevent layout thrashing
     const scrollToBottom = () => {
@@ -378,12 +421,16 @@ export default function LeetCodePage() {
     if (currentProblem?.slug) {
       fetch(`/api/leetcode/testcases?slug=${currentProblem.slug}`)
         .then(async res => {
-          if (!res.ok) throw new Error(await res.text());
+          if (!res.ok) {
+            console.warn('Testcases API returned error, using empty testcases');
+            return { testcases: '' };
+          }
           const contentType = res.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
             return res.json();
           } else {
-            throw new Error(await res.text());
+            console.warn('Testcases API returned non-JSON, using empty testcases');
+            return { testcases: '' };
           }
         })
         .then(data => {
@@ -396,6 +443,11 @@ export default function LeetCodePage() {
           } else {
             setTestCases([]);
           }
+        })
+        .catch(error => {
+          console.error('Error fetching testcases:', error);
+          setTestCaseContent('');
+          setTestCases([]);
         });
     } else {
       setTestCaseContent('');
@@ -585,19 +637,57 @@ export default function LeetCodePage() {
       } else {
         throw new Error(await response.text());
       }
-      setCurrentProblem(data.problem);
+      
+      // Set the new problem with a temporary slug for structured data fetching
+      const newProblem = { ...data.problem, slug: data.problem.titleSlug || 'similar-problem' };
+      setCurrentProblem(newProblem);
       setCurrentStepIndex(0);
       setCompletedSteps(new Set());
       setCode('// Start coding your solution here\n\n');
       setIsAutoProgressing(false);
       setOutput([]); // Clear output
-      setTestCases([]); // Clear test cases
+      setTestCases([]); // Clear test cases initially
+      
+      // Add the welcome message to chat
       const assistantMessage: ChatMessage = {
         type: 'assistant',
         content: data.welcomeMessage.content,
         timestamp: new Date().toISOString()
       };
       setChatHistory(prev => [...prev, assistantMessage]);
+      
+      // Fetch structured problem data (examples, inputs, outputs) if we have a slug
+      if (newProblem.slug && newProblem.slug !== 'similar-problem') {
+        try {
+          const structuredRes = await fetch(`/api/leetcode/problem/${newProblem.slug}/structured`);
+          const structuredData = await structuredRes.json();
+          if (structuredData.success) {
+            setStructuredProblem(structuredData);
+          } else {
+            setStructuredProblem(null);
+          }
+        } catch (err) {
+          console.error('Error fetching structured data for similar problem:', err);
+          setStructuredProblem(null);
+        }
+      } else {
+        // For AI-generated problems without LeetCode slug, create basic structured data
+        setStructuredProblem({
+          success: true,
+          structured: {
+            instructions: '',
+            examples: data.problem.description || '',
+            inputs: [],
+            outputs: []
+          },
+          meta: {
+            title: data.problem.title,
+            difficulty: data.problem.difficulty,
+            description: data.problem.description,
+            slug: newProblem.slug
+          }
+        });
+      }
     } catch (error) {
       console.error('Error:', error);
       const errorMessage: ChatMessage = {
@@ -805,7 +895,7 @@ export default function LeetCodePage() {
   }, []);
 
   return (
-    <div className="min-h-screen max-h-screen bg-light-cream flex flex-col overflow-hidden relative text-dark-charcoal">
+    <div className="h-screen min-h-0 bg-light-cream flex flex-col overflow-hidden relative text-dark-charcoal">
       {/* Loading Overlay */}
       {(isLoading || isStructuredLoading) && !currentProblem && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-light-cream/80">
@@ -850,8 +940,12 @@ export default function LeetCodePage() {
                 disabled={isLoading}
                 className="bg-medium-coffee text-light-cream border-2 border-medium-coffee rounded-xl shadow-coffee font-semibold px-6 py-2 flex items-center justify-center transition-colors duration-150 hover:bg-medium-coffee/90 focus:outline-none focus:ring-2 focus:ring-medium-coffee"
               >
-                <SparklesIcon className="h-4 w-4 mr-2" />
-                Similar Problem
+                {isLoading ? (
+                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <SparklesIcon className="h-4 w-4 mr-2" />
+                )}
+                {isLoading ? 'Generating...' : 'Similar Problem'}
               </Button>
               <Button
                 onClick={handleNewProblem}
@@ -866,7 +960,7 @@ export default function LeetCodePage() {
         </div>
       </div>
 
-      <div className="flex-1 flex max-h-[calc(100vh-80px)] overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden">
         {/* Left Panel - Problem Description & Steps */}
         <div ref={leftPanelRef} className="w-1/4 bg-light-cream border-r border-cream-beige flex flex-col relative">
           {currentProblem ? (
@@ -917,27 +1011,28 @@ export default function LeetCodePage() {
                       return (
                         <div
                           key={step.id}
-                          className={`p-4 rounded-lg border transition-all duration-200 ${
-                            isCurrent
-                              ? 'border-medium-coffee bg-medium-coffee/10'
+                          className={`p-4 rounded-xl border transition-all duration-200 shadow-sm mb-2
+                            ${isCurrent
+                              ? 'border-medium-coffee bg-[#f7e7d6] shadow-lg'
                               : isCompleted
-                              ? 'border-green-500 bg-green-500/10'
-                              : 'border-cream-beige bg-cream-beige/20'
-                          }`}
+                              ? 'border-green-400 bg-green-50/80 shadow'
+                              : 'border-cream-beige bg-cream-beige/60 hover:bg-cream-beige/90 hover:shadow-md'}
+                          `}
+                          style={{ opacity: isCurrent ? 1 : 0.98 }}
                         >
                           <div className="flex items-start space-x-3">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                               isCompleted
-                                ? 'bg-green-500 text-white'
+                                ? 'bg-green-400 text-white'
                                 : isCurrent
                                 ? 'bg-medium-coffee text-light-cream'
-                                : 'bg-cream-beige text-dark-charcoal'
+                                : 'bg-cream-beige text-dark-charcoal border border-medium-coffee/30'
                             }`}>
                               {isCompleted ? <CheckIcon className="h-4 w-4" /> : index + 1}
                             </div>
                             <div className="flex-1">
                               <p className={`text-sm leading-relaxed ${
-                                isCurrent ? 'text-[#9B6C46]' : isCompleted ? 'text-gray-300' : 'text-[#5adbff]/80'
+                                isCurrent ? 'text-[#9B6C46]' : isCompleted ? 'text-green-700' : 'text-dark-charcoal/90'
                               }`}>
                                 {step.instruction}
                               </p>
@@ -1020,7 +1115,7 @@ export default function LeetCodePage() {
 
           {/* Monaco Editor + Test Cases Ratio Container */}
           <div style={{ height: 800, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flex: '0 0 65%', minHeight: 0 }} className="bg-[#1E1E1E] pt-2">
+            <div style={{ flex: `0 0 ${editorHeightPercent}%`, minHeight: 0 }} className="bg-[#1E1E1E] pt-2">
               <MonacoEditor
                 language={language}
                 value={code}
@@ -1028,17 +1123,27 @@ export default function LeetCodePage() {
                 theme="vs-dark"
               />
             </div>
-            {testCases && testCases.length > 0 && (
-              <div style={{ flex: '0 0 35%', minHeight: 0, overflow: 'auto', paddingTop: 24 }}>
-                <div className="w-full max-w-xl mx-auto mb-4 bg-cream-beige border-2 border-medium-coffee rounded-xl shadow-sm h-full">
-                  <div className="flex mb-2">
+            {/* Resizer Bar - always visible */}
+            <div
+              ref={resizerBarRef}
+              onMouseDown={handleEditorResizerMouseDown}
+              className="h-3 flex items-center justify-center bg-cream-beige cursor-row-resize z-20"
+              style={{ userSelect: 'none', borderRadius: '9999px', margin: '0 24px', position: 'relative', top: '-2px' }}
+            >
+              <div className="w-16 h-1.5 bg-medium-coffee rounded-full opacity-70" />
+            </div>
+            {/* Test Cases Panel - always visible, even if empty */}
+            <div style={{ flex: `0 0 ${100 - editorHeightPercent}%`, minHeight: 0, overflow: 'auto', paddingTop: 6 }}>
+              {testCases && testCases.length > 0 ? (
+                <div className="w-full max-w-xl mx-auto mb-4 bg-gradient-to-br from-cream-beige via-[#f5e6d3] to-[#f3e0c7] border-2 border-medium-coffee rounded-3xl shadow-2xl h-full flex flex-col p-4" style={{ borderBottom: '2px solid #9B6C46' }}>
+                  <div className="flex mb-2 gap-2">
                     {testCases.map((_, i) => (
                       <button
                         key={i}
-                        className={`px-4 py-1 rounded-t pt-2 font-mono text-base transition-colors duration-150 ${
+                        className={`px-4 py-1 rounded-t-2xl font-mono text-lg transition-colors duration-150 shadow-sm border-b-2 ${
                           activeTestCase === i
-                            ? 'bg-medium-coffee text-light-cream'
-                            : 'bg-cream-beige text-dark-charcoal border-b-2 border-medium-coffee'
+                            ? 'bg-medium-coffee text-light-cream border-medium-coffee'
+                            : 'bg-cream-beige text-dark-charcoal border-transparent hover:bg-[#e7d3b8]'
                         }`}
                         onClick={() => setActiveTestCase(i)}
                       >
@@ -1046,10 +1151,10 @@ export default function LeetCodePage() {
                       </button>
                     ))}
                   </div>
-                  <div className="p-4 bg-white rounded-b-lg h-full overflow-auto">
+                  <div className="bg-white rounded-2xl h-full overflow-auto flex-1 p-3 mt-1">
                     {Object.entries(testCases[activeTestCase]).map(([key, value]) => (
-                      <div key={key} className="mb-4">
-                        <div className="text-medium-coffee text-sm mb-1">{key} =</div>
+                      <div key={key} className="mb-2">
+                        <div className="text-medium-coffee text-base mb-1 font-semibold">{key} =</div>
                         <div className="bg-cream-beige rounded px-3 py-2 text-base text-dark-charcoal font-mono border border-medium-coffee/20">
                           {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                         </div>
@@ -1057,13 +1162,23 @@ export default function LeetCodePage() {
                     ))}
                   </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="w-full max-w-xl mx-auto mb-4 bg-gradient-to-br from-cream-beige via-[#f5e6d3] to-[#f3e0c7] border-2 border-medium-coffee rounded-3xl shadow-2xl h-full flex flex-col p-4" style={{ borderBottom: '2px solid #9B6C46' }}>
+                  <div className="flex items-center justify-center h-full text-medium-coffee/60 font-mono text-lg">
+                    <div className="text-center">
+                      <div className="text-2xl mb-2">🧪</div>
+                      <div>No test cases available</div>
+                      <div className="text-sm mt-1">Please select a problem to recieve test cases </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Right Panel - Chat */}
-        <div className="w-1/3 bg-light-cream border-l border-cream-beige flex flex-col">
+        <div className="w-1/3 bg-light-cream border-l border-cream-beige flex flex-col h-full min-h-0">
           {/* Chat Header */}
           <div className="bg-light-cream border-b border-cream-beige px-4 py-3">
             <div className="flex items-center space-x-3">
@@ -1078,7 +1193,7 @@ export default function LeetCodePage() {
           </div>
 
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[calc(100vh-200px)]">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
             {chatHistory.map((message, index) => (
               <div
                 key={`${message.timestamp}-${index}`}
@@ -1109,7 +1224,7 @@ export default function LeetCodePage() {
           </div>
 
           {/* Chat Input */}
-          <div className="border-t border-cream-beige p-4">
+          <div className="border-t border-cream-beige p-4 bg-light-cream">
             <div className="flex space-x-2">
               <input
                 ref={inputRef}
