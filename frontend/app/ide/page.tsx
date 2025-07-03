@@ -424,6 +424,16 @@ export default function IDEPage() {
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
 
+    if (!guidedProject) {
+      setChatMessages(prev => [
+        ...prev,
+        { type: 'user', content: chatInput, timestamp: new Date() },
+        { type: 'assistant', content: 'Please start a project so that you can chat with me!', timestamp: new Date() }
+      ]);
+      setChatInput('');
+      return;
+    }
+
     const userMessage: ChatMessage = {
       type: 'user',
       content: chatInput,
@@ -1348,10 +1358,14 @@ export default function IDEPage() {
                   ) : (
                     <>
                       {/* Chat Messages */}
-                      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-cream-beige/50 h-full" style={{paddingTop: '12rem'}}>
+                      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-cream-beige/50 h-full" style={{paddingTop: '11rem'}}>
                         {chatMessages.map((msg, idx) => (
-                          <div key={idx} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
-                            <div className={`max-w-[80%] px-4 py-3 rounded-lg shadow-md ${msg.type === 'user' ? 'bg-medium-coffee text-light-cream' : 'bg-white text-dark-charcoal border border-cream-beige'}`}>
+                          <div
+                            key={idx}
+                            className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2${idx === 0 ? ' mt-0' : ''}`}
+                          >
+                            <div className={`max-w-[80%] px-4 py-3 rounded-lg shadow-md ${msg.type === 'user' ? 'bg-medium-coffee text-light-cream' : 'bg-white text-dark-charcoal border border-cream-beige'}`}
+                              style={idx === 0 ? { marginTop: 0 } : {}}>
                               {msg.type === 'assistant' && (msg.content.includes('substantial') || msg.content.startsWith('🛠️ Fixing code')) ? (
                                 <div className="font-semibold">
                                   {msg.content}
@@ -1397,8 +1411,8 @@ export default function IDEPage() {
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                            placeholder="Ask me anything about coding..."
-                            className="flex-1 bg-white border border-medium-coffee/50 rounded-xl px-4 py-3 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200"
+                            placeholder="Ask me anything about this project"
+                            className="flex-1 bg-white border border-medium-coffee/50 rounded-xl px-4 py-4 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200"
                             disabled={isTyping}
                           />
                           <Button

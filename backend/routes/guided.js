@@ -559,6 +559,7 @@ router.post("/simple-chat", async (req, res) => {
     
     ${projectContext}${guidedContext}${codeContext}
     
+    Respond ONLY as a JSON object with a single content field. Do NOT include any markdown, code blocks, or extra text.
     Respond as a JSON object with a 'content' field.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
@@ -567,7 +568,23 @@ router.post("/simple-chat", async (req, res) => {
     try {
       // Extract JSON from response (handles both raw JSON and markdown-wrapped JSON)
       const cleanResponse = extractJsonFromResponse(responseText);
-      formattedResponse = robustJsonParse(cleanResponse);
+      try {
+        formattedResponse = robustJsonParse(cleanResponse);
+      } catch (parseError) {
+        // Try to extract the largest valid JSON object
+        const curlyMatch = cleanResponse.match(/({[\s\S]*})/);
+        if (curlyMatch) {
+          try {
+            formattedResponse = JSON.parse(curlyMatch[1]);
+          } catch (e2) {
+            // fallback below
+          }
+        }
+        // As a last resort, return the raw text as the content
+        if (!formattedResponse || typeof formattedResponse.content !== 'string') {
+          formattedResponse = { content: responseText };
+        }
+      }
     } catch (parseError) {
       console.error(
         "Error parsing Gemini response for simple chat:",

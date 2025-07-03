@@ -5,9 +5,9 @@ const router = express.Router();
 
 // Required environment variables:
 // TAVUS_API_KEY, TAVUS_PERSONA_ID, TAVUS_REPLICA_ID
-const TAVUS_API_KEY = process.env.TAVUS_API_KEY;
-const TAVUS_PERSONA_ID = process.env.TAVUS_PERSONA_ID;
-const TAVUS_REPLICA_ID = process.env.TAVUS_REPLICA_ID;
+const TAVUS_API_KEY = '69f0b3c18c02467fbaa5443567d83651';
+const TAVUS_PERSONA_ID = 'p630c84bf73c';
+const TAVUS_REPLICA_ID = 'r3a47ce45e68';
 const TAVUS_API_URL = 'https://tavusapi.com/v2/conversations';
 
 // Store guidedProject steps context per conversationId
@@ -59,7 +59,7 @@ router.post('/create-conversation', async (req, res) => {
       payload,
       {
         headers: {
-          'x-api-key': TAVUS_API_KEY,
+          'x-api-key': '69f0b3c18c02467fbaa5443567d83651',
           'Content-Type': 'application/json',
         },
       }
@@ -89,7 +89,7 @@ router.delete('/delete-conversation', async (req, res) => {
     console.log(`[TAVUS] Deleting conversation @ URL: ${tavusUrl}`);
     await axios.delete(tavusUrl, {
       headers: {
-        'x-api-key': TAVUS_API_KEY,
+        'x-api-key': '69f0b3c18c02467fbaa5443567d83651',
       },
     });
     res.json({ success: true });
