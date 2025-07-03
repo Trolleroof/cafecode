@@ -695,11 +695,15 @@ export default function IDEPage() {
 
   // 1. Add a loading state for starting guided project
   const [isStartingProject, setIsStartingProject] = useState(false);
+  const [projectStartError, setProjectStartError] = useState<string | null>(null);
 
   // 2. Update handleStartGuidedProject to set loading state
   const handleStartGuidedProject = async (description: string) => {
+    window.console.log('[GUIDE-LOG] handleStartGuidedProject called with:', description);
     setIsStartingProject(true);
+    setProjectStartError(null);
     try {
+      window.console.log('[GUIDE-LOG] Sending fetch to /api/guided/startProject');
       const response = await fetch('/api/guided/startProject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -708,9 +712,10 @@ export default function IDEPage() {
           projectFiles: files 
         })
       });
-
+      window.console.log('[GUIDE-LOG] Fetch completed, status:', response.status);
       const result = await response.json();
-      
+      window.console.log('[GUIDE-LOG] API result:', result);
+
       if (result.projectId && result.steps) {
         setGuidedProject({
           projectId: result.projectId,
@@ -726,9 +731,15 @@ export default function IDEPage() {
             timestamp: new Date()
           }]);
         }
+        setShowProjectModal(false); // Only close modal on success
+      } else if (result.error) {
+        setProjectStartError(result.error);
+      } else {
+        setProjectStartError('Unknown error starting project.');
       }
     } catch (error) {
       console.error('Error starting guided project:', error);
+      setProjectStartError('Network or server error. Please try again.');
       setChatMessages(prev => [...prev, {
         type: 'assistant',
         content: 'I\'m ready to help you with your project! Let\'s start by creating some files and writing code together. What would you like to build?',
@@ -1112,7 +1123,10 @@ export default function IDEPage() {
             {/* Start Guided Project Button - only show if not in a guided project */}
             {!guidedProject && (
               <Button
-                onClick={() => setShowProjectModal(true)}
+                onClick={() => {
+                  window.console.log('[GUIDE-LOG] Start Guided Project button clicked');
+                  setShowProjectModal(true);
+                }}
                 className="bg-medium-coffee hover:bg-deep-espresso text-white font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
               >
                 <Sparkles className="mr-2 h-4 w-4" />
@@ -1382,24 +1396,19 @@ export default function IDEPage() {
                             type="text"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && guidedProject && handleSendMessage()}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                             placeholder="Ask me anything about coding..."
                             className="flex-1 bg-white border border-medium-coffee/50 rounded-xl px-4 py-3 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200"
-                            disabled={!guidedProject || isTyping}
+                            disabled={isTyping}
                           />
                           <Button
-                            onClick={guidedProject ? handleSendMessage : undefined}
-                            disabled={!guidedProject || !chatInput.trim() || isTyping}
+                            onClick={handleSendMessage}
+                            disabled={!chatInput.trim() || isTyping}
                             className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                           >
                             <ArrowRight className="h-4 w-4" />
                           </Button>
                         </div>
-                        {!guidedProject && (
-                          <div className="text-center text-sm text-medium-coffee mt-2">
-                            Start a guided project to chat with the assistant.
-                          </div>
-                        )}
                         
                         {/* Enhanced Chat Action Buttons */}
                         <div className="flex items-center justify-center mt-4 space-x-3">
@@ -1446,8 +1455,12 @@ export default function IDEPage() {
         <ProjectDescriptionModal
           isOpen={showProjectModal}
           onClose={() => setShowProjectModal(false)}
-          onSubmit={handleStartGuidedProject}
+          onSubmit={(desc) => {
+            window.console.log('[GUIDE-LOG] ProjectDescriptionModal submitted with:', desc);
+            handleStartGuidedProject(desc);
+          }}
           isStartingProject={isStartingProject}
+          error={projectStartError}
         />
 
         {/* Confirmation Modal */}

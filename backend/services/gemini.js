@@ -5,7 +5,6 @@ class GeminiService {
     if (!apiKey) {
       throw new Error('Gemini API key is required');
     }
-
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     this.isInitialized = false;

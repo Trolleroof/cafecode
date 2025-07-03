@@ -6,53 +6,46 @@ interface ProjectDescriptionModalProps {
   onClose: () => void;
   onSubmit: (description: string) => void;
   isStartingProject?: boolean;
+  error?: string | null;
 }
 
-export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isStartingProject = false }: ProjectDescriptionModalProps) {
+export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isStartingProject = false, error }: ProjectDescriptionModalProps) {
   const [description, setDescription] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (description.trim()) {
-      setIsLoading(true);
-      await onSubmit(description.trim());
-      setIsLoading(false);
-      setIsLoaded(true);
+    if (description.trim() && !isStartingProject) {
+      onSubmit(description.trim());
     }
   };
 
   const handleClose = () => {
     setDescription('');
-    setIsLoading(false);
-    setIsLoaded(false);
     setProgress(0);
     onClose();
   };
 
-  const loading = isLoading || isStartingProject;
-
   // Animated progress bar effect
   useEffect(() => {
-    if (loading && !isLoaded) {
+    let interval: NodeJS.Timeout | undefined;
+    if (isStartingProject && !error) {
       setProgress(0);
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         setProgress(prev => {
           if (prev >= 99) {
-            clearInterval(interval);
+            clearInterval(interval!);
             return 99;
           }
-          // Gradually slow down the progress as it approaches 99%
           const increment = prev < 50 ? 8 : prev < 80 ? 4 : 2;
           return Math.min(prev + increment, 99);
         });
       }, 150);
-
-      return () => clearInterval(interval);
     }
-  }, [loading, isLoaded]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isStartingProject, error]);
 
   if (!isOpen) return null;
 
@@ -61,17 +54,15 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
       <div
         className="rounded-xl shadow-xl w-full max-w-md relative border bg-light-cream border-cream-beige p-6 min-w-[280px]"
       >
-        {/* Only show X button when not loading/loaded */}
-        {!loading && !isLoaded && (
-          <button
-            onClick={handleClose}
-            className="absolute top-3 right-3 p-1 text-deep-espresso hover:text-medium-coffee transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        )}
+        <button
+          onClick={handleClose}
+          className="absolute top-3 right-3 p-1 text-deep-espresso hover:text-medium-coffee transition-colors disabled:opacity-50"
+          disabled={isStartingProject && !error}
+        >
+          <X className="h-6 w-6" />
+        </button>
 
-        {loading ? (
+        {isStartingProject ? (
           <div className="text-center py-8">
             <div className="mb-6">
               <div
@@ -81,34 +72,31 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
               </div>
               <h2 className="text-xl font-semibold mb-2 text-medium-coffee">Setting Up Your Project</h2>
               <p className="text-deep-espresso">Creating guided steps and preparing your workspace...</p>
+              {error && (
+                <div className="mt-4 text-red-700 bg-red-100 p-3 rounded-lg font-semibold text-sm">
+                  <p className="font-bold mb-1">Could not start project</p>
+                  <p className="font-normal">{error}</p>
+                </div>
+              )}
             </div>
-            <div className="w-full rounded-full h-3 bg-cream-beige">
-              <div 
-                className="h-3 rounded-full transition-all duration-300 ease-out bg-gradient-to-r from-medium-coffee to-deep-espresso shadow-md"
-                style={{ width: `${progress}%` }}
-              ></div>
-            </div>
-            <div className="mt-2 text-sm text-medium-coffee">{progress}%</div>
-          </div>
-        ) : isLoaded ? (
-          <div className="text-center py-8">
-            <div className="mb-4">
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 bg-medium-coffee"
+            {!error ? (
+              <>
+                <div className="w-full rounded-full h-3 bg-cream-beige">
+                  <div 
+                    className="h-3 rounded-full transition-all duration-300 ease-out bg-gradient-to-r from-medium-coffee to-deep-espresso shadow-md"
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+                <div className="mt-2 text-sm text-medium-coffee">{progress}%</div>
+              </>
+            ) : (
+              <button
+                onClick={handleClose}
+                className="mt-4 px-5 py-2 text-sm font-medium rounded-md shadow-md transition-colors bg-medium-coffee text-light-cream hover:bg-deep-espresso"
               >
-                <svg className="w-7 h-7" fill="none" stroke="#fff" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold mb-2 text-medium-coffee">Project Ready!</h2>
-              <p className="text-deep-espresso">Your guided project has been set up successfully. Let's start coding!</p>
-            </div>
-            <button
-              onClick={handleClose}
-              className="px-5 py-2 text-sm font-medium rounded-md shadow-md transition-colors bg-medium-coffee text-light-cream hover:bg-deep-espresso"
-            >
-              Continue
-            </button>
+                Try Again
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -125,7 +113,6 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
                   className="w-full h-28 px-3 py-2 rounded-md focus:outline-none focus:ring-2 text-dark-charcoal placeholder-deep-espresso bg-cream-beige border border-medium-coffee text-lg mt-1"
                   placeholder="e.g., Create a simple calculator that can perform basic arithmetic operations"
                   required
-                  disabled={loading}
                 />
               </div>
               <div className="flex justify-end gap-3 mt-4">
@@ -133,16 +120,13 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
                   type="button"
                   onClick={handleClose}
                   className="px-4 py-2 text-sm font-medium rounded-md border bg-cream-beige text-deep-espresso border-medium-coffee hover:bg-medium-coffee hover:text-light-cream transition-colors"
-                  disabled={loading}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm font-semibold rounded-md shadow-md flex items-center transition-colors bg-medium-coffee text-light-cream hover:bg-deep-espresso disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={loading}
                 >
-                  {loading && <Loader2 className="animate-spin h-4 w-4 mr-2" />}
                   Begin
                 </button>
               </div>

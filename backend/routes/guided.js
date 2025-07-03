@@ -84,7 +84,10 @@ router.post("/startProject", async (req, res) => {
     const projectContext = createProjectContext(projectFiles);
 
     // Enhanced prompt for guided projects
-    const prompt = `Create a step-by-step guide for the following project. Format the response as a JSON array of steps, where each step has:
+    const prompt = `***STRICT FORMAT REQUIREMENT:***
+YOUR RESPONSE MUST BE A VALID JSON ARRAY OF STEPS, WRAPPED IN [ ] BRACKETS. DO NOT RETURN A SEQUENCE OF OBJECTS. DO NOT INCLUDE ANY EXTRA TEXT, EXPLANATIONS, OR MARKDOWN BEFORE OR AFTER THE ARRAY. ONLY RETURN THE JSON ARRAY. IF YOU DO NOT FOLLOW THIS, YOUR RESPONSE WILL BE REJECTED.
+
+Create a step-by-step guide for the following project. Format the response as a JSON array of steps, where each step has:
 - id: string (step number)
 - instruction: string (clear, concise instruction for beginners)
 - lineRanges: number[] (array of line numbers where code should be written)
@@ -92,6 +95,8 @@ router.post("/startProject", async (req, res) => {
 Project: ${projectDescription}
 
 ${projectContext}
+
+STRICT JSON RULE: YOU MUST ALWAYS RETURN A VALID JSON ARRAY OF STEPS. DO NOT RETURN A SEQUENCE OF OBJECTS. ALWAYS WRAP THE STEPS IN [ ] BRACKETS. IF YOU DO NOT FOLLOW THIS, YOUR RESPONSE WILL BE REJECTED.
 
 IMPORTANT GUIDELINES:
 - The IDE is web-based. The user cannot run terminal or shell commands, install packages, or use a real OS shell. Only code editing, file management, and code execution for supported languages are supported.
@@ -144,22 +149,60 @@ Example format:
   }
 ]
 
-Make sure each step is clear, specific, and achievable. Focus on one task per step. If a step is part of a larger pattern, mention the pattern and what part of it is being implemented in that step. Use very beginner-friendly language throughout.`;
+Make sure each step is clear, specific, and achievable. Focus on one task per step. If a step is part of a larger pattern, mention the pattern and what part of it is being implemented in that step. Use very beginner-friendly language throughout.
+
+***REPEAT: ONLY RETURN A VALID JSON ARRAY OF STEPS, WRAPPED IN [ ] BRACKETS. DO NOT RETURN A SEQUENCE OF OBJECTS. DO NOT INCLUDE ANY EXTRA TEXT OR MARKDOWN.***`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const response = await result.response;
     const responseText = response.text();
+    console.log("[Gemini RAW response]", responseText);
     let steps;
+    let cleanResponse;
     try {
-      // Extract JSON from response (handles both raw JSON and markdown-wrapped JSON)
-      const cleanResponse = extractJsonFromResponse(responseText);
-      steps = robustJsonParse(cleanResponse);
-
+      cleanResponse = extractJsonFromResponse(responseText);
+      console.log("[Gemini Extracted JSON for parsing]", cleanResponse);
+      // More robust fallback: If the extracted string looks like a sequence of objects, wrap in array
+      if (
+        !cleanResponse.trim().startsWith('[') &&
+        /^{[\s\S]*},\s*{[\s\S]*}$/.test(cleanResponse.trim())
+      ) {
+        cleanResponse = `[${cleanResponse}]`;
+        console.log('[Gemini Fallback] Wrapped sequence of objects in array brackets.');
+      }
+      // If it starts with [ and ends with ], but parsing fails, try to repair
+      try {
+        steps = robustJsonParse(cleanResponse);
+      } catch (e) {
+        if (cleanResponse.trim().startsWith('[') && cleanResponse.trim().endsWith(']')) {
+          // Attempt to repair: remove trailing commas
+          let repaired = cleanResponse.replace(/,\s*\]/g, ']');
+          try {
+            steps = robustJsonParse(repaired);
+            console.log('[Gemini Repair] Removed trailing comma before closing bracket.');
+          } catch (e2) {
+            // Attempt to filter out non-object lines
+            let lines = cleanResponse.split('\n').filter(line => line.trim().startsWith('{') && line.trim().endsWith('}'));
+            if (lines.length > 0) {
+              let joined = `[${lines.join(',')}]`;
+              try {
+                steps = robustJsonParse(joined);
+                console.log('[Gemini Repair] Filtered to only object lines.');
+              } catch (e3) {
+                throw e3;
+              }
+            } else {
+              throw e2;
+            }
+          }
+        } else {
+          throw e;
+        }
+      }
       // Validate the steps format
       if (!Array.isArray(steps) || steps.length === 0) {
         throw new Error("Invalid steps format: not an array or empty array");
       }
-
       // Validate each step
       steps = steps.map((step, index) => ({
         id: String(index + 1),
@@ -167,11 +210,9 @@ Make sure each step is clear, specific, and achievable. Focus on one task per st
         lineRanges: Array.isArray(step.lineRanges) ? step.lineRanges : [1, 3],
       }));
     } catch (parseError) {
-      console.error("Error parsing Gemini response for steps:", parseError);
-      console.error("Raw Gemini response:", responseText);
-      return res
-        .status(500)
-        .json({ error: "Failed to parse steps from AI response." });
+      console.error("[Gemini Parsing Error]", parseError);
+      console.error("[Gemini Problematic String]", cleanResponse || responseText);
+      return res.status(500).json({ error: "Failed to parse steps from AI response." });
     }
 
     activeProjects.set(projectId, {
