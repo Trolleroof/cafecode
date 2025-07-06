@@ -136,20 +136,20 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           children={instruction}
           remarkPlugins={[remarkGfm]}
           components={{
-            p: ({ children }: { children: React.ReactNode }) => <p className="text-lg font-semibold text-dark-charcoal leading-relaxed mb-2">{children}</p>,
-            code: ({ inline, children }: { inline?: boolean; children: React.ReactNode }) =>
+            p: ({ children }: { children?: React.ReactNode }) => <p className="text-lg font-semibold text-dark-charcoal leading-relaxed mb-2">{children}</p>,
+            code: ({ inline, children }: { inline?: boolean; children?: React.ReactNode }) =>
               inline ? (
                 <code className="bg-light-cream text-medium-coffee px-1 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
               ) : (
                 <span className="inline-block bg-light-cream text-medium-coffee px-1 rounded font-mono text-base align-middle" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</span>
               ),
-            strong: ({ children }: { children: React.ReactNode }) => <strong className="font-bold text-deep-espresso">{children}</strong>,
-            ul: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-            li: ({ children }: { children: React.ReactNode }) => <span>{children}, </span>,
-            h1: ({ children }: { children: React.ReactNode }) => <h1 className="text-lg font-bold mb-2 mt-2 text-medium-coffee">{children}</h1>,
-            h2: ({ children }: { children: React.ReactNode }) => <h2 className="text-base font-bold mb-2 mt-2 text-medium-coffee">{children}</h2>,
-            h3: ({ children }: { children: React.ReactNode }) => <h3 className="text-base font-semibold mb-2 mt-2 text-medium-coffee">{children}</h3>,
-            blockquote: ({ children }: { children: React.ReactNode }) => <blockquote className="border-l-4 border-medium-coffee pl-4 italic text-medium-coffee mb-2">{children}</blockquote>,
+            strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-bold text-deep-espresso">{children}</strong>,
+            ul: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
+            li: ({ children }: { children?: React.ReactNode }) => <span>{children}, </span>,
+            h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-lg font-bold mb-2 mt-2 text-medium-coffee">{children}</h1>,
+            h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-base font-bold mb-2 mt-2 text-medium-coffee">{children}</h2>,
+            h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-base font-semibold mb-2 mt-2 text-medium-coffee">{children}</h3>,
+            blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-medium-coffee pl-4 italic text-medium-coffee mb-2">{children}</blockquote>,
             br: () => <>{' '}</>,
           }}
         />

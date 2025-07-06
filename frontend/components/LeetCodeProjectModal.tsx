@@ -18,7 +18,6 @@ interface LeetCodeProjectModalProps {
 export default function LeetCodeProjectModal({ isOpen, onClose, onSubmit, isStartingProject = false, problems }: LeetCodeProjectModalProps) {
   const [selectedSlug, setSelectedSlug] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
   const [problemsLoaded, setProblemsLoaded] = useState(false);
 
@@ -29,14 +28,12 @@ export default function LeetCodeProjectModal({ isOpen, onClose, onSubmit, isStar
       const problem = problems.find(p => p.titleSlug === selectedSlug);
       if (problem) await onSubmit(problem);
       setIsLoading(false);
-      setIsLoaded(true);
     }
   };
 
   const handleClose = () => {
     setSelectedSlug('');
     setIsLoading(false);
-    setIsLoaded(false);
     setProgress(0);
     onClose();
   };
@@ -44,7 +41,7 @@ export default function LeetCodeProjectModal({ isOpen, onClose, onSubmit, isStar
   const loading = isLoading || isStartingProject;
 
   useEffect(() => {
-    if (loading && !isLoaded) {
+    if (loading) {
       setProgress(0);
       const interval = setInterval(() => {
         setProgress(prev => {
@@ -58,7 +55,15 @@ export default function LeetCodeProjectModal({ isOpen, onClose, onSubmit, isStar
       }, 150);
       return () => clearInterval(interval);
     }
-  }, [loading, isLoaded]);
+  }, [loading]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedSlug('');
+      setIsLoading(false);
+      setProgress(0);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -67,7 +72,7 @@ export default function LeetCodeProjectModal({ isOpen, onClose, onSubmit, isStar
       <div
         className="rounded-3xl shadow-coffee w-full max-w-md relative border border-medium-coffee bg-cream-beige p-8 min-w-[280px]"
       >
-        {!loading && !isLoaded && (
+        {!loading && (
           <button
             onClick={handleClose}
             className="absolute top-4 right-4 p-1 text-medium-coffee hover:text-deep-espresso transition-colors"
@@ -92,24 +97,6 @@ export default function LeetCodeProjectModal({ isOpen, onClose, onSubmit, isStar
               ></div>
             </div>
             <div className="mt-2 text-sm text-medium-coffee">{progress}%</div>
-          </div>
-        ) : isLoaded ? (
-          <div className="text-center py-8">
-            <div className="mb-4">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 bg-light-cream animate-warm-glow">
-                <svg className="w-7 h-7" fill="none" stroke="#a36a3e" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold mb-2 text-deep-espresso">Project Ready!</h2>
-              <p className="text-dark-charcoal">Your LeetCode guided project is ready. Let's start coding!</p>
-            </div>
-            <button
-              onClick={handleClose}
-              className="btn-coffee-primary px-5 py-2 text-sm font-medium rounded-md shadow-coffee transition-colors"
-            >
-              Continue
-            </button>
           </div>
         ) : (
           <>

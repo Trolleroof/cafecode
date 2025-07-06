@@ -41,6 +41,7 @@ interface LeetCodeProblem {
   difficulty: 'Easy' | 'Medium' | 'Hard';
   steps: LeetCodeStep[];
   slug?: string;
+  titleSlug?: string;
   exampleTestcases?: string;
 }
 
@@ -48,6 +49,29 @@ interface Problem {
   title: string;
   titleSlug: string;
   difficulty: string;
+}
+
+// API response interfaces
+interface LeetCodeResponse {
+  success: boolean;
+  problem?: LeetCodeProblem;
+  welcomeMessage?: ChatMessage;
+  response?: ChatMessage;
+  feedback?: any[];
+  chatMessage?: ChatMessage;
+  allCorrect?: boolean;
+  output?: string;
+  error?: string;
+}
+
+// More specific response types for when we know the fields exist
+interface LeetCodeChatResponse extends LeetCodeResponse {
+  response: ChatMessage;
+}
+
+interface LeetCodeAnalyzeResponse extends LeetCodeResponse {
+  chatMessage: ChatMessage;
+  feedback: any[];
 }
 
 function formatExamples(raw: string): string {
@@ -108,7 +132,7 @@ function ExamplesBox({ examples }: { examples: string }) {
   );
 }
 
-// Helper to parse LeetCode testcases string into structured objects
+// Move this to the top-level, outside of any useEffect or block
 function parseLeetCodeTestCases(raw: string): { input: string; output: string }[] {
   if (!raw) return [];
   const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -292,6 +316,14 @@ function AdjustableOutputBox({ testCases, height }: { testCases: any[], height: 
   );
 }
 
+// Helper to get a safe field from a problem object or fallback
+function getSafeField(obj: Record<string, any> | undefined, keys: string[], fallback = ''): string {
+  for (const key of keys) {
+    if (obj && typeof obj[key] === 'string' && obj[key].trim()) return obj[key];
+  }
+  return fallback;
+}
+
 export default function LeetCodePage() {
   const router = useRouter();
   const [code, setCode] = useState('// Start coding your solution here\n\n');
@@ -340,6 +372,13 @@ export default function LeetCodePage() {
   const [editorHeightPercent, setEditorHeightPercent] = useState(70); // default to 70% for more code space
   const resizerBarRef = useRef<HTMLDivElement>(null);
   const isResizingEditor = useRef(false);
+
+  // Add new state for project loading
+  const [isProjectLoading, setIsProjectLoading] = useState(false);
+
+  // Add state for isLoadingSimilar and errorSimilar
+  const [isLoadingSimilar, setIsLoadingSimilar] = useState(false);
+  const [errorSimilar, setErrorSimilar] = useState('');
 
   // Handler for starting the drag
   const handleEditorResizerMouseDown = (e: React.MouseEvent) => {
@@ -418,8 +457,13 @@ export default function LeetCodePage() {
   }, []);
 
   useEffect(() => {
-    if (currentProblem?.slug) {
-      fetch(`/api/leetcode/testcases?slug=${currentProblem.slug}`)
+    // Prevent race conditions: track the slug for which this effect is running
+    let isCurrent = true;
+    const slug = currentProblem?.slug;
+    if (slug) {
+      console.log('[useEffect-testcases] currentProblem.slug changed:', slug);
+      console.log('[useEffect-testcases] currentProblem:', currentProblem);
+      fetch(`/api/leetcode/testcases?slug=${slug}`)
         .then(async res => {
           if (!res.ok) {
             console.warn('Testcases API returned error, using empty testcases');
@@ -434,37 +478,46 @@ export default function LeetCodePage() {
           }
         })
         .then(data => {
+          if (!isCurrent) return; // Only update state if this is the latest slug
           setTestCaseContent(data.testcases || '');
-          // Parse test cases if they exist
-          if (data.testcases && typeof data.testcases === 'string') {
-            setTestCases(parseLeetCodeTestCases(data.testcases));
+          if (data.testcases && typeof data.testcases === 'string' && data.testcases.trim() !== '') {
+            const parsed = parseLeetCodeTestCases(data.testcases);
+            setTestCases(parsed);
+            console.log('setTestCases (from string):', parsed);
           } else if (data.testcases && Array.isArray(data.testcases)) {
             setTestCases(data.testcases);
+            console.log('setTestCases (from array):', data.testcases);
+          } else if (
+            (!data.testcases || data.testcases.trim() === '') &&
+            currentProblem &&
+            typeof currentProblem.exampleTestcases === 'string' &&
+            currentProblem.exampleTestcases.trim() !== ''
+          ) {
+            const parsed = parseLeetCodeTestCases(currentProblem.exampleTestcases);
+            setTestCases(parsed);
+            console.log('setTestCases (from exampleTestcases fallback):', parsed);
           } else {
             setTestCases([]);
+            console.log('setTestCases ([]): []');
           }
         })
         .catch(error => {
+          if (!isCurrent) return;
           console.error('Error fetching testcases:', error);
           setTestCaseContent('');
           setTestCases([]);
+          console.log('setTestCases ([]): [] (error case)');
         });
     } else {
       setTestCaseContent('');
       setTestCases([]);
+      console.log('[useEffect-testcases] setTestCases ([]): [] (no slug)');
+      console.log('[useEffect-testcases] currentProblem:', currentProblem);
     }
+    return () => {
+      isCurrent = false;
+    };
   }, [currentProblem?.slug]);
-
-  // Parse exampleTestcases string into testCases array if available
-  useEffect(() => {
-    if (currentProblem && currentProblem.exampleTestcases && typeof currentProblem.exampleTestcases === 'string') {
-      const parsedTestCases = currentProblem.exampleTestcases
-        .split(/\n\n|\n/)
-        .map((tc: string) => tc.trim())
-        .filter((tc: string) => tc.length > 0);
-      setTestCases(parsedTestCases);
-    }
-  }, [currentProblem?.exampleTestcases]);
 
   const handleCodeChange: OnChange = (value) => {
     setCode(value || '');
@@ -497,18 +550,28 @@ export default function LeetCodePage() {
         });
         if (!response.ok) throw new Error(await response.text());
         const contentType = response.headers.get('content-type');
-        let data;
+        let data: LeetCodeResponse;
         if (contentType && contentType.includes('application/json')) {
           data = await response.json();
         } else {
           throw new Error(await response.text());
         }
-        setCurrentProblem({ ...data.problem, slug: data.problem.titleSlug });
+        if (data.problem) {
+          setCurrentProblem({
+            title: data.problem.title ?? 'Untitled Problem',
+            description: data.problem.description ?? '',
+            difficulty: data.problem.difficulty ?? 'Medium',
+            steps: data.problem.steps ?? [],
+            slug: data.problem.slug ?? data.problem.titleSlug ?? 'unknown-slug',
+            exampleTestcases: data.problem.exampleTestcases ?? '',
+            titleSlug: data.problem.titleSlug
+          });
+        }
         setCurrentStepIndex(0);
         setCompletedSteps(new Set());
         const assistantMessage: ChatMessage = {
           type: 'assistant',
-          content: data.welcomeMessage.content,
+          content: data.welcomeMessage?.content || '',
           timestamp: new Date().toISOString()
         };
         setChatHistory(prev => [...prev, assistantMessage]);
@@ -526,13 +589,20 @@ export default function LeetCodePage() {
         });
         if (!response.ok) throw new Error(await response.text());
         const contentType = response.headers.get('content-type');
-        let data;
+        let data: LeetCodeResponse;
         if (contentType && contentType.includes('application/json')) {
           data = await response.json();
         } else {
           throw new Error(await response.text());
         }
-        setChatHistory(prev => [...prev, data.response]);
+        if (data.response) {
+          const responseMessage: ChatMessage = (data as LeetCodeChatResponse).response;
+          setChatHistory(prev => [...prev, responseMessage]);
+        }
+        if (data.chatMessage) {
+          const chatMessage: ChatMessage = (data as LeetCodeAnalyzeResponse).chatMessage;
+          setChatHistory(prev => [...prev, chatMessage]);
+        }
       }
     } catch (error) {
       console.error('Error:', error);
@@ -573,16 +643,18 @@ export default function LeetCodePage() {
       });
       if (!response.ok) throw new Error(await response.text());
       const contentType = response.headers.get('content-type');
-      let data;
+      let data: LeetCodeResponse;
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
         throw new Error(await response.text());
       }
-      // Add the feedback as a chat message
-      setChatHistory(prev => [...prev, data.chatMessage]);
+      if (data.chatMessage) {
+        const chatMessage: ChatMessage = (data as LeetCodeAnalyzeResponse).chatMessage;
+        setChatHistory(prev => [...prev, chatMessage]);
+      }
       // Check if step is complete
-      const allCorrect = data.feedback.every((f: any) => f.correct);
+      const allCorrect = data.feedback && data.feedback.every((f: any) => f.correct);
       if (allCorrect) {
         setCompletedSteps(prev => new Set(Array.from(prev).concat(currentStep.id)));
         // Move to next step if available
@@ -615,111 +687,9 @@ export default function LeetCodePage() {
     }
   };
 
-  const handleGenerateSimilarProblem = async () => {
-    if (!currentProblem || isLoading) return;
-
-    setIsLoading(true);
-    setIsTyping(true);
-
-    try {
-      const response = await fetch('/api/leetcode/generateSimilarProblem', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          problemDescription: currentProblem.description
-        })
-      });
-      if (!response.ok) throw new Error(await response.text());
-      const contentType = response.headers.get('content-type');
-      let data;
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        throw new Error(await response.text());
-      }
-      
-      // Set the new problem with a temporary slug for structured data fetching
-      const newProblem = { ...data.problem, slug: data.problem.titleSlug || 'similar-problem' };
-      setCurrentProblem(newProblem);
-      setCurrentStepIndex(0);
-      setCompletedSteps(new Set());
-      setCode('// Start coding your solution here\n\n');
-      setIsAutoProgressing(false);
-      setOutput([]); // Clear output
-      setTestCases([]); // Clear test cases initially
-      
-      // Add the welcome message to chat
-      const assistantMessage: ChatMessage = {
-        type: 'assistant',
-        content: data.welcomeMessage.content,
-        timestamp: new Date().toISOString()
-      };
-      setChatHistory(prev => [...prev, assistantMessage]);
-      
-      // Fetch structured problem data (examples, inputs, outputs) if we have a slug
-      if (newProblem.slug && newProblem.slug !== 'similar-problem') {
-        try {
-          const structuredRes = await fetch(`/api/leetcode/problem/${newProblem.slug}/structured`);
-          const structuredData = await structuredRes.json();
-          if (structuredData.success) {
-            setStructuredProblem(structuredData);
-          } else {
-            setStructuredProblem(null);
-          }
-        } catch (err) {
-          console.error('Error fetching structured data for similar problem:', err);
-          setStructuredProblem(null);
-        }
-      } else {
-        // For AI-generated problems without LeetCode slug, create basic structured data
-        setStructuredProblem({
-          success: true,
-          structured: {
-            instructions: '',
-            examples: data.problem.description || '',
-            inputs: [],
-            outputs: []
-          },
-          meta: {
-            title: data.problem.title,
-            difficulty: data.problem.difficulty,
-            description: data.problem.description,
-            slug: newProblem.slug
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      const errorMessage: ChatMessage = {
-        type: 'assistant',
-        content: 'Sorry, I couldn\'t generate a similar problem. Please try again. ' + (error instanceof Error ? error.message : ''),
-        timestamp: new Date().toISOString()
-      };
-      setChatHistory(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-      setIsTyping(false);
-    }
-  };
-
   const handleNewProblem = () => {
-    setCurrentProblem(null);
-    setCurrentStepIndex(0);
-    setCompletedSteps(new Set());
-    setCode('// Start coding your solution here\n\n');
-    setIsAutoProgressing(false);
-    setOutput([]); // Clear output
-    setTestCases([]); // Clear test cases
-    setChatHistory([
-      {
-        type: 'assistant',
-        content: 'Welcome to Cafécode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
-        timestamp: new Date().toISOString()
-      }
-    ]);
-    setSelectedProblem(null); // Reset selected problem for modal
-    setStructuredProblem(null); // Reset structured problem
-    setShowProjectModal(false); // Ensure modal is closed
+    setShowProjectModal(false);
+    resetProblemState();
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -740,8 +710,18 @@ export default function LeetCodePage() {
 
   const handleStartLeetCodeProject = async (problem: Problem) => {
     setSelectedProblem(problem);
+    setIsProjectLoading(true); // <-- Only set true when starting a project
     setIsStructuredLoading(true);
-    setStructuredProblem(null);
+    setStructuredProblem({
+      meta: {
+        title: problem.title,
+        description: '',
+        difficulty: problem.difficulty,
+        slug: problem.titleSlug
+      },
+      structured: { instructions: '', examples: '', inputs: [], outputs: [] },
+      success: true
+    });
     // Call backend to generate guided steps (reuse startProblem logic)
     const stepsRes = await fetch('/api/leetcode/startProblem', {
       method: 'POST',
@@ -758,29 +738,38 @@ export default function LeetCodePage() {
     setCode('// Start coding your solution here\n\n');
     setIsAutoProgressing(false);
     setOutput([]); // Clear output
-    setTestCases([]); // Clear test cases initially
     setChatHistory([
       {
         type: 'assistant',
-        content: stepsData.welcomeMessage.content,
+        content: 'Welcome to Cafécode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
         timestamp: new Date().toISOString()
       }
     ]);
+    // Fallback: immediately set structuredProblem for display
+    setStructuredProblem({
+      meta: {
+        title: stepsData.problem.title,
+        description: stepsData.problem.description,
+        difficulty: stepsData.problem.difficulty,
+        slug: problem.titleSlug
+      },
+      structured: { instructions: '', examples: '', inputs: [], outputs: [] },
+      success: true
+    });
     // Fetch structured problem data (examples, inputs, outputs)
     try {
       const structuredRes = await fetch(`/api/leetcode/problem/${problem.titleSlug}/structured`);
       const structuredData = await structuredRes.json();
-      if (structuredData.success) {
+      if (structuredData.success && structuredData.meta && structuredData.meta.description) {
         setStructuredProblem(structuredData);
-      } else {
-        setStructuredProblem(null);
       }
     } catch (err) {
-      setStructuredProblem(null);
+      // fallback already set
     } finally {
       setIsStructuredLoading(false);
+      setIsProjectLoading(false); // <-- Set false when done
+      setShowProjectModal(false); // <-- Only close after loading is done
     }
-    setShowProjectModal(false); // <-- Only close after loading is done
   };
 
   const handleRunCode = async () => {
@@ -795,7 +784,7 @@ export default function LeetCodePage() {
       });
       if (!response.ok) throw new Error(await response.text());
       const contentType = response.headers.get('content-type');
-      let data;
+      let data: LeetCodeResponse;
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -894,6 +883,72 @@ export default function LeetCodePage() {
     };
   }, []);
 
+  // --- Move resetProblemState here so it can access state setters ---
+  function resetProblemState() {
+    setCurrentProblem(null);
+    setIsProjectLoading(false);
+    setCurrentStepIndex(0);
+    setCompletedSteps(new Set());
+    setCode('// Start coding your solution here\n\n');
+    setIsAutoProgressing(false);
+    setOutput([]);
+    setTestCases([]);
+    setChatHistory([
+      {
+        type: 'assistant',
+        content: 'Welcome to Cafécode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
+        timestamp: new Date().toISOString()
+      }
+    ]);
+    setSelectedProblem(null);
+    setStructuredProblem(null);
+    setShowProjectModal(false);
+  }
+
+  // Handler to generate a similar problem
+  const handleGenerateSimilarProblem = async () => {
+    if (!currentProblem) return;
+    setIsLoadingSimilar(true);
+    setErrorSimilar('');
+    try {
+      const response = await fetch('/api/leetcode/similar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug: currentProblem.slug,
+          title: currentProblem.title,
+          description: currentProblem.description,
+          language: language
+        })
+      });
+      if (!response.ok) throw new Error(await response.text());
+      const data = await response.json();
+      if (!data.problem) throw new Error('No problem returned');
+      // Reset all problem-related state and set new problem
+      setCurrentProblem({ ...data.problem, slug: data.problem.slug });
+      setCurrentStepIndex(0);
+      setCompletedSteps(new Set());
+      setCode('// Start coding your solution here\n\n');
+      setIsAutoProgressing(false);
+      setOutput([]);
+      setTestCases([]);
+      setChatHistory([
+        data.welcomeMessage || {
+          type: 'assistant',
+          content: 'Here is a similar problem for you to practice!',
+          timestamp: new Date().toISOString()
+        }
+      ]);
+      setSelectedProblem(null);
+      setStructuredProblem(null);
+      setShowProjectModal(false);
+    } catch (err) {
+      setErrorSimilar(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoadingSimilar(false);
+    }
+  };
+
   return (
     <div className="h-screen min-h-0 bg-light-cream flex flex-col overflow-hidden relative text-dark-charcoal">
       {/* Loading Overlay */}
@@ -936,18 +991,6 @@ export default function LeetCodePage() {
           {currentProblem && (
             <>
               <Button
-                onClick={handleGenerateSimilarProblem}
-                disabled={isLoading}
-                className="bg-medium-coffee text-light-cream border-2 border-medium-coffee rounded-xl shadow-coffee font-semibold px-6 py-2 flex items-center justify-center transition-colors duration-150 hover:bg-medium-coffee/90 focus:outline-none focus:ring-2 focus:ring-medium-coffee"
-              >
-                {isLoading ? (
-                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <SparklesIcon className="h-4 w-4 mr-2" />
-                )}
-                {isLoading ? 'Generating...' : 'Similar Problem'}
-              </Button>
-              <Button
                 onClick={handleNewProblem}
                 variant="outline"
                 className="btn-coffee-outline"
@@ -955,6 +998,21 @@ export default function LeetCodePage() {
                 <ArrowPathIcon className="h-4 w-4 mr-2" />
                 New Problem
               </Button>
+              <Button
+                onClick={handleGenerateSimilarProblem}
+                disabled={isLoadingSimilar}
+                className="btn-coffee-primary ml-2"
+              >
+                {isLoadingSimilar ? (
+                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <SparklesIcon className="h-4 w-4 mr-2" />
+                )}
+                {isLoadingSimilar ? 'Generating...' : 'Try a Similar Problem'}
+              </Button>
+              {errorSimilar && (
+                <span className="text-red-500 text-sm mt-2 ml-2">{errorSimilar}</span>
+              )}
             </>
           )}
         </div>
@@ -971,20 +1029,13 @@ export default function LeetCodePage() {
                 className="overflow-y-auto transition-all duration-100 border-b border-cream-beige"
               >
                 <div className="p-6 pb-2 bg-cream-beige rounded-b-xl">
-                  {/* Render the problem title and description as readable markdown/text */}
-                  {structuredProblem && structuredProblem.meta && (
-                    <>
-                      <h2 className="text-2xl font-bold mb-3 text-deep-espresso">{structuredProblem.meta.title}</h2>
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeRaw]}
-                        components={markdownComponents}
-                        className="prose max-w-none mb-6 text-deep-espresso"
-                      >
-                        {structuredProblem.meta.description}
-                      </ReactMarkdown>
-                    </>
-                  )}
+                  {/* Robust fallback: show title/description from any available field */}
+                  <h2 className="text-2xl font-bold mb-3 text-deep-espresso">
+                    {getSafeField(structuredProblem?.meta || currentProblem, ['title', 'problemTitle', 'name'], 'Untitled Problem')}
+                  </h2>
+                  <div className="prose max-w-none mb-6 text-deep-espresso">
+                    {getSafeField(structuredProblem?.meta || currentProblem, ['description', 'problemDescription', 'desc'], 'No description available.')}
+                  </div>
                 </div>
               </div>
               {/* --- Draggable Resizer Bar --- */}
@@ -1005,64 +1056,64 @@ export default function LeetCodePage() {
                 </h3>
                 <div className="space-y-3">
                   {currentProblem.steps && currentProblem.steps.length > 0 ? (
-                    currentProblem.steps.map((step, index) => {
-                      const isCompleted = completedSteps.has(step.id);
-                      const isCurrent = index === currentStepIndex;
-                      return (
-                        <div
-                          key={step.id}
-                          className={`p-4 rounded-xl border transition-all duration-200 shadow-sm mb-2
-                            ${isCurrent
-                              ? 'border-medium-coffee bg-[#f7e7d6] shadow-lg'
-                              : isCompleted
-                              ? 'border-green-400 bg-green-50/80 shadow'
-                              : 'border-cream-beige bg-cream-beige/60 hover:bg-cream-beige/90 hover:shadow-md'}
-                          `}
-                          style={{ opacity: isCurrent ? 1 : 0.98 }}
-                        >
-                          <div className="flex items-start space-x-3">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                              isCompleted
-                                ? 'bg-green-400 text-white'
-                                : isCurrent
-                                ? 'bg-medium-coffee text-light-cream'
-                                : 'bg-cream-beige text-dark-charcoal border border-medium-coffee/30'
+                    currentProblem.steps.map((step, index) => (
+                      <div
+                        key={step.id || index}
+                        className={`p-4 rounded-xl border transition-all duration-200 shadow-sm mb-2
+                          ${index === currentStepIndex
+                            ? 'border-medium-coffee bg-[#f7e7d6] shadow-lg'
+                            : completedSteps.has(step.id)
+                            ? 'border-green-400 bg-green-50/80 shadow'
+                            : 'border-cream-beige bg-cream-beige/60 hover:bg-cream-beige/90 hover:shadow-md'}
+                        `}
+                        style={{ opacity: index === currentStepIndex ? 1 : 0.98 }}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            completedSteps.has(step.id)
+                              ? 'bg-green-400 text-white'
+                              : index === currentStepIndex
+                              ? 'bg-medium-coffee text-light-cream'
+                              : 'bg-cream-beige text-dark-charcoal border border-medium-coffee/30'
+                          }`}>
+                            {completedSteps.has(step.id) ? <CheckIcon className="h-4 w-4" /> : index + 1}
+                          </div>
+                          <div className="flex-1">
+                            <p className={`text-sm leading-relaxed ${
+                              index === currentStepIndex ? 'text-[#9B6C46]' : completedSteps.has(step.id) ? 'text-green-700' : 'text-dark-charcoal/90'
                             }`}>
-                              {isCompleted ? <CheckIcon className="h-4 w-4" /> : index + 1}
-                            </div>
-                            <div className="flex-1">
-                              <p className={`text-sm leading-relaxed ${
-                                isCurrent ? 'text-[#9B6C46]' : isCompleted ? 'text-green-700' : 'text-dark-charcoal/90'
-                              }`}>
-                                {step.instruction}
-                              </p>
-                              {isCurrent && (
-                                <div className="mt-3">
-                                  <Button
-                                    onClick={handleCheckStep}
-                                    disabled={isCheckingStep || isAutoProgressing}
-                                    size="sm"
-                                    className="btn-coffee-primary"
-                                  >
-                                    {isCheckingStep ? (
-                                      <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                                    ) : (
-                                      <CheckIcon className="h-4 w-4 mr-2" />
-                                    )}
-                                    {isCheckingStep ? 'Checking...' : isAutoProgressing ? 'Progressing...' : 'Check Step'}
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
+                              {step.instruction || JSON.stringify(step)}
+                            </p>
+                            {index === currentStepIndex && (
+                              <div className="mt-3">
+                                <Button
+                                  onClick={handleCheckStep}
+                                  disabled={isCheckingStep || isAutoProgressing}
+                                  size="sm"
+                                  className="btn-coffee-primary"
+                                >
+                                  {isCheckingStep ? (
+                                    <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <CheckIcon className="h-4 w-4 mr-2" />
+                                  )}
+                                  {isCheckingStep ? 'Checking...' : isAutoProgressing ? 'Progressing...' : 'Check Step'}
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      );
-                    })
+                      </div>
+                    ))
                   ) : (
                     <div className="text-center py-8">
                       <div className="text-dark-charcoal/50 text-sm">
                         {currentProblem.steps === undefined ? 'Loading steps...' : 'No steps available'}
                       </div>
+                      {/* Fallback: show raw steps if available */}
+                      {Array.isArray(currentProblem.steps) && currentProblem.steps.length === 0 && (currentProblem as any)?.rawSteps && (
+                        <pre className="text-xs text-gray-500 mt-2">{JSON.stringify((currentProblem as any).rawSteps, null, 2)}</pre>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1234,11 +1285,11 @@ export default function LeetCodePage() {
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder={currentProblem ? "Ask for help or hints..." : "Describe a coding problem..."}
                 className="flex-1 bg-white text-dark-charcoal placeholder-dark-charcoal/50 border border-cream-beige rounded-lg px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-medium-coffee"
-                disabled={isLoading}
+                disabled={isLoading || !currentProblem}
               />
               <Button
                 onClick={handleSendMessage}
-                disabled={isLoading || !inputMessage.trim()}
+                disabled={isLoading || !inputMessage.trim() || !currentProblem}
                 size="sm"
                 className="btn-coffee-primary px-3"
               >
@@ -1258,7 +1309,7 @@ export default function LeetCodePage() {
         onClose={() => setShowProjectModal(false)}
         problems={leetcodeProblems}
         onSubmit={handleStartLeetCodeProject}
-        isStartingProject={isLoading && !currentProblem}
+        isStartingProject={isProjectLoading}
       />
     </div>
   );

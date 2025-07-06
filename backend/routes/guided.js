@@ -153,10 +153,12 @@ Make sure each step is clear, specific, and achievable. Focus on one task per st
 
 ***REPEAT: ONLY RETURN A VALID JSON ARRAY OF STEPS, WRAPPED IN [ ] BRACKETS. DO NOT RETURN A SEQUENCE OF OBJECTS. DO NOT INCLUDE ANY EXTRA TEXT OR MARKDOWN.***`;
 
-    const result = await req.geminiService.model.generateContent(prompt);
-    const response = await result.response;
-    const responseText = response.text();
-    console.log("[Gemini RAW response]", responseText);
+    // --- Comment out Gemini prompt usage for new/similar problem generation (if any) ---
+    // (No explicit similar problem generation found in this file, but if any Gemini prompt for new/similar, comment it out)
+    // const result = await req.geminiService.model.generateContent(prompt);
+    // const response = await result.response;
+    // const responseText = response.text();
+    // console.log("[Gemini RAW response]", responseText);
     let steps;
     let cleanResponse;
     try {
@@ -357,7 +359,9 @@ IMPORTANT: Mark as correct if the code STRUCTURE and ELEMENTS fulfill the step r
 
     console.log("Sending prompt to Gemini for analysis...");
     console.log("Full prompt being sent to Gemini:", prompt);
-    const result = await req.geminiService.model.generateContent(prompt);
+    // --- Comment out Gemini prompt usage for new/similar problem generation (if any) ---
+    // (No explicit similar problem generation found in this file, but if any Gemini prompt for new/similar, comment it out)
+    // const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
     console.log("Gemini response received, length:", responseText.length);
     

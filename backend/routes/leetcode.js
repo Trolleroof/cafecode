@@ -1,6 +1,7 @@
 import express from 'express';
 import Joi from 'joi';
 import { LeetCode } from 'leetcode-query';
+import GeminiService from '../services/gemini.js';
 
 const router = express.Router();
 const lc = new LeetCode();
@@ -86,6 +87,11 @@ router.post('/startProblem',
       }
       console.log(`✅ LeetCode problem started in ${responseTime}ms`);
 
+      // Format the problem before returning
+      if (result && result.problem) {
+        result.problem = req.geminiService.formatLeetCodeProblem(result.problem);
+      }
+
       res.json({
         success: true,
         problem: result.problem,
@@ -147,41 +153,17 @@ router.post('/analyzeStep',
   }
 );
 
-// POST /api/leetcode/generateSimilarProblem - Generate a similar problem
-router.post('/generateSimilarProblem',
-  validateRequest(generateSimilarProblemSchema),
-  checkGeminiService,
-  async (req, res) => {
-    try {
-      const startTime = Date.now();
-      console.log(`🔄 Generating similar LeetCode problem...`);
-
-      const result = await req.geminiService.generateSimilarLeetCodeProblem(
-        req.validatedBody.problemDescription
-      );
-      
-      const responseTime = Date.now() - startTime;
-      console.log(`✅ Similar problem generated in ${responseTime}ms`);
-
-      res.json({
-        success: true,
-        problem: result.problem,
-        welcomeMessage: result.welcomeMessage,
-        request_id: `leetcode_similar_${Date.now()}`,
-        timestamp: new Date().toISOString()
-      });
-
-    } catch (error) {
-      console.error('LeetCode generate similar problem error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to generate similar problem',
-        error_code: 'GENERATE_SIMILAR_ERROR',
-        timestamp: new Date().toISOString()
-      });
-    }
-  }
-);
+// --- Comment out similar problem generation route and Gemini prompt usage ---
+// router.post('/generateSimilarProblem', checkGeminiService, async (req, res) => {
+//   try {
+//     const { problemDescription } = req.body;
+//     const result = await req.geminiService.generateSimilarLeetCodeProblem(problemDescription);
+//     res.json(result);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+// ... existing code ...
 
 // POST /api/leetcode/chat - Handle chat interactions
 router.post('/chat',
@@ -256,7 +238,11 @@ router.get('/health', async (req, res) => {
 router.get('/problem/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    const problem = await getProblem(slug);
+    const problem = await lc.problem(slug);
+    // Format the problem for markdown rendering if possible
+    if (problem && req.geminiService && typeof req.geminiService.formatLeetCodeProblem === 'function') {
+      req.geminiService.formatLeetCodeProblem(problem);
+    }
     res.json({ success: true, problem });
   } catch (error) {
     console.error('Error fetching LeetCode problem:', error);
@@ -405,6 +391,55 @@ router.get('/problem/:slug/structured', checkGeminiService, async (req, res) => 
         description: 'Problem details could not be loaded.',
         slug: req.params.slug
       }
+    });
+  }
+});
+
+// POST /api/leetcode/similar - Generate a similar LeetCode problem using AI
+router.post('/similar', checkGeminiService, async (req, res) => {
+  try {
+    const { slug, title, description, language } = req.body;
+    // Use the most descriptive info available for the prompt
+    const basePrompt = description || title || slug || 'a LeetCode problem';
+
+    // Use Gemini to generate a similar problem (reuse your prompt logic)
+    const result = await req.geminiService.generateSimilarLeetCodeProblem(basePrompt, language || 'python');
+
+    // Fallback: If Gemini returns nothing, return a generic error
+    if (!result || !result.problem) {
+      return res.status(500).json({
+        success: false,
+        error: 'AI could not generate a similar problem',
+        error_code: 'SIMILAR_PROBLEM_ERROR'
+      });
+    }
+
+    // Use a fake slug to indicate this is an AI-generated problem
+    const aiSlug = `similar-problem-${Date.now()}`;
+
+    // Format the Gemini-generated problem before returning
+    result.problem = req.geminiService.formatLeetCodeProblem(result.problem);
+
+    res.json({
+      success: true,
+      problem: {
+        ...result.problem,
+        slug: aiSlug,
+        exampleTestcases: result.problem.exampleTestcases || '',
+        steps: result.problem.steps || [],
+      },
+      welcomeMessage: result.welcomeMessage || {
+        type: 'assistant',
+        content: 'Here is a similar problem for you to practice!',
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error generating similar problem:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate similar problem',
+      error_code: 'SIMILAR_PROBLEM_ERROR'
     });
   }
 });

@@ -577,6 +577,108 @@ Be encouraging and specific. If correct, congratulate and explain why. If incorr
     }
   }
 
+  // Helper to convert HTML to markdown for LeetCode/Gemini problems
+  htmlToMarkdown(html) {
+    if (!html || typeof html !== 'string') return html;
+    let md = html;
+    // Paragraphs and line breaks
+    md = md.replace(/<\/?p>/gi, '\n');
+    // Bold and strong
+    md = md.replace(/<(strong|b)[^>]*>(.*?)<\/(strong|b)>/gi, '**$2**');
+    // Italic and emphasis
+    md = md.replace(/<(em|i)[^>]*>(.*?)<\/(em|i)>/gi, '*$2*');
+    // Inline code
+    md = md.replace(/<code>(.*?)<\/code>/gi, '`$1`');
+    // Superscript (e.g., 10<sup>4</sup>)
+    md = md.replace(/<sup>(.*?)<\/sup>/gi, '^$1^');
+    // Unordered lists
+    md = md.replace(/<ul[^>]*>/gi, '\n');
+    md = md.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n');
+    md = md.replace(/<\/ul>/gi, '\n');
+    // Pre/code blocks (LeetCode uses <pre> for examples)
+    md = md.replace(/<pre[^>]*>/gi, '\n```\n');
+    md = md.replace(/<\/pre>/gi, '\n```\n');
+    // Remove any remaining HTML tags
+    md = md.replace(/<[^>]+>/g, '');
+    // Collapse multiple newlines
+    md = md.replace(/\n{3,}/g, '\n\n');
+    // Trim
+    return md.trim();
+  }
+
+  // Helper to format a LeetCode problem object for clarity and readability
+  formatLeetCodeProblem(problem) {
+    if (!problem || typeof problem !== 'object') return problem;
+    // Format title
+    if (typeof problem.title === 'string') {
+      problem.title = problem.title.trim();
+      if (problem.title.length > 0) {
+        problem.title = problem.title[0].toUpperCase() + problem.title.slice(1);
+      }
+    }
+    // Format description: convert HTML to markdown, add headers, etc.
+    if (typeof problem.description === 'string') {
+      let desc = this.htmlToMarkdown(problem.description);
+      // Add Description header if not present
+      if (!/^#+\s*Description/i.test(desc)) {
+        desc = `### Description\n${desc}`;
+      }
+      // If examples exist, add Examples header
+      if (problem.exampleTestcases && !/^#+\s*Examples?/im.test(desc)) {
+        desc += '\n\n### Examples';
+      }
+      // If constraints exist, add Constraints header
+      if (problem.constraints && Array.isArray(problem.constraints) && problem.constraints.length > 0 && !/^#+\s*Constraints?/im.test(desc)) {
+        desc += '\n\n### Constraints';
+        for (const c of problem.constraints) {
+          desc += `\n- ${c}`;
+        }
+      }
+      // If follow-up exists, add Follow-up header
+      if (problem.followup && typeof problem.followup === 'string' && problem.followup.trim()) {
+        desc += `\n\n### Follow-up\n${problem.followup.trim()}`;
+      }
+      problem.description = desc;
+    }
+    // Format steps: trim, capitalize, and make Gemini-generated steps more descriptive
+    if (Array.isArray(problem.steps)) {
+      problem.steps = problem.steps.map((step, idx) => {
+        if (typeof step.instruction === 'string') {
+          let instr = step.instruction.trim();
+          if (instr.length > 0) {
+            instr = instr[0].toUpperCase() + instr.slice(1);
+          }
+          // For Gemini-generated, add a rationale if not present
+          if (!/\bthis step helps you\b/i.test(instr)) {
+            instr += ` (This step helps you progress toward the solution.)`;
+          }
+          step.instruction = instr;
+        }
+        return step;
+      });
+    }
+    // Format exampleTestcases: ensure markdown code blocks and bold labels, and convert HTML if needed
+    if (typeof problem.exampleTestcases === 'string' && problem.exampleTestcases.trim()) {
+      let ex = this.htmlToMarkdown(problem.exampleTestcases);
+      // Split by double newlines (each test case block)
+      const blocks = ex.trim().split(/\n\s*\n/);
+      const formattedBlocks = blocks.map((block, i) => {
+        // Bold Input/Output/Explanation and wrap in code block
+        let formatted = block
+          .replace(/(Input:)/gi, '**Input:**')
+          .replace(/(Output:)/gi, '**Output:**')
+          .replace(/(Explanation:)/gi, '**Explanation:**');
+        // Wrap in code block if not already
+        if (!/^```/m.test(formatted)) {
+          formatted = '```\n' + formatted + '\n```';
+        }
+        return formatted;
+      });
+      problem.exampleTestcases = formattedBlocks.join('\n\n');
+    }
+    return problem;
+  }
+
   async generateSimilarLeetCodeProblem(problemDescription) {
     const startTime = Date.now();
 
@@ -617,7 +719,7 @@ Return JSON:
   }
 }
 
-Make it engaging and educational while maintaining the same learning objectives. The titleSlug should be a URL-friendly version of the title (lowercase, hyphens instead of spaces). Include 2-3 example test cases in the exampleTestcases field. Each step must require the user to write or modify code. Do NOT include any conceptual, planning, or thinking steps. Do NOT provide hints or explanations. Each step should be a direct coding instruction.`;
+Make it engaging and educational while maintaining the same learning objectives. The titleSlug should be a URL-friendly version of the title (lowercase, hyphens instead of spaces). Include NO MORE THAN 3 example test cases in the exampleTestcases field. Each step must require the user to write or modify code. Do NOT include any conceptual, planning, or thinking steps. Do NOT provide hints or explanations. Each step should be a direct coding instruction. Format the JSON and all fields for clarity and readability.`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
@@ -629,6 +731,21 @@ Make it engaging and educational while maintaining the same learning objectives.
 
       const cleanResponse = this.extractJsonFromResponse(responseText);
       const similarProblemData = this.robustJsonParse(cleanResponse);
+
+      // Limit the number of test cases to 3 if possible
+      if (similarProblemData && similarProblemData.problem && typeof similarProblemData.problem.exampleTestcases === 'string') {
+        // Split by double newlines (each test case block)
+        const blocks = similarProblemData.problem.exampleTestcases.split(/\n\s*\n/);
+        if (blocks.length > 3) {
+          similarProblemData.problem.exampleTestcases = blocks.slice(0, 3).join('\n\n');
+        }
+      }
+
+      // Format the Gemini-generated problem for clarity and readability
+      if (similarProblemData && similarProblemData.problem) {
+        similarProblemData.problem = this.formatLeetCodeProblem(similarProblemData.problem);
+      }
+
       const executionTime = (Date.now() - startTime) / 1000;
 
       return {
