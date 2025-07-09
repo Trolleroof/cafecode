@@ -155,10 +155,10 @@ Make sure each step is clear, specific, and achievable. Focus on one task per st
 
     // --- Comment out Gemini prompt usage for new/similar problem generation (if any) ---
     // (No explicit similar problem generation found in this file, but if any Gemini prompt for new/similar, comment it out)
-    // const result = await req.geminiService.model.generateContent(prompt);
-    // const response = await result.response;
-    // const responseText = response.text();
-    // console.log("[Gemini RAW response]", responseText);
+    const result = await req.geminiService.model.generateContent(prompt);
+    const response = await result.response;
+    const responseText = response.text();
+    console.log("[Gemini RAW response]", responseText);
     let steps;
     let cleanResponse;
     try {
@@ -213,7 +213,7 @@ Make sure each step is clear, specific, and achievable. Focus on one task per st
       }));
     } catch (parseError) {
       console.error("[Gemini Parsing Error]", parseError);
-      console.error("[Gemini Problematic String]", cleanResponse || responseText);
+      console.error("[Gemini Problematic String]", typeof cleanResponse !== "undefined" ? cleanResponse : "(no cleanResponse)");
       return res.status(500).json({ error: "Failed to parse steps from AI response." });
     }
 
