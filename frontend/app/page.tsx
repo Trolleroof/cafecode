@@ -107,7 +107,7 @@ export default function Home() {
               </h1>
               {/* Coffee-themed Subheading */}
               <p className="text-lg sm:text-xl lg:text-2xl text-deep-espresso mb-8 pt-4 max-w-2xl leading-relaxed font-medium">
-                Actually learn to code anything that comes to your mind in the time it takes you to sip on coffee
+                Actually learn to code to build projects in the time it takes to sip your morning coffee
                 <span className="block mt-2 font-bold text-dark-charcoal text-base sm:text-lg">The only rule? No vibecoding.</span>
               </p>
               {/* Hero action buttons */}
