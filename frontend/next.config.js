@@ -7,10 +7,12 @@ const nextConfig = {
   },
   images: { unoptimized: true },
   async rewrites() {
+    const useLocalhost = process.env.NEXT_PUBLIC_USE_LOCALHOST === 'true';
+    const backendUrl = useLocalhost ? 'http://localhost:8000/api' : 'https://cafecode-backend.onrender.com/api';
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*',
+        destination: `${backendUrl}/:path*`,
       },
     ];
   },

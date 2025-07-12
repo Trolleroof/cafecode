@@ -22,6 +22,7 @@ import { OnChange } from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import { api } from '@/lib/api';
 
 interface ChatMessage {
   type: 'user' | 'assistant';
