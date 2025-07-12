@@ -3,6 +3,7 @@ import './globals.css'
 import '@fontsource/space-grotesk';
 import '@fontsource/sora';
 import '@fontsource/jetbrains-mono';
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import { usePathname } from 'next/navigation';
 
 export const metadata: Metadata = {
