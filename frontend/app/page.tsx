@@ -100,15 +100,15 @@ export default function Home() {
             </div>
             {/* Main heading with coffee theme */}
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal mb-4 leading-tight">
-                <span className="block">Ship Your Project,</span>
-                <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient">
+                <span className="block mb-2">Ship Your Project,</span>
+                <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient leading-[1.2] py-1 mb-2">
                   Sip Your Coffee
                 </span>
               </h1>
               {/* Coffee-themed Subheading */}
-              <p className="text-lg sm:text-xl lg:text-2xl text-deep-espresso mb-8 pt-4 max-w-2xl leading-relaxed font-medium">
-                Actually learn to code projects in the time it takes to sip your morning coffee
-                <span className="block mt-2 font-bold text-dark-charcoal text-base sm:text-lg">The only rule? No vibecoding.</span>
+              <p className="text-lg sm:text-xl lg:text-2xl text-deep-espresso mb-8 max-w-2xl leading-relaxed font-medium">
+                Actually learn to code to build projects in the time it takes to sip your morning coffee
+                <span className="block mt-4 font-bold text-dark-charcoal text-base sm:text-lg">The only rule? No vibecoding.</span>
               </p>
               {/* Hero action buttons */}
               <div className="flex gap-4 mb-8">
