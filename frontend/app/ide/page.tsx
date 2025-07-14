@@ -38,7 +38,6 @@ import { useRouter } from 'next/navigation';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import TavusConversation from '../../components/TavusConversation';
-import { api } from '@/lib/api';
 
 
 interface FileNode {

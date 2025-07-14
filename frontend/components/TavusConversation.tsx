@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';
-import { api } from '@/lib/api';
 
 interface TavusConversationProps {
   currentCode: string;
@@ -10,7 +9,7 @@ interface TavusConversationProps {
   output: string[];
   projectFiles: any[];
   guidedProject: any;
-  callObject?: any; // <-- Add this prop for the Daily call object
+  callObject?: any; 
 }
 
 const TavusConversation: React.FC<TavusConversationProps> = ({ currentCode, currentLanguage, output, projectFiles, guidedProject, callObject }) => {
