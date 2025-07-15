@@ -38,8 +38,8 @@ const Header = () => {
         <div className="flex justify-between items-center h-16 lg:h-20">
           {/* Coffee Shop Logo */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => router.push('/')}>
-            <div className="bg-gradient-to-r from-medium-coffee to-deep-espresso p-2.5 lg:p-3 rounded-xl shadow-coffee animate-warm-glow">
-              <img src="/images/logo.png" alt="Cafécode Logo" className="h-7 w-7 lg:h-9 lg:w-9 object-contain" />
+            <div className="animate-warm-glow">
+              <img src="/images/logo.png" alt="Cafécode Logo" className="h-8 w-8 lg:h-10 lg:w-10 object-contain rounded-xl" />
             </div>
             <span className="font-heading text-xl lg:text-2xl font-bold text-light-cream hidden sm:block">
               Cafécode

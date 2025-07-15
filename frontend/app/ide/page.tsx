@@ -1,26 +1,26 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Play, 
-  MessageSquare, 
-  Lightbulb, 
-  Code2, 
-  Terminal, 
-  Sparkles, 
-  X,
-  Brain,
-  CheckCircle,
-  ArrowRight,
-  ArrowLeft,
-  Search,
-  Copy,
-  Zap,
-  Loader2,
-  ArrowLeftIcon,
-  Mic,
-  Video
-} from 'lucide-react';
+import {
+  IconPlayerPlay,
+  IconMessage,
+  IconBulb,
+  IconCode,
+  IconTerminal,
+  IconSparkles,
+  IconX,
+  IconMap,
+  IconBolt, 
+  IconBrain,
+  IconCircleCheck,
+  IconArrowRight,
+  IconSearch,
+  IconCopy,
+  IconLoader2,
+  IconArrowLeft,
+  IconMicrophone,
+  IconVideo
+} from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
@@ -38,6 +38,7 @@ import { useRouter } from 'next/navigation';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import TavusConversation from '../../components/TavusConversation';
+import Image from 'next/image';
 
 
 interface FileNode {
@@ -1112,16 +1113,18 @@ export default function IDEPage() {
         {/* Header */}
         <header className="flex items-center justify-between p-4 border-b border-cream-beige bg-light-cream shadow-lg">
     
-            <div className="flex items-center space-x-2">
-                <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-cream-beige">
-            <ArrowLeftIcon className="h-5 w-5 text-deep-espresso" />
+                 <div className="flex items-center space-x-1">
+           <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-cream-beige">
+            <IconArrowLeft className="h-5 w-5 text-deep-espresso" />
           </button>
-              <div className="w-8 h-8 bg-medium-coffee rounded-lg flex items-center justify-center">
-                <Code2 className="h-5 w-5 text-light-cream" />
-              </div>
-              <h1 className="text-xl font-bold text-deep-espresso">
-                Cafécode IDE
+          <div className="w-9 h-9 flex items-center justify-center">
+            <Image src="/images/logo-trans.png" alt="Cafécode Logo" width={70} height={70} className="h-9 w-9 object-contain rounded-xl" />
+          </div>
+              <div className="flex items-center justify-left">
+                <h1 className="text-xl font-bold text-deep-espresso">
+                Project Brewer
               </h1>
+          </div>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -1140,7 +1143,7 @@ export default function IDEPage() {
                 }}
                 className="bg-medium-coffee hover:bg-deep-espresso text-white font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
               >
-                <Sparkles className="mr-2 h-4 w-4" />
+                <IconSparkles className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Start Guided Project</span>
                 <span className="sm:hidden">Guide</span>
               </Button>
@@ -1153,7 +1156,7 @@ export default function IDEPage() {
                 variant="outline"
                 className="border-medium-coffee text-medium-coffee hover:bg-medium-coffee hover:text-white"
               >
-                <X className="mr-2 h-4 w-4" />
+                <IconX className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Stop Guide</span>
                 <span className="sm:hidden">Stop</span>
               </Button>
@@ -1205,15 +1208,15 @@ export default function IDEPage() {
                   <div className="flex items-center justify-between px-4 py-2 border-b border-cream-beige bg-cream-beige">
                     <TabsList className="bg-light-cream border border-cream-beige">
                       <TabsTrigger value="editor" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
-                        <Code2 className="mr-2 h-4 w-4" />
+                        <IconCode className="mr-2 h-4 w-4" />
                         Editor
                       </TabsTrigger>
                       <TabsTrigger value="preview" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
-                        <Play className="mr-2 h-4 w-4" />
+                        <IconPlayerPlay className="mr-2 h-4 w-4" />
                         Preview
                       </TabsTrigger>
                       <TabsTrigger value="terminal" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
-                        <Terminal className="mr-2 h-4 w-4" />
+                        <IconTerminal className="mr-2 h-4 w-4" />
                         Output
                       </TabsTrigger>
                     </TabsList>
@@ -1239,7 +1242,7 @@ export default function IDEPage() {
                     ) : (
                       <div className="flex items-center justify-center h-full bg-cream-beige/20">
                         <div className="text-center">
-                          <Code2 className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
+                          <IconCode className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
                           <p className="text-deep-espresso text-lg">Create a file to start coding</p>
                           <p className="text-deep-espresso/70 text-sm mt-2">Use the file explorer to create your first file</p>
                         </div>
@@ -1258,7 +1261,7 @@ export default function IDEPage() {
                     ) : (
                       <div className="flex items-center justify-center h-full bg-cream-beige/20">
                         <div className="text-center">
-                          <Play className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
+                          <IconPlayerPlay className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
                           <p className="text-deep-espresso text-lg">Preview available for HTML files</p>
                           <p className="text-deep-espresso/70 text-sm mt-2">Create an HTML file to see the preview</p>
                         </div>
@@ -1269,7 +1272,7 @@ export default function IDEPage() {
                   <TabsContent value="terminal" className="flex-1 m-0">
                     <div className="h-full bg-dark-charcoal text-light-cream p-4 font-mono text-sm overflow-y-auto">
                       <div className="flex items-center space-x-2 mb-4 text-medium-coffee">
-                        <Terminal className="h-4 w-4" />
+                        <IconTerminal className="h-4 w-4" />
                         <span>Output Console</span>
                       </div>
                       {output.length > 0 ? (
@@ -1299,7 +1302,7 @@ export default function IDEPage() {
                 <div className="flex items-center justify-between p-4 border-b border-light-cream bg-light-cream">
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-medium-coffee rounded-full flex items-center justify-center">
-                      <Sparkles className="h-4 w-4 text-light-cream" />
+                      <IconSparkles className="h-4 w-4 text-light-cream" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-deep-espresso">AI Assistant</h3>
@@ -1323,10 +1326,10 @@ export default function IDEPage() {
                     className="bg-cream-beige p-1 rounded-lg"
                   >
                     <ToggleGroupItem value="text" aria-label="Toggle text" className="data-[state=on]:bg-medium-coffee data-[state=on]:text-light-cream rounded-md px-2 py-1 hover:bg-cream-beige hover:text-deep-espresso">
-                      <MessageSquare className="h-4 w-4" />
+                      <IconMessage className="h-4 w-4" />
                     </ToggleGroupItem>
                     <ToggleGroupItem value="voice" aria-label="Toggle video" className="data-[state=on]:bg-medium-coffee data-[state=on]:text-light-cream rounded-md px-2 py-1 hover:bg-cream-beige hover:text-deep-espresso">
-                      <Video className="h-4 w-4" />
+                      <IconVideo className="h-4 w-4" />
                     </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
@@ -1350,7 +1353,7 @@ export default function IDEPage() {
                     ) : (
                       <div className="flex items-center justify-center h-full bg-cream-beige/50">
                         <div className="text-center">
-                          <Video className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                          <IconVideo className="h-16 w-16 text-red-400 mx-auto mb-4" />
                           <p className="text-deep-espresso text-lg font-semibold">Start a project to use the video assistant</p>
                           <p className="text-deep-espresso/70 text-sm mt-2">You must begin a guided project before accessing this feature.</p>
                         </div>
@@ -1421,7 +1424,7 @@ export default function IDEPage() {
                             disabled={!chatInput.trim() || isTyping}
                             className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                           >
-                            <ArrowRight className="h-4 w-4" />
+                            <IconArrowRight className="h-4 w-4" />
                           </Button>
                         </div>
                         
@@ -1433,7 +1436,7 @@ export default function IDEPage() {
                             size="sm"
                             className="btn-coffee-secondary"
                           >
-                            <Lightbulb className="mr-2 h-4 w-4" />
+                            <IconBulb className="mr-2 h-4 w-4" />
                             Get Hint
                           </Button>
                           
@@ -1443,7 +1446,7 @@ export default function IDEPage() {
                             size="sm"
                             className="btn-coffee-secondary"
                           >
-                            <Zap className="mr-2 h-4 w-4" />
+                            <IconBolt className="mr-2 h-4 w-4" />
                             Fix Code
                           </Button>
                           
@@ -1453,7 +1456,7 @@ export default function IDEPage() {
                             size="sm"
                             className="btn-coffee-secondary"
                           >
-                            <MessageSquare className="mr-2 h-4 w-4" />
+                            <IconMessage className="mr-2 h-4 w-4" />
                             Explain
                           </Button>
                         </div>

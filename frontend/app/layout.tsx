@@ -3,6 +3,7 @@ import './globals.css'
 import '@fontsource/space-grotesk';
 import '@fontsource/sora';
 import '@fontsource/jetbrains-mono';
+import '@fontsource/comfortaa';
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { usePathname } from 'next/navigation';
 
@@ -28,7 +29,7 @@ export default function RootLayout({
             __html: `
           :root {
             --font-poppins: 'Raleway', sans-serif;
-            --font-heading: 'Playfair Display', serif;
+            --font-heading: 'Comfortaa', cursive;
             --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular;
             --font-caveat: 'Caveat', cursive;
             --font-inter: 'Inter', sans-serif;
@@ -38,8 +39,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        {children}
+       {children}
         <SpeedInsights />
+        
       </body>
     </html>
   )
