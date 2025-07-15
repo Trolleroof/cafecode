@@ -18,6 +18,8 @@ import hintRoutes from './routes/hint.js';
 import guidedRoutes from './routes/guided.js';
 import leetcodeRoutes from './routes/leetcode.js';
 import tavusRoutes from './routes/tavus.js';
+import nodejsRoutes from './routes/nodejs.js';
+import javaRoutes from './routes/java.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -109,6 +111,8 @@ app.use('/api/hint', hintRoutes);
 app.use('/api/guided', guidedRoutes);
 app.use('/api/leetcode', leetcodeRoutes);
 app.use('/api/tavus', tavusRoutes);
+app.use('/api/nodejs', nodejsRoutes);
+app.use('/api/java', javaRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
