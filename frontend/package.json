@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@fontsource/comfortaa": "^5.2.6",
     "@fontsource/jetbrains-mono": "^5.2.6",
     "@fontsource/sora": "^5.2.6",
     "@fontsource/space-grotesk": "^5.2.8",
@@ -44,6 +45,7 @@
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
     "@supabase/supabase-js": "^2.50.2",
+    "@tabler/icons-react": "^3.34.0",
     "@types/node": "20.6.2",
     "@types/react": "18.2.22",
     "@types/react-dom": "18.2.7",

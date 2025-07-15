@@ -10,10 +10,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        heading: ['var(--font-heading)', 'ui-serif', 'Georgia', 'serif'],
+        heading: ['Comfortaa', 'sans-serif'],
         body: ['var(--font-poppins)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular'],
-        caveat: ['var(--font-caveat)', 'cursive'],
         inter: ['var(--font-inter)', 'sans-serif'],
       },
       backgroundImage: {

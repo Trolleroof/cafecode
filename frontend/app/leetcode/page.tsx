@@ -1,17 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  PlayIcon, 
-  ChatBubbleLeftRightIcon, 
-  PaperAirplaneIcon, 
-  ArrowPathIcon, 
-  CheckIcon, 
-  CodeBracketIcon,
-  ArrowLeftIcon,
-  SparklesIcon,
-  TrophyIcon
-} from '@heroicons/react/24/outline';
+import {
+  IconPlayerPlay,
+  IconMessage,
+  IconSend,
+  IconRefresh,
+  IconCircleCheck,
+  IconCode,
+  IconArrowLeft,
+  IconSparkles,
+  IconTrophy
+} from '@tabler/icons-react';
 import { Target } from 'phosphor-react';
 import { useRouter } from 'next/navigation';
 import MonacoEditor from '@/components/MonacoEditor';
@@ -331,7 +331,7 @@ export default function LeetCodePage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
     {
       type: 'assistant',
-      content: 'Welcome to Cafécode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.',
+      content: "Welcome to Cafécode's unofficial Leetcode Practice! 🚀\n\nDescribe a coding problem you\'d like to practice, or I can generate one for you. I\'ll break it down into step-by-step guidance to help you learn.",
       timestamp: new Date().toISOString()
     }
   ]);
@@ -345,6 +345,7 @@ export default function LeetCodePage() {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [leetcodeProblems, setLeetcodeProblems] = useState<Problem[]>([]);
+  const [isProblemsLoading, setIsProblemsLoading] = useState(false); // <-- add this
   const [output, setOutput] = useState<string[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [isAutoProgressing, setIsAutoProgressing] = useState(false);
@@ -435,6 +436,7 @@ export default function LeetCodePage() {
   useEffect(() => {
     if (!hasFetchedProblems.current) {
       hasFetchedProblems.current = true;
+      setIsProblemsLoading(true); // <-- set loading true before fetch
       console.log('Fetching LeetCode problems...');
       fetch('/api/leetcode/assigned')
         .then(async res => {
@@ -452,6 +454,9 @@ export default function LeetCodePage() {
         })
         .catch(error => {
           console.error('Error fetching LeetCode problems:', error);
+        })
+        .finally(() => {
+          setIsProblemsLoading(false); // <-- set loading false after fetch
         });
     }
   }, []);
@@ -955,23 +960,25 @@ export default function LeetCodePage() {
       {(isLoading || isStructuredLoading) && !currentProblem && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-light-cream/80">
           <div className="flex flex-col items-center">
-            <ArrowPathIcon className="h-12 w-12 text-medium-coffee animate-spin mb-4" />
+            <IconRefresh className="h-12 w-12 text-medium-coffee animate-spin mb-4" />
             <span className="text-medium-coffee text-lg font-semibold">Loading problem...</span>
           </div>
         </div>
       )}
       {/* Header */}
       <div className="bg-light-cream border-b border-cream-beige px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-1">
            <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-cream-beige">
-            <ArrowLeftIcon className="h-5 w-5 text-deep-espresso" />
+            <IconArrowLeft className="h-5 w-5 text-deep-espresso" />
           </button>
+          <div className="w-9 h-9 flex items-center justify-center">
+            <img src="/images/logo-trans.png" alt="Cafécode Logo" className="h-9 w-9 object-contain rounded-xl" />
+          </div>
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-medium-coffee rounded-lg flex items-center justify-center">
-               <TrophyIcon className="h-5 w-5 text-light-cream" />
-             </div>
             <div>
-              <h1 className="text-xl font-bold text-deep-espresso">Cafécode Practice</h1>
+              <h1 className="text-xl font-bold text-deep-espresso"> 
+                LeetCode Practice
+              </h1>
             </div>
             {!currentProblem && (
               <Button
@@ -979,7 +986,7 @@ export default function LeetCodePage() {
                 className="btn-coffee-primary ml-4"
                 disabled={isLoading}
               >
-                <SparklesIcon className="mr-2 h-4 w-4" />
+                <IconSparkles className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Solve LeetCode Problem</span>
                 <span className="sm:hidden">LeetCode</span>
               </Button>
@@ -995,7 +1002,7 @@ export default function LeetCodePage() {
                 variant="outline"
                 className="btn-coffee-outline"
               >
-                <ArrowPathIcon className="h-4 w-4 mr-2" />
+                <IconRefresh className="h-4 w-4 mr-2" />
                 New Problem
               </Button>
               <Button
@@ -1004,9 +1011,9 @@ export default function LeetCodePage() {
                 className="btn-coffee-primary ml-2"
               >
                 {isLoadingSimilar ? (
-                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                  <IconRefresh className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
-                  <SparklesIcon className="h-4 w-4 mr-2" />
+                  <IconSparkles className="h-4 w-4 mr-2" />
                 )}
                 {isLoadingSimilar ? 'Generating...' : 'Try a Similar Problem'}
               </Button>
@@ -1051,7 +1058,7 @@ export default function LeetCodePage() {
                 style={{ minHeight: 120 }}
               >
                 <h3 className="text-lg font-semibold text-medium-coffee mb-4 flex items-center">
-                  <TrophyIcon className="h-5 w-5 mr-2" />
+                  <IconTrophy className="h-5 w-5 mr-2" />
                   Solution Steps
                 </h3>
                 <div className="space-y-3">
@@ -1076,7 +1083,7 @@ export default function LeetCodePage() {
                               ? 'bg-medium-coffee text-light-cream'
                               : 'bg-cream-beige text-dark-charcoal border border-medium-coffee/30'
                           }`}>
-                            {completedSteps.has(step.id) ? <CheckIcon className="h-4 w-4" /> : index + 1}
+                            {completedSteps.has(step.id) ? <IconCircleCheck className="h-4 w-4" /> : index + 1}
                           </div>
                           <div className="flex-1">
                             <p className={`text-sm leading-relaxed ${
@@ -1093,9 +1100,9 @@ export default function LeetCodePage() {
                                   className="btn-coffee-primary"
                                 >
                                   {isCheckingStep ? (
-                                    <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                                    <IconRefresh className="h-4 w-4 mr-2 animate-spin" />
                                   ) : (
-                                    <CheckIcon className="h-4 w-4 mr-2" />
+                                    <IconCircleCheck className="h-4 w-4 mr-2" />
                                   )}
                                   {isCheckingStep ? 'Checking...' : isAutoProgressing ? 'Progressing...' : 'Check Step'}
                                 </Button>
@@ -1122,7 +1129,7 @@ export default function LeetCodePage() {
           ) : (
             <div className="flex-1 flex items-center justify-center p-6">
               <div className="text-center">
-                <CodeBracketIcon className="h-16 w-16 text-dark-charcoal/50 mx-auto mb-4" />
+                <IconCode className="h-16 w-16 text-dark-charcoal/50 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-deep-espresso mb-2">Ready to Practice?</h3>
                 <p className="text-dark-charcoal/70 text-sm">
                   Describe a coding problem in the chat to get started with step-by-step guidance.
@@ -1156,9 +1163,9 @@ export default function LeetCodePage() {
               className="btn-coffee-primary"
             >
               {isRunning ? (
-                <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
+                <IconRefresh className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <PlayIcon className="h-4 w-4 mr-2" />
+                <IconPlayerPlay className="h-4 w-4 mr-2" />
               )}
               {isRunning ? 'Running...' : 'Run'}
             </Button>
@@ -1184,7 +1191,7 @@ export default function LeetCodePage() {
               <div className="w-16 h-1.5 bg-medium-coffee rounded-full opacity-70" />
             </div>
             {/* Test Cases Panel - always visible, even if empty */}
-            <div style={{ flex: `0 0 ${100 - editorHeightPercent}%`, minHeight: 0, overflow: 'auto', paddingTop: 6 }}>
+            <div style={{ flex: `0 0 ${100 - editorHeightPercent}%`, minHeight: 0, overflow: 'auto', paddingTop: 6, paddingBottom: 6 }}>
               {testCases && testCases.length > 0 ? (
                 <div className="w-full max-w-xl mx-auto mb-4 bg-gradient-to-br from-cream-beige via-[#f5e6d3] to-[#f3e0c7] border-2 border-medium-coffee rounded-3xl shadow-2xl h-full flex flex-col p-4" style={{ borderBottom: '2px solid #9B6C46' }}>
                   <div className="flex mb-2 gap-2">
@@ -1234,11 +1241,11 @@ export default function LeetCodePage() {
           <div className="bg-light-cream border-b border-cream-beige px-4 py-3">
             <div className="flex items-center space-x-3">
                <div className="w-8 h-8 bg-medium-coffee rounded-lg flex items-center justify-center">
-                 <ChatBubbleLeftRightIcon className="h-5 w-5 text-light-cream" />
+                 <IconMessage className="h-5 w-5 text-light-cream" />
                </div>
               <div>
-                <h3 className="text-sm font-semibold text-deep-espresso">AI Assistant</h3>
-                <p className="text-xs text-dark-charcoal/70">Get hints and guidance</p>
+                <h3 className="text-sm font-semibold text-deep-espresso">Brewster</h3>
+                <p className="text-xs text-dark-charcoal/70">Get hints, guidance, and chat with the problem</p>
               </div>
             </div>
           </div>
@@ -1294,9 +1301,9 @@ export default function LeetCodePage() {
                 className="btn-coffee-primary px-3"
               >
                 {isLoading ? (
-                  <ArrowPathIcon className="h-4 animate-spin" />
+                  <IconRefresh className="h-4 animate-spin" />
                 ) : (
-                  <PaperAirplaneIcon className="h-4 w-4" />
+                  <IconSend className="h-4 w-4" />
                 )}
               </Button>
             </div>
@@ -1310,6 +1317,7 @@ export default function LeetCodePage() {
         problems={leetcodeProblems}
         onSubmit={handleStartLeetCodeProject}
         isStartingProject={isProjectLoading}
+        isProblemsLoading={isProblemsLoading} // <-- pass new prop
       />
     </div>
   );

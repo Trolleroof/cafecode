@@ -254,7 +254,7 @@ router.get('/problem/:slug', async (req, res) => {
 router.get('/assigned', async (req, res) => {
   try {
     const leetcode = new LeetCode();
-    const problemsList = await leetcode.problems({ limit: 10 });
+    const problemsList = await leetcode.problems({ limit: 30 });
     const assigned = problemsList.questions.map(p => ({
       title: p.title,
       titleSlug: p.titleSlug,

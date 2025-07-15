@@ -1,22 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  PlayIcon, 
-  ArrowRightIcon, 
-  CodeBracketIcon, 
-  StarIcon, 
-  ChatBubbleLeftRightIcon, 
-  CheckIcon, 
-  PencilIcon, 
-  RocketLaunchIcon, 
-  HeartIcon, 
-  SparklesIcon, 
-  TrophyIcon, 
-  ArrowTrendingUpIcon,
-  LightBulbIcon,
-  ArrowPathIcon
-} from '@heroicons/react/24/outline';
+import {
+  IconPlayerPlay,
+  IconArrowRight,
+  IconCode,
+  IconStar,
+  IconMessage,
+  IconCircleCheck,
+  IconPencil,
+  IconRocket,
+  IconHeart,
+  IconSparkles,
+  IconTrophy,
+  IconTrendingUp,
+  IconBulb,
+  IconRefresh,
+} from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Header from '@/components/Header';
@@ -69,20 +69,13 @@ export default function Home() {
           animation: badgeHover 0.6s ease-in-out;
         }
       `}</style>
-      <div className="fixed bottom-2 right-2 z-50">
-        <a href="https://bolt.new/?rid=os72mi" target="_blank" rel="noopener noreferrer" className="block transition-all duration-300 hover:shadow-2xl">
-          <img src="https://storage.bolt.army/white_circle_360x360.png" alt="Built with Bolt.new badge" className="w-20 h-20 md:w-28 md:h-28 rounded-full shadow-lg bolt-badge bolt-badge-intro" />
-        </a>
-      </div>
-      <div className="min-h-screen bg-light-cream pt-8">
+      <div className="min-h-screen bg-light-cream">
         <Header />
 
         {/* Hero Section */}
-        <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20 pb-16 w-full">
-          {/* Coffee Shop Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-light-cream via-cream-beige to-medium-coffee/20"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(163,106,62,0.1),transparent_50%)]"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(129,77,51,0.1),transparent_50%)]"></div>
+        <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden w-full py-24 md:py-32">
+          {/* Uniform background color for hero section */}
+          <div className="absolute inset-0 bg-light-cream"></div>
           
           {/* Animated coffee elements */}
           <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-medium-coffee to-deep-espresso rounded-full opacity-10 animate-steam-rise blur-xl"></div>
@@ -90,36 +83,33 @@ export default function Home() {
           <div className="absolute bottom-1/3 left-20 w-20 h-20 bg-gradient-to-br from-medium-coffee to-cream-beige rounded-full opacity-10 animate-bean-bounce blur-xl" style={{ animationDelay: '4s' }}></div>
           <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-gradient-to-br from-deep-espresso to-medium-coffee rounded-full opacity-10 animate-float" style={{ animationDelay: '1s' }}></div>
 
-          <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col md:flex-row items-center px-4 gap-12 md:gap-20">
+          <div className="relative z-10 w-full max-w-[2000px] mx-auto flex flex-col md:flex-row items-center px-4 xl:px-16 2xl:px-32 gap-12 md:gap-20">
             {/* Left: Text Content */}
-            <div className="flex-1 flex flex-col items-start md:items-start text-left max-w-xl">
+            <div className="flex-1 flex flex-col pt-12 mt-8 items-start md:items-start text-left max-w-xl">
             {/* Coffee Shop Badge */}
-              <div className="inline-flex items-center space-x-3 coffee-glass rounded-full px-6 py-3 mb-6 shadow-xl border border-medium-coffee/20">
-              <SparklesIcon className="h-5 w-5 text-deep-espresso" />
-                <span className="text-xs font-bold text-dark-charcoal tracking-wide">Brewed for Real Learning</span>
-            </div>
+             
             {/* Main heading with coffee theme */}
-              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal mb-4 leading-tight">
+              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal leading-tight">
                 <span className="block mb-2">Ship Your Project,</span>
-                <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient leading-[1.2] py-1 mb-2">
+                <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient leading-[1.2] py-1 mb-6">
                   Sip Your Coffee
                 </span>
               </h1>
               {/* Coffee-themed Subheading */}
-              <p className="text-lg sm:text-xl lg:text-2xl text-deep-espresso mb-8 max-w-2xl leading-relaxed font-medium">
+              <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl text-medium-coffee mb-10 max-w-2xl leading-relaxed font-medium">
                 Actually learn to code to build projects in the time it takes to sip your morning coffee
-                <span className="block mt-4 font-bold text-dark-charcoal text-base sm:text-lg">The only rule? No vibecoding.</span>
+                <span className="block mt-4 font-bold text-dark-charcoal text-base sm:text-lg xl:text-xl">The only rule? No vibecoding.</span>
               </p>
               {/* Hero action buttons */}
-              <div className="flex gap-4 mb-8">
+              <div className="flex gap-6 mb-12">
                 <button
                   onClick={handleStartCoding}
-                  className="btn-coffee-primary px-8 py-4 text-lg font-bold rounded-xl shadow hover:shadow-lg transition flex items-center justify-center gap-2"
+                  className="btn-coffee-primary px-8 py-4 text-lg xl:text-2xl font-bold rounded-xl shadow hover:shadow-lg transition flex items-center justify-center gap-2"
                   disabled={loadingButton !== null}
                 >
                   {loadingButton === 'ide' ? (
                     <>
-                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                      <IconRefresh className="h-5 w-5 animate-spin" />
                       Loading IDE...
                     </>
                   ) : (
@@ -128,12 +118,12 @@ export default function Home() {
                 </button>
                 <button
                   onClick={handleLeetCodePractice}
-                  className="btn-coffee-secondary px-8 py-4 text-lg font-bold rounded-xl shadow hover:shadow-lg transition flex items-center justify-center gap-2"
+                  className="btn-coffee-secondary px-8 py-4 text-lg xl:text-2xl font-bold rounded-xl shadow hover:shadow-lg transition flex items-center justify-center gap-2"
                   disabled={loadingButton !== null}
                 >
                   {loadingButton === 'leet' ? (
                     <>
-                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                      <IconRefresh className="h-5 w-5 animate-spin" />
                       Loading Practice...
                     </>
                   ) : (
@@ -143,13 +133,14 @@ export default function Home() {
               </div>
             </div>
             {/* Right: Hero Image */}
-            <div className="flex-1 flex justify-center items-center w-full">
+            <div className="flex-1 flex justify-center items-center w-full max-w-3xl xl:max-w-5xl 2xl:max-w-6xl mx-auto">
               <Image
                 src="/images/demo.png"
                 alt="demo screen"
                 width={1600}
                 height={1100}
-                className="rounded-3xl shadow-2xl object-contain w-full h-full border-4 border-medium-coffee"
+                className="rounded-3xl shadow-2xl object-contain max-w-full h-auto max-h-[600px] border-4 border-medium-coffee"
+                style={{ maxWidth: '100%', height: 'auto' }}
               />
             </div>
           </div>
@@ -216,21 +207,21 @@ export default function Home() {
             <div className="space-y-32">
               {[
                 {
-                  icon: PencilIcon,
+                  icon: IconPencil,
                   title: 'Grind Your Skills',
                   description: 'Work on projects that matter to you, and receive guidance that helps you make real progress on your programs. Like selecting the perfect coffee beans.',
                   image: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=600',
                   color: 'from-medium-coffee to-deep-espresso'
                 },
                 {
-                  icon: ChatBubbleLeftRightIcon,
+                  icon: IconMessage,
                   title: 'Extract Knowledge',
                   description: 'Stuck on something? Our AI barista provides contextual hints and applies small code fixes to help you understand what you code quicker.',
                   image: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=600',
                   color: 'from-deep-espresso to-medium-coffee'
                 },
                 {
-                  icon: CheckIcon,
+                  icon: IconCircleCheck,
                   title: 'Serve Excellence',
                   description: 'Learn and practice the most common LeetCode patterns asked to applicants during SWE interviews to get the job. Perfect your craft.',
                   image: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=600',
@@ -259,7 +250,7 @@ export default function Home() {
                     </p>
                     <button className="inline-flex items-center text-medium-coffee font-bold text-xl hover:text-deep-espresso transition-colors group">
                       Learn more
-                      <ArrowRightIcon className="ml-4 h-6 w-6 group-hover:translate-x-2 transition-transform" />
+                      <IconArrowRight className="ml-4 h-6 w-6 group-hover:translate-x-2 transition-transform" />
                     </button>
                   </div>
 
@@ -290,7 +281,7 @@ export default function Home() {
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-24">
               <div className="inline-flex items-center space-x-3 bg-medium-coffee/10 rounded-full px-6 py-3 mb-8">
-                <TrophyIcon className="h-5 w-5 text-deep-espresso" />
+                <IconTrophy className="h-5 w-5 text-deep-espresso" />
                 <span className="text-dark-charcoal font-semibold text-sm">Customer Reviews</span>
               </div>
               
@@ -336,11 +327,11 @@ export default function Home() {
                 >
                   <div className="flex items-center mb-8">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <StarIcon key={i} className="h-7 w-7 text-medium-coffee fill-current" />
+                      <IconStar key={i} className="h-7 w-7 text-medium-coffee fill-current" />
                     ))}
                   </div>
                   
-                  <ChatBubbleLeftRightIcon className="h-12 w-12 text-medium-coffee/50 mb-8" />
+                  <IconMessage className="h-12 w-12 text-medium-coffee/50 mb-8" />
                   
                   <p className="text-dark-charcoal mb-10 leading-relaxed text-xl">
                     "{testimonial.content}"
@@ -372,7 +363,7 @@ export default function Home() {
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-24">
               <div className="inline-flex items-center space-x-3 bg-deep-espresso/10 rounded-full px-6 py-3 mb-8">
-                <ArrowTrendingUpIcon className="h-5 w-5 text-deep-espresso" />
+                <IconTrendingUp className="h-5 w-5 text-deep-espresso" />
                 <span className="text-dark-charcoal font-semibold text-sm">Our Menu</span>
               </div>
               
@@ -451,7 +442,7 @@ export default function Home() {
                   {plan.popular && (
                     <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
                       <div className="bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream px-8 py-4 rounded-full text-sm font-bold flex items-center space-x-3 shadow-xl">
-                        <SparklesIcon className="h-6 w-6" />
+                        <IconSparkles className="h-6 w-6" />
                         <span>Most Popular</span>
                       </div>
                     </div>
@@ -469,7 +460,7 @@ export default function Home() {
                   <ul className="space-y-6 mb-12">
                     {plan.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-center">
-                        <CheckIcon className="h-7 w-7 text-medium-coffee mr-5 flex-shrink-0" />
+                        <IconCircleCheck className="h-7 w-7 text-medium-coffee mr-5 flex-shrink-0" />
                         <span className="text-dark-charcoal text-xl">{feature}</span>
                       </li>
                     ))}
@@ -494,15 +485,15 @@ export default function Home() {
               </p>
               <div className="flex items-center justify-center space-x-12 text-deep-espresso font-semibold text-lg">
                 <span className="flex items-center">
-                  <CheckIcon className="h-6 w-6 text-medium-coffee mr-3" />
+                  <IconCircleCheck className="h-6 w-6 text-medium-coffee mr-3" />
                   Cancel anytime
                 </span>
                 <span className="flex items-center">
-                  <CheckIcon className="h-6 w-6 text-medium-coffee mr-3" />
+                  <IconCircleCheck className="h-6 w-6 text-medium-coffee mr-3" />
                   30-day money back guarantee
                 </span>
                        <span className="flex items-center">
-                  <CheckIcon className="h-6 w-6 text-medium-coffee mr-3" />
+                  <IconCircleCheck className="h-6 w-6 text-medium-coffee mr-3" />
                   No setup fees
                 </span>
               </div>
