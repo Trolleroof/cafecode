@@ -54,6 +54,7 @@
     "@vercel/speed-insights": "^1.2.0",
     "@xterm/addon-clipboard": "^0.1.0",
     "autoprefixer": "10.4.15",
+    "axios": "^1.10.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
