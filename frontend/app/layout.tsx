@@ -6,6 +6,8 @@ import '@fontsource/jetbrains-mono';
 import '@fontsource/comfortaa';
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { usePathname } from 'next/navigation';
+import { Toaster } from "@/components/ui/sonner"
+import { Analytics } from "@vercel/analytics/react"
 
 export const metadata: Metadata = {
   title: 'Cafécode',
@@ -41,7 +43,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
        {children}
         <SpeedInsights />
-        
+        <Analytics />
       </body>
     </html>
   )

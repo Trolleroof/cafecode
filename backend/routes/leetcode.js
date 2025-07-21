@@ -253,7 +253,7 @@ router.get('/problem/:slug', async (req, res) => {
 // GET /api/leetcode/assigned - Get first 10 assigned LeetCode problems
 router.get('/assigned', async (req, res) => {
   try {
-    const leetcode = new LeetCode();
+    const leetcode = new LeetCode(); 
     const problemsList = await leetcode.problems({ limit: 30 });
     const assigned = problemsList.questions.map(p => ({
       title: p.title,

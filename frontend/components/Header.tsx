@@ -3,29 +3,68 @@
 import React, { useState } from 'react';
 import { Bars3Icon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
+import { supabase } from '../lib/supabase';
+import { useEffect } from 'react';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'leet'>(null);
   const router = useRouter();
+  const [session, setSession] = useState<any>(null);
+  const [loadingBrewing, setLoadingBrewing] = useState(false);
+  // Removed: showAuthModal, authLoading, authError, authEmail, authPassword, pendingRoute
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    // Listen for route changes to stop loading animation when /login loads
+    const handleRouteChange = (url: string) => {
+      if (url === '/login') {
+        setLoadingBrewing(false);
+      }
+    };
+    router.events?.on?.('routeChangeComplete', handleRouteChange);
+    return () => {
+      router.events?.off?.('routeChangeComplete', handleRouteChange);
+    };
+  }, [router]);
 
   const handleNavClick = (href: string) => {
     setIsMenuOpen(false);
-    // Smooth scroll to section
     const element = document.querySelector(href);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
   const handleGoToIDE = () => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
     setLoadingButton('ide');
     setTimeout(() => {
       router.push('/ide');
     }, 900);
   };
-
   const handleGoToLeet = () => {
+    if (!session) {
+      router.push('/login');
+      return;
+    }
     setLoadingButton('leet');
     setTimeout(() => {
       router.push('/leetcode');
@@ -37,7 +76,7 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 lg:h-20">
           {/* Coffee Shop Logo */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => router.push('/')}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => router.push('/')}> 
             <div className="animate-warm-glow">
               <img src="/images/logo.png" alt="Cafécode Logo" className="h-8 w-8 lg:h-10 lg:w-10 object-contain rounded-xl" />
             </div>
@@ -83,34 +122,30 @@ const Header = () => {
 
           {/* Desktop CTA Buttons */}
           <div className="hidden lg:flex items-center space-x-4">
-            <button
-              onClick={handleGoToIDE}
-              className="btn-coffee-primary px-6 py-2.5 text-lg shadow-lg hover:shadow-coffee flex items-center gap-2"
-              disabled={loadingButton !== null}
-            >
-              {loadingButton === 'ide' ? (
-                <>
-                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                  Loading IDE...
-                </>
-              ) : (
-                'Go to IDE'
-              )}
-            </button>
-            <button
-              onClick={handleGoToLeet}
-              className="btn-coffee-secondary px-6 py-2.5 text-lg shadow-lg hover:shadow-coffee flex items-center gap-2"
-              disabled={loadingButton !== null}
-            >
-              {loadingButton === 'leet' ? (
-                <>
-                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                  Loading Practice...
-                </>
-              ) : (
-                'LeetCode Practice'
-              )}
-            </button>
+            {session ? (
+              <>
+                <span className="text-cream-beige text-sm mr-2">{session.user.email}</span>
+                <button onClick={handleSignOut} className="btn-coffee-secondary px-4 py-2 text-sm">Sign Out</button>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  setLoadingBrewing(true);
+                  router.push('/login');
+                }}
+                className="btn-coffee-primary px-6 py-2.5 text-lg shadow-lg hover:shadow-coffee flex items-center gap-2"
+                disabled={loadingBrewing}
+              >
+                {loadingBrewing ? (
+                  <>
+                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Start Brewing'
+                )}
+              </button>
+            )}
           </div>
 
           {/* Mobile CTA Button & User Menu */}
@@ -127,6 +162,30 @@ const Header = () => {
                 <Bars3Icon className="h-6 w-6 text-cream-beige" />
               )}
             </button>
+            {session ? (
+              <>
+                <span className="text-cream-beige text-xs mr-2">{session.user.email}</span>
+                <button onClick={handleSignOut} className="btn-coffee-secondary px-3 py-1 text-xs">Sign Out</button>
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  setLoadingBrewing(true);
+                  router.push('/login');
+                }}
+                className="btn-coffee-primary px-4 py-2 text-xs shadow-lg hover:shadow-coffee flex items-center gap-2"
+                disabled={loadingBrewing}
+              >
+                {loadingBrewing ? (
+                  <>
+                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Start Brewing'
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -160,34 +219,6 @@ const Header = () => {
               className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
             >
               Menu
-            </button>
-            <button
-              onClick={handleGoToIDE}
-              className="btn-coffee-primary text-left text-lg py-2 flex items-center gap-2"
-              disabled={loadingButton !== null}
-            >
-              {loadingButton === 'ide' ? (
-                <>
-                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                  Loading IDE...
-                </>
-              ) : (
-                'Go to IDE'
-              )}
-            </button>
-            <button
-              onClick={handleGoToLeet}
-              className="btn-coffee-secondary text-left text-lg py-2 flex items-center gap-2"
-              disabled={loadingButton !== null}
-            >
-              {loadingButton === 'leet' ? (
-                <>
-                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
-                  Loading Practice...
-                </>
-              ) : (
-                'LeetCode Practice'
-              )}
             </button>
           </nav>
         </div>
