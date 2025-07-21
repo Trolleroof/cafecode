@@ -46,7 +46,9 @@ const Terminal: React.FC = () => {
         // Send initial size
         if (fitAddonRef.current) {
           const { cols, rows } = fitAddonRef.current.proposeDimensions() || { cols: 80, rows: 24 };
-          ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+          if (ws) {
+            ws!.send(JSON.stringify({ type: 'resize', cols, rows }));
+          }
         }
       };
       ws.onmessage = (event) => term.write(event.data);

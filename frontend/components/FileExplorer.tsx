@@ -391,15 +391,15 @@ const FileTreeNode: React.FC<{
               onDelete={onDelete}
               onMove={onMove}
               selectedFileId={selectedFileId}
-              onCreateFile={(parentId) => handleShowCreate(parentId, 'file')}
-              onCreateFolder={(parentId) => handleShowCreate(parentId, 'folder')}
+              onCreateFile={onCreateFile}
+              onCreateFolder={onCreateFolder}
               searchTerm={searchTerm}
               searchFilter={searchFilter}
               maxDepth={maxDepth}
               draggedFileId={draggedFileId}
-              onDragStart={setDraggedFileId}
-              onDragEnd={() => setDraggedFileId(undefined)}
-              onDrop={() => {}}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              onDrop={onDrop}
             />
           ))}
         </div>
@@ -656,7 +656,7 @@ export default function FileExplorer({
         level={level}
         onSelect={handleFileSelect}
         onDelete={handleDelete}
-        onMove={undefined}
+        onMove={undefined} // onMove is not implemented yet
         selectedFileId={selectedFileId}
         onCreateFile={(parentId) => handleShowCreate(parentId, 'file')}
         onCreateFolder={(parentId) => handleShowCreate(parentId, 'folder')}
@@ -666,7 +666,7 @@ export default function FileExplorer({
         draggedFileId={draggedFileId}
         onDragStart={setDraggedFileId}
         onDragEnd={() => setDraggedFileId(undefined)}
-        onDrop={undefined}
+        onDrop={undefined} // onDrop is not implemented yet
       />
     ));
 
