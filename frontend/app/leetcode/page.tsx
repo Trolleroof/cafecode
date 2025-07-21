@@ -22,6 +22,7 @@ import { OnChange } from '@monaco-editor/react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 interface ChatMessage {
   type: 'user' | 'assistant';
@@ -324,7 +325,7 @@ function getSafeField(obj: Record<string, any> | undefined, keys: string[], fall
   return fallback;
 }
 
-export default function LeetCodePage() {
+function LeetCodePage() {
   const router = useRouter();
   const [code, setCode] = useState('// Start coding your solution here\n\n');
   const [language, setLanguage] = useState('javascript');
@@ -1320,5 +1321,14 @@ export default function LeetCodePage() {
         isProblemsLoading={isProblemsLoading} // <-- pass new prop
       />
     </div>
+  );
+}
+
+// Wrap export
+export default function ProtectedLeetCodePageWrapper() {
+  return (
+    <ProtectedRoute>
+      <LeetCodePage />
+    </ProtectedRoute>
   );
 }

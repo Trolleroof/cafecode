@@ -1,7 +1,25 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { File, Folder, FolderOpen, Plus, X, FileText, Code, Globe, Search, Menu, GripVertical } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  File,
+  Folder,
+  FolderOpen,
+  Plus,
+  X,
+  FileText,
+  Code,
+  Globe,
+  Palette,
+  FileCode2,
+  Search,
+  Menu,
+  GripVertical
+} from 'lucide-react';
+
+// Add axios for API calls
+import axios from 'axios';
+import { useAuth } from '@/hooks/useAuth';
 
 interface FileNode {
   id: string;
@@ -14,7 +32,6 @@ interface FileNode {
 
 interface FileExplorerProps {
   files: FileNode[];
-  onFileSelect: (file: FileNode) => void;
   onFileCreate: (parentId: string | null, type: 'file' | 'folder', name: string) => void;
   onFileDelete: (fileId: string) => void;
   onFileMove?: (fileId: string, newParentId: string | null) => void;
@@ -22,6 +39,8 @@ interface FileExplorerProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   stepProgression?: React.ReactNode;
+  onRefresh?: () => void; // <-- Add this prop
+  onFileSelect?: (file: FileNode) => void;
 }
 
 type SearchFilter = 'all' | 'name';
@@ -29,23 +48,138 @@ type SearchFilter = 'all' | 'name';
 const getFileIcon = (fileName: string) => {
   const extension = fileName.split('.').pop()?.toLowerCase();
   switch (extension) {
-    case 'html':
-      return <Globe className="h-4 w-4 text-medium-coffee flex-shrink-0" />;
-    case 'css':
-      return <FileText className="h-4 w-4 text-deep-espresso flex-shrink-0" />;
-    case 'js':
-      return <Code className="h-4 w-4 text-medium-coffee flex-shrink-0" />;
     case 'py':
-      return <Code className="h-4 w-4 text-medium-coffee flex-shrink-0" />;
+      return <Code className="h-5 w-5 text-green-600 flex-shrink-0" />;
+    case 'js':
+    case 'jsx':
+      return <FileCode2 className="h-5 w-5 text-yellow-400 flex-shrink-0" />;
+    case 'ts':
+    case 'tsx':
+      return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
+    case 'java':
+      return <FileCode2 className="h-5 w-5 text-red-600 flex-shrink-0" />;
+    case 'cpp':
+    case 'c':
+    case 'h':
+      return <FileCode2 className="h-5 w-5 text-indigo-500 flex-shrink-0" />;
+    case 'cs':
+      return <FileCode2 className="h-5 w-5 text-purple-500 flex-shrink-0" />;
+    case 'go':
+      return <FileCode2 className="h-5 w-5 text-cyan-600 flex-shrink-0" />;
+    case 'rb':
+      return <FileCode2 className="h-5 w-5 text-pink-500 flex-shrink-0" />;
+    case 'php':
+      return <FileCode2 className="h-5 w-5 text-indigo-400 flex-shrink-0" />;
+    case 'html':
+      return <Globe className="h-5 w-5 text-orange-500 flex-shrink-0" />;
+    case 'css':
+      return <Palette className="h-5 w-5 text-blue-500 flex-shrink-0" />;
+    case 'json':
+      return <FileText className="h-5 w-5 text-amber-500 flex-shrink-0" />;
+    case 'xml':
+      return <FileText className="h-5 w-5 text-purple-400 flex-shrink-0" />;
+    case 'sh':
+      return <FileCode2 className="h-5 w-5 text-gray-600 flex-shrink-0" />;
+    case 'md':
+      return <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />;
+    case 'swift':
+      return <FileCode2 className="h-5 w-5 text-orange-400 flex-shrink-0" />;
+    case 'kt':
+      return <FileCode2 className="h-5 w-5 text-pink-400 flex-shrink-0" />;
+    case 'rs':
+      return <FileCode2 className="h-5 w-5 text-orange-700 flex-shrink-0" />;
+    case 'sql':
+      return <FileCode2 className="h-5 w-5 text-blue-700 flex-shrink-0" />;
+    case 'yaml':
+    case 'yml':
+      return <FileText className="h-5 w-5 text-yellow-700 flex-shrink-0" />;
+    case 'dockerfile':
+      return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
+    case 'bat':
+      return <FileCode2 className="h-5 w-5 text-gray-700 flex-shrink-0" />;
+    case 'pl':
+      return <FileCode2 className="h-5 w-5 text-pink-700 flex-shrink-0" />;
+    case 'r':
+      return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
+    case 'scala':
+      return <FileCode2 className="h-5 w-5 text-red-700 flex-shrink-0" />;
+    case 'lua':
+      return <FileCode2 className="h-5 w-5 text-indigo-700 flex-shrink-0" />;
+    case 'dart':
+      return <FileCode2 className="h-5 w-5 text-cyan-700 flex-shrink-0" />;
+    case 'ini':
+      return <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />;
+    case 'makefile':
+      return <FileCode2 className="h-5 w-5 text-gray-500 flex-shrink-0" />;
+    case 'toml':
+      return <FileText className="h-5 w-5 text-green-700 flex-shrink-0" />;
+    case 'vue':
+      return <FileCode2 className="h-5 w-5 text-green-500 flex-shrink-0" />;
+    case 'svelte':
+      return <FileCode2 className="h-5 w-5 text-orange-600 flex-shrink-0" />;
+    case 'scss':
+      return <Palette className="h-5 w-5 text-pink-400 flex-shrink-0" />;
+    case 'less':
+      return <Palette className="h-5 w-5 text-blue-300 flex-shrink-0" />;
+    case 'coffee':
+      return <FileCode2 className="h-5 w-5 text-yellow-700 flex-shrink-0" />;
     default:
-      return <File className="h-4 w-4 text-deep-espresso flex-shrink-0" />;
+      return <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />;
   }
 };
 
-// Helper function to validate file extensions
 const isValidFileExtension = (fileName: string): boolean => {
   const extension = fileName.split('.').pop()?.toLowerCase();
-  return ['py', 'css', 'html', 'js'].includes(extension || '');
+  return [
+    'js','ts','py','java','cpp','c','cs','go','rb','php','html','css','json','xml','sh','md','swift','kt','rs','sql','yaml','yml','dockerfile','bat','pl','r','scala','lua','dart','ini','makefile','toml','vue','svelte','scss','less','coffee','h','tsx','jsx'
+  ].includes(extension || '');
+};
+
+const getLanguageFromFileName = (fileName: string): string => {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  switch (extension) {
+    case 'js': return 'javascript';
+    case 'ts': return 'typescript';
+    case 'py': return 'python';
+    case 'java': return 'java';
+    case 'cpp': return 'cpp';
+    case 'c': return 'c';
+    case 'cs': return 'csharp';
+    case 'go': return 'go';
+    case 'rb': return 'ruby';
+    case 'php': return 'php';
+    case 'html': return 'html';
+    case 'css': return 'css';
+    case 'json': return 'json';
+    case 'xml': return 'xml';
+    case 'sh': return 'shell';
+    case 'md': return 'markdown';
+    case 'swift': return 'swift';
+    case 'kt': return 'kotlin';
+    case 'rs': return 'rust';
+    case 'sql': return 'sql';
+    case 'yaml':
+    case 'yml': return 'yaml';
+    case 'dockerfile': return 'dockerfile';
+    case 'bat': return 'bat';
+    case 'pl': return 'perl';
+    case 'r': return 'r';
+    case 'scala': return 'scala';
+    case 'lua': return 'lua';
+    case 'dart': return 'dart';
+    case 'ini': return 'ini';
+    case 'makefile': return 'makefile';
+    case 'toml': return 'toml';
+    case 'vue': return 'vue';
+    case 'svelte': return 'svelte';
+    case 'scss': return 'scss';
+    case 'less': return 'less';
+    case 'coffee': return 'coffeescript';
+    case 'h': return 'cpp';
+    case 'tsx': return 'typescript';
+    case 'jsx': return 'javascript';
+    default: return 'plaintext';
+  }
 };
 
 const FileTreeNode: React.FC<{
@@ -164,11 +298,14 @@ const FileTreeNode: React.FC<{
   return (
     <div>
       <div
-        className={`flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-cream-beige rounded group relative ${
-          selectedFileId === node.id ? 'bg-medium-coffee text-light-cream' : 'text-deep-espresso'
-        } ${
-          isDragOver ? 'bg-medium-coffee/20 border-2 border-medium-coffee border-dashed' : ''
-        }`}
+        className={`
+          flex items-center gap-2 px-2 py-1 cursor-pointer rounded group relative
+          transition-colors duration-150 my-0.5
+          ${selectedFileId === node.id
+            ? 'bg-medium-coffee text-light-cream font-semibold border-l-4 border-orange-400'
+            : 'hover:bg-cream-beige text-deep-espresso'}
+          ${isDragOver ? 'bg-medium-coffee/20 border-2 border-medium-coffee border-dashed' : ''}
+        `}
         style={{ paddingLeft: `${Math.min(level * 16 + 8, 200)}px` }}
         onClick={handleClick}
         onMouseEnter={() => setShowActions(true)}
@@ -189,15 +326,15 @@ const FileTreeNode: React.FC<{
         
         {node.type === 'folder' ? (
           isExpanded ? (
-            <FolderOpen className="h-4 w-4 text-medium-coffee flex-shrink-0" />
+            <FolderOpen className="h-5 w-5 text-orange-400 flex-shrink-0" />
           ) : (
-            <Folder className="h-4 w-4 text-medium-coffee flex-shrink-0" />
+            <Folder className="h-5 w-5 text-orange-400 flex-shrink-0" />
           )
         ) : (
           getFileIcon(node.name)
         )}
         <span 
-          className="text-sm flex-1 min-w-0 truncate"
+          className="text-sm flex-1 min-w-0 truncate font-mono"
           title={node.name}
         >
           {node.name}
@@ -254,15 +391,15 @@ const FileTreeNode: React.FC<{
               onDelete={onDelete}
               onMove={onMove}
               selectedFileId={selectedFileId}
-              onCreateFile={onCreateFile}
-              onCreateFolder={onCreateFolder}
+              onCreateFile={(parentId) => handleShowCreate(parentId, 'file')}
+              onCreateFolder={(parentId) => handleShowCreate(parentId, 'folder')}
               searchTerm={searchTerm}
               searchFilter={searchFilter}
               maxDepth={maxDepth}
               draggedFileId={draggedFileId}
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-              onDrop={onDrop}
+              onDragStart={setDraggedFileId}
+              onDragEnd={() => setDraggedFileId(undefined)}
+              onDrop={() => {}}
             />
           ))}
         </div>
@@ -271,17 +408,123 @@ const FileTreeNode: React.FC<{
   );
 };
 
+// Helper: Convert backend recursive file list to FileNode tree
+function convertBackendFilesToTree(backendFiles: any[]): FileNode[] {
+  // backendFiles: [{ name, isDirectory } ...] with paths like 'src/index.js'
+  const root: { [key: string]: FileNode } = {};
+  for (const file of backendFiles) {
+    const parts = file.name.split('/');
+    let current = root;
+    let pathSoFar = '';
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      pathSoFar = pathSoFar ? pathSoFar + '/' + part : part;
+      if (!current[part]) {
+        const isFolder = (i < parts.length - 1) || file.isDirectory;
+        current[part] = {
+          id: pathSoFar,
+          name: part,
+          type: isFolder ? 'folder' : 'file',
+          children: isFolder ? [] : undefined,
+        };
+      }
+      if (i === parts.length - 1) {
+        // Mark as file or folder
+        current[part].type = file.isDirectory ? 'folder' : 'file';
+      }
+      if (i < parts.length - 1) {
+        // Find or create the child folder in the array
+        let child = (current[part].children as FileNode[]);
+        // Convert array to object for next iteration
+        let childObj: { [key: string]: FileNode } = {};
+        for (const c of child) {
+          childObj[c.name] = c;
+        }
+        current[part].children = child;
+        current = childObj;
+      }
+    }
+  }
+  // Convert root object to array recursively
+  function toArray(obj: { [key: string]: FileNode }): FileNode[] {
+    return Object.values(obj).map((node) =>
+      node.type === 'folder' && node.children
+        ? { ...node, children: toArray(arrayToObj(node.children)) }
+        : { ...node }
+    );
+  }
+  // Helper to convert array of FileNode to object by name
+  function arrayToObj(arr: FileNode[] = []): { [key: string]: FileNode } {
+    const obj: { [key: string]: FileNode } = {};
+    for (const node of arr) {
+      obj[node.name] = node;
+    }
+    return obj;
+  }
+  return toArray(root);
+}
+
+// Helper: Find a node by id in the tree
+function findNodeById(id: string, nodes: FileNode[]): FileNode | null {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    if (node.type === 'folder' && node.children) {
+      const found = findNodeById(id, node.children);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// Helper: Get path from id (id is the path)
+function getPathFromId(id: string, nodes: FileNode[]): string {
+  return id;
+}
+
+// Helper: Build path from parentId and name
+function buildPathFromId(parentId: string | null, name: string, nodes: FileNode[]): string {
+  if (!parentId || parentId === '.') return name;
+  return parentId + '/' + name;
+}
+
+// Helper: Get parent id from file id
+function getParentId(id: string, nodes: FileNode[]): string | null {
+  const parts = id.split('/');
+  if (parts.length <= 1) return null;
+  parts.pop();
+  return parts.join('/') || '.';
+}
+
 export default function FileExplorer({
-  files,
-  onFileSelect,
-  onFileCreate,
-  onFileDelete,
-  onFileMove,
   selectedFileId,
   isCollapsed = false,
   onToggleCollapse,
   stepProgression,
-}: FileExplorerProps) {
+  onRefresh,
+  onFileSelect,
+}: Omit<FileExplorerProps, 'files' | 'onFileCreate' | 'onFileDelete' | 'onFileMove'>) {
+  // Get Supabase session for authentication
+  const { session } = useAuth();
+  
+  // Internal state for file tree
+  const [files, setFiles] = useState<FileNode[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
+  const [refreshFlag, setRefreshFlag] = useState(0);
+
+  // Helper to get auth headers
+  const getAuthHeaders = () => {
+    if (!session?.access_token) {
+      throw new Error('No authentication token available');
+    }
+    return {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json'
+    };
+  };
+
+  // UI: Create file/folder dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createType, setCreateType] = useState<'file' | 'folder'>('file');
   const [createParentId, setCreateParentId] = useState<string | null>(null);
@@ -290,50 +533,152 @@ export default function FileExplorer({
   const [searchFilter, setSearchFilter] = useState<SearchFilter>('all');
   const [draggedFileId, setDraggedFileId] = useState<string | undefined>(undefined);
 
-  const handleCreate = () => {
-    if (newName.trim()) {
-      // Validate file extension for files
-      if (createType === 'file' && !isValidFileExtension(newName.trim())) {
-        alert('Only .py (Python), .css (CSS), and .html (HTML) files are allowed!');
+  // Fetch file tree from backend
+  const fetchFiles = async () => {
+    if (!session?.access_token) {
+      setError('Authentication required');
         return;
       }
       
-      onFileCreate(createParentId, createType, newName.trim());
-      setShowCreateDialog(false);
-      setNewName('');
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.get('http://localhost:8000/api/files/list?recursive=true', {
+        headers: getAuthHeaders()
+      });
+      // Adapt backend data to FileNode[]
+      const nodes = convertBackendFilesToTree(res.data.files);
+      setFiles(nodes);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load files');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCreateFile = (parentId: string | null) => {
-    setCreateType('file');
-    setCreateParentId(parentId);
-    setShowCreateDialog(true);
-  };
-
-  const handleCreateFolder = (parentId: string | null) => {
-    setCreateType('folder');
-    setCreateParentId(parentId);
-    setShowCreateDialog(true);
-  };
-
-  const handleDragStart = (fileId: string) => {
-    setDraggedFileId(fileId);
-  };
-
-  const handleDragEnd = () => {
-    setDraggedFileId(undefined);
-  };
-
-  const handleDrop = (targetFileId: string) => {
-    if (draggedFileId && onFileMove) {
-      onFileMove(draggedFileId, targetFileId);
-      setDraggedFileId(undefined);
+  useEffect(() => {
+    if (session?.access_token) {
+      fetchFiles();
     }
+    // eslint-disable-next-line
+  }, [refreshFlag, session]);
+
+  // Helper to trigger refresh
+  const triggerRefresh = () => setRefreshFlag(f => f + 1);
+
+  // Fetch file content from backend
+  const fetchFileContent = async (file: FileNode) => {
+    try {
+      const res = await axios.get(`http://localhost:8000/api/files/read`, {
+        params: { path: file.id },
+        headers: getAuthHeaders(),
+      });
+      return res.data.data;
+    } catch (err) {
+      return '';
+    }
+  };
+
+  // File select handler
+  const handleFileSelect = async (file: FileNode) => {
+    if (file.type === 'file') {
+      const content = await fetchFileContent(file);
+      const language = getLanguageFromFileName(file.name);
+      const fileWithContent = { ...file, content, language };
+      setSelectedFile(fileWithContent);
+      if (onFileSelect) onFileSelect(fileWithContent);
+    }
+  };
+
+  // File operations
+  const handleCreate = async (parentId: string | null, type: 'file' | 'folder', name: string) => {
+    try {
+      await axios.post('http://localhost:8000/api/files/create', 
+        { path: buildPathFromId(parentId, name, files), isFolder: type === 'folder' },
+        { headers: getAuthHeaders() }
+      );
+      triggerRefresh();
+    } catch (err) {
+      alert('Failed to create ' + type);
+    }
+  };
+
+  const handleDelete = async (fileId: string) => {
+    try {
+      await axios.delete('http://localhost:8000/api/files/delete', { 
+        data: { path: getPathFromId(fileId, files) },
+        headers: getAuthHeaders()
+      });
+      triggerRefresh();
+    } catch (err) {
+      alert('Failed to delete');
+    }
+  };
+
+  const handleRename = async (fileId: string, newName: string) => {
+    try {
+      const oldPath = getPathFromId(fileId, files);
+      const newPath = buildPathFromId(getParentId(fileId, files), newName, files);
+      await axios.post('http://localhost:8000/api/files/rename', 
+        { oldPath, newPath },
+        { headers: getAuthHeaders() }
+      );
+      triggerRefresh();
+    } catch (err) {
+      alert('Failed to rename');
+    }
+  };
+
+  // UI: Create file/folder dialog
+  const handleShowCreate = (parentId: string | null, type: 'file' | 'folder') => {
+    setCreateParentId(parentId);
+    setCreateType(type);
+    setShowCreateDialog(true);
+    setNewName('');
+  };
+  const handleCreateConfirm = async () => {
+    if (!newName.trim()) return;
+    if (createType === 'file' && !isValidFileExtension(newName.trim())) {
+      alert('Only .py, .css, .html, .js files allowed!');
+      return;
+    }
+    await handleCreate(createParentId, createType, newName.trim());
+    setShowCreateDialog(false);
+    setNewName('');
+  };
+
+  // UI: Render file tree
+  const renderTree = (nodes: FileNode[], level = 0) =>
+    nodes.map((file) => (
+      <FileTreeNode
+        key={file.id}
+        node={file}
+        level={level}
+        onSelect={handleFileSelect}
+        onDelete={handleDelete}
+        onMove={undefined}
+        selectedFileId={selectedFileId}
+        onCreateFile={(parentId) => handleShowCreate(parentId, 'file')}
+        onCreateFolder={(parentId) => handleShowCreate(parentId, 'folder')}
+        searchTerm={searchTerm}
+        searchFilter={searchFilter}
+        maxDepth={10}
+        draggedFileId={draggedFileId}
+        onDragStart={setDraggedFileId}
+        onDragEnd={() => setDraggedFileId(undefined)}
+        onDrop={undefined}
+      />
+    ));
+
+  // UI: Refresh button
+  const handleRefresh = () => {
+    triggerRefresh();
+    if (onRefresh) onRefresh();
   };
 
   if (isCollapsed) {
     return (
-      <div className="h-full bg-light-cream border-r border-cream-beige flex flex-col w-12">
+      <div className="h-full bg-light-cream border-r border-cream-beige flex flex-col">
         <div className="flex items-center justify-center p-2 border-b border-cream-beige">
           <button
             onClick={onToggleCollapse}
@@ -346,11 +691,6 @@ export default function FileExplorer({
         <div className="flex-1 flex flex-col items-center justify-center space-y-2">
           <div className="p-2 rounded-lg bg-cream-beige/50 hover:bg-cream-beige transition-colors duration-200">
             <File className="h-5 w-5 text-deep-espresso" />
-          </div>
-          <div className="text-center">
-            <div className="w-1 h-1 bg-deep-espresso rounded-full mx-auto mb-1"></div>
-            <div className="w-1 h-1 bg-deep-espresso rounded-full mx-auto mb-1"></div>
-            <div className="w-1 h-1 bg-deep-espresso rounded-full mx-auto"></div>
           </div>
         </div>
       </div>
@@ -373,19 +713,31 @@ export default function FileExplorer({
         </div>
         <div className="flex gap-1">
           <button
-            onClick={() => handleCreateFile(null)}
+            onClick={() => handleShowCreate(null, 'file')}
             className="p-1 hover:bg-cream-beige rounded"
             title="New File"
           >
             <Plus className="h-4 w-4 text-deep-espresso" />
           </button>
           <button
-            onClick={() => handleCreateFolder(null)}
+            onClick={() => handleShowCreate(null, 'folder')}
             className="p-1 hover:bg-cream-beige rounded"
             title="New Folder"
           >
             <Folder className="h-4 w-4 text-deep-espresso" />
           </button>
+          {/* Refresh Button */}
+          {onRefresh && (
+            <button
+              onClick={handleRefresh}
+              className="p-1 hover:bg-cream-beige rounded"
+              title="Refresh File List"
+            >
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-deep-espresso">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0012 19a7 7 0 006.418-4M18.418 15A7.003 7.003 0 0012 5a7 7 0 00-6.418 4" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -413,63 +765,35 @@ export default function FileExplorer({
               <p className="text-deep-espresso/50 text-xs mt-1">Create your first file to get started</p>
             </div>
           ) : (
-            files.map((file) => (
-              <FileTreeNode
-                key={file.id}
-                node={file}
-                level={0}
-                onSelect={onFileSelect}
-                onDelete={onFileDelete}
-                onMove={onFileMove}
-                selectedFileId={selectedFileId}
-                onCreateFile={handleCreateFile}
-                onCreateFolder={handleCreateFolder}
-                searchTerm={searchTerm}
-                searchFilter={searchFilter}
-                draggedFileId={draggedFileId}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDrop={handleDrop}
-              />
-            ))
+            renderTree(files)
           )}
         </div>
       </div>
 
       {/* Create Dialog */}
       {showCreateDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-light-cream p-4 rounded-lg border border-medium-coffee min-w-[300px]">
-            <h2 className="text-deep-espresso mb-2 font-semibold">
-              Create New {createType === 'file' ? 'File' : 'Folder'}
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-brown-200 text-brown-900 rounded-xl shadow-2xl p-8 min-w-[300px] max-w-sm w-full">
+            <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
+              {createType === 'file' ? <File className="h-5 w-5" /> : <Folder className="h-5 w-5" />} Create {createType === 'file' ? 'File' : 'Folder'}
             </h2>
-            {createType === 'file' && (
-              <p className="text-deep-espresso/70 text-xs mb-4">
-                Allowed extensions: .py, .css, .html, .js
-              </p>
-            )}
+            <label className="block text-sm font-medium mb-1">
+              {createType === 'file' ? 'File Name' : 'Folder Name'}
+            </label>
             <input
-              type="text"
+              className="bg-cream-beige px-3 py-2 rounded w-full mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent text-medium-coffee text-base"
+              placeholder={createType === 'file' ? 'e.g. main.py' : 'e.g. components'}
               value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder={createType === 'file' ? 'filename.html' : 'folder-name'}
-              className="w-full px-3 py-2 bg-cream-beige text-dark-charcoal rounded mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee"
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleCreateConfirm(); }}
               autoFocus
             />
-            <div className="flex gap-2">
-              <button
-                onClick={handleCreate}
-                className="px-3 py-1 bg-medium-coffee text-light-cream rounded hover:bg-deep-espresso font-semibold"
-              >
-                Create
-              </button>
-              <button
-                onClick={() => setShowCreateDialog(false)}
-                className="px-3 py-1 bg-cream-beige text-deep-espresso rounded hover:bg-deep-espresso hover:text-light-cream"
-              >
-                Cancel
-              </button>
+            {createType === 'file' && (
+              <p className="text-xs text-brown-900/80 mb-2">Allowed: .py, .css, .html, .js</p>
+            )}
+            <div className="flex gap-2 justify-end mt-4">
+              <button onClick={() => setShowCreateDialog(false)} className="px-4 py-1.5 rounded bg-cream-beige hover:bg-white text-deep-espresso font-medium">Cancel</button>
+              <button onClick={handleCreateConfirm} className="px-4 py-1.5 rounded bg-medium-coffee hover:bg-opacity-80 text-white font-semibold shadow">Create</button>
             </div>
           </div>
         </div>

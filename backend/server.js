@@ -5,6 +5,10 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { WebSocketServer } from 'ws';
+import pty from 'node-pty';
+import { UserTerminalManager } from './services/UserTerminalManager.js';
+import jwt from 'jsonwebtoken';
 
 // Load environment variables FIRST
 dotenv.config();
@@ -20,6 +24,8 @@ import leetcodeRoutes from './routes/leetcode.js';
 import tavusRoutes from './routes/tavus.js';
 import nodejsRoutes from './routes/nodejs.js';
 import javaRoutes from './routes/java.js';
+import filesRoutes from './routes/files.js';
+import { UserWorkspaceManager } from './services/UserWorkspaceManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -103,6 +109,42 @@ app.use((req, res, next) => {
   next();
 });
 
+// Supabase JWT Authentication Middleware
+const authenticateUser = (req, res, next) => {
+  try {
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid authorization header' });
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    // Verify JWT token using Supabase secret
+    const payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
+    
+    // Set user info in request
+    req.user = {
+      id: payload.sub, // Supabase user ID
+      email: payload.email,
+      role: payload.role
+    };
+    
+    next();
+  } catch (err) {
+    console.error('Authentication error:', err.message);
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
+
+// Middleware to ensure user workspace exists
+app.use((req, res, next) => {
+  if (req.user && req.user.id) {
+    UserWorkspaceManager.getUserWorkspacePath(req.user.id);
+  }
+  next();
+});
+
 // Routes
 app.use('/api/code', codeRoutes);
 app.use('/api/python', pythonRoutes);
@@ -113,6 +155,7 @@ app.use('/api/leetcode', leetcodeRoutes);
 app.use('/api/tavus', tavusRoutes);
 app.use('/api/nodejs', nodejsRoutes);
 app.use('/api/java', javaRoutes);
+app.use('/api/files', authenticateUser, filesRoutes); // Apply auth middleware to files routes
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -197,7 +240,7 @@ app.use((error, req, res, next) => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
-  server.close(() => {
+  global.server.close(() => {
     console.log('👋 Process terminated');
     process.exit(0);
   });
@@ -205,7 +248,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully...');
-  server.close(() => {
+  global.server.close(() => {
     console.log('👋 Process terminated');
     process.exit(0);
   });
@@ -228,6 +271,62 @@ async function startServer() {
 
     // Store server reference for graceful shutdown
     global.server = server;
+
+    // --- WebSocket Terminal Integration (browser-terminal style) ---
+    const wss = new WebSocketServer({ server, path: '/terminal' });
+
+    wss.on('connection', (ws, req) => {
+      // 1. Get access_token from query string
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const token = url.searchParams.get('access_token');
+      if (!token) {
+        ws.close(4001, 'Missing access token');
+        return;
+      }
+
+      // 2. Verify JWT and extract user ID
+      let userId;
+      try {
+        const payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
+        userId = payload.sub; // Supabase user ID is in 'sub'
+      } catch (err) {
+        ws.close(4002, 'Invalid access token');
+        return;
+      }
+
+      // 3. Start terminal for this user
+      const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
+      const ptyProcess = UserTerminalManager.startTerminal(userId, shell);
+
+      // 4. Wire up PTY <-> WebSocket
+      ptyProcess.on('data', (data) => ws.send(data));
+      ws.on('message', (msg) => {
+        try {
+          // Try to parse as JSON for resize events
+          const parsed = JSON.parse(msg);
+          if (parsed && parsed.type === 'resize' && parsed.cols && parsed.rows) {
+            ptyProcess.resize(parsed.cols, parsed.rows);
+            return;
+          }
+        } catch (e) {
+          // Not JSON, treat as normal input
+        }
+        // Intercept and block cd commands that escape the workspace
+        const strMsg = typeof msg === 'string' ? msg : msg.toString();
+        const cdMatch = strMsg.match(/^\s*cd\s+(.+)/);
+        if (cdMatch) {
+          const target = cdMatch[1].trim();
+          // Disallow cd to absolute paths or ..
+          if (target.startsWith('/') || target.startsWith('..') || target.includes('..')) {
+            ws.send('cd: Permission denied\r\n');
+            return;
+          }
+        }
+        ptyProcess.write(msg);
+      });
+      ws.on('close', () => UserTerminalManager.killTerminal(userId));
+    });
+    // --- End WebSocket Terminal Integration ---
     
   } catch (error) {
     console.error('❌ Failed to start server:', error);

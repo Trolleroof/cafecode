@@ -4,6 +4,7 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
+import { UserFileService } from '../services/UserFileService.js';
 
 const execAsync = promisify(exec);
 
@@ -144,47 +145,42 @@ router.post('/run',
       console.log(`🚀 Executing ${req.validatedBody.language} code (${req.validatedBody.code.length} characters)`);
 
       const { code, language } = req.validatedBody;
+      const userId = req.user.id;
       const timestamp = Date.now();
       let tempFile, command, output, error;
 
       // Create temporary file and execute based on language
       switch (language) {
         case 'python':
-          tempFile = path.join('/tmp', `code_${timestamp}.py`);
-          fs.writeFileSync(tempFile, code);
-          command = `python3 "${tempFile}"`;
+          tempFile = `code_${timestamp}.py`;
+          UserFileService.writeFile(userId, tempFile, code);
+          command = `python3 "${UserFileService.resolveUserPath(userId, tempFile)}"`;
           break;
-        
         case 'javascript':
-          tempFile = path.join('/tmp', `code_${timestamp}.js`);
-          fs.writeFileSync(tempFile, code);
-          command = `node "${tempFile}"`;
+          tempFile = `code_${timestamp}.js`;
+          UserFileService.writeFile(userId, tempFile, code);
+          command = `node "${UserFileService.resolveUserPath(userId, tempFile)}"`;
           break;
-        
         case 'java':
           const className = `Code_${timestamp}`;
-          tempFile = path.join('/tmp', `${className}.java`);
-          // Wrap code in a class if it's not already
+          tempFile = `${className}.java`;
           const javaCode = code.includes('public class') ? code : 
             `public class ${className} {\n    public static void main(String[] args) {\n        ${code}\n    }\n}`;
-          fs.writeFileSync(tempFile, javaCode);
-          command = `cd /tmp && javac "${className}.java" && java "${className}"`;
+          UserFileService.writeFile(userId, tempFile, javaCode);
+          command = `cd "${UserFileService.getUserWorkspacePath(userId)}" && javac "${tempFile}" && java "${className}"`;
           break;
-        
         case 'cpp':
-          tempFile = path.join('/tmp', `code_${timestamp}.cpp`);
-          fs.writeFileSync(tempFile, code);
-          const cppExecutable = path.join('/tmp', `code_${timestamp}`);
-          command = `cd /tmp && g++ -o "${cppExecutable}" "${tempFile}" && "${cppExecutable}"`;
+          tempFile = `code_${timestamp}.cpp`;
+          UserFileService.writeFile(userId, tempFile, code);
+          const cppExecutable = `code_${timestamp}`;
+          command = `cd "${UserFileService.getUserWorkspacePath(userId)}" && g++ -o "${cppExecutable}" "${tempFile}" && "./${cppExecutable}"`;
           break;
-        
         case 'c':
-          tempFile = path.join('/tmp', `code_${timestamp}.c`);
-          fs.writeFileSync(tempFile, code);
-          const cExecutable = path.join('/tmp', `code_${timestamp}`);
-          command = `cd /tmp && gcc -o "${cExecutable}" "${tempFile}" && "${cExecutable}"`;
+          tempFile = `code_${timestamp}.c`;
+          UserFileService.writeFile(userId, tempFile, code);
+          const cExecutable = `code_${timestamp}`;
+          command = `cd "${UserFileService.getUserWorkspacePath(userId)}" && gcc -o "${cExecutable}" "${tempFile}" && "./${cExecutable}"`;
           break;
-        
         default:
           return res.status(400).json({
             success: false,
@@ -199,7 +195,6 @@ router.post('/run',
           timeout: 30000, // 30 seconds timeout
           maxBuffer: 1024 * 1024 * 10 // 10MB buffer for large outputs
         });
-        
         output = stdout;
         error = stderr;
       } catch (execError) {
@@ -210,7 +205,6 @@ router.post('/run',
             error_code: 'TIMEOUT'
           });
         }
-        
         if (execError.code === 'ENOBUFS') {
           return res.status(413).json({
             success: false,
@@ -218,33 +212,25 @@ router.post('/run',
             error_code: 'OUTPUT_TOO_LARGE'
           });
         }
-        
-        // For compilation errors, stderr usually contains the error message
         output = '';
         error = execError.stderr || execError.message;
       }
 
       // Clean up temporary files
       try {
-        if (fs.existsSync(tempFile)) {
-          fs.unlinkSync(tempFile);
+        if (tempFile) {
+          UserFileService.deleteFile(userId, tempFile);
         }
-        
         // Clean up compiled executables for C/C++
         if (language === 'cpp' || language === 'c') {
-          const executable = path.join('/tmp', `code_${timestamp}`);
-          if (fs.existsSync(executable)) {
-            fs.unlinkSync(executable);
-          }
+          const executable = `code_${timestamp}`;
+          UserFileService.deleteFile(userId, executable);
         }
-        
         // Clean up Java class files
         if (language === 'java') {
           const className = `Code_${timestamp}`;
-          const classFile = path.join('/tmp', `${className}.class`);
-          if (fs.existsSync(classFile)) {
-            fs.unlinkSync(classFile);
-          }
+          const classFile = `${className}.class`;
+          UserFileService.deleteFile(userId, classFile);
         }
       } catch (cleanupError) {
         console.error('Error cleaning up temp files:', cleanupError);

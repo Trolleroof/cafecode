@@ -13,14 +13,20 @@
     "@google/generative-ai": "^0.2.1",
     "axios": "^1.7.2",
     "cors": "^2.8.5",
+    "create-react-app": "^5.1.0",
     "dockerode": "^4.0.7",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "joi": "^17.11.0",
+    "jsonwebtoken": "^9.0.2",
     "leetcode-query": "^2.0.0",
-    "uuid": "^11.1.0"
+    "node-pty": "^1.0.0",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.3",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

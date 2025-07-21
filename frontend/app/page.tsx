@@ -23,11 +23,20 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Dialog, DialogTrigger, DialogContent } from '@/components/ui/dialog';
 import dynamic from 'next/dynamic';
+import { supabase } from '../lib/supabase';
+
 const MenuBoard = dynamic(() => import('./features/MenuBoard'), { ssr: false });
 
 export default function Home() {
   const router = useRouter();
   const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'leet'>(null);
+
+  // Auth modal state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
 
   const handleStartCoding = () => {
     setLoadingButton('ide');
@@ -43,32 +52,101 @@ export default function Home() {
     }, 900);
   };
 
+  const handleSignIn = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setAuthLoading(true);
+    setAuthError('');
+    const { error } = await supabase.auth.signInWithPassword({
+      email: authEmail,
+      password: authPassword,
+    });
+    if (error) {
+      setAuthError(error.message);
+      setAuthLoading(false);
+    } else {
+      setShowAuthModal(false);
+      setAuthEmail('');
+      setAuthPassword('');
+      setAuthError('');
+      setAuthLoading(false);
+      // Optionally, refresh or redirect
+    }
+  };
+  const handleSignInWithGoogle = async () => {
+    setAuthLoading(true);
+    setAuthError('');
+    await supabase.auth.signInWithOAuth({ provider: 'google' });
+  };
+  const handleSignUpRedirect = () => {
+    setShowAuthModal(false);
+    router.push('/sign-up');
+  };
+
   return (
     <>
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-light-cream rounded-lg shadow-lg p-8 w-full max-w-md relative">
+            <button
+              className="absolute top-2 right-2 text-dark-charcoal hover:text-medium-coffee"
+              onClick={() => setShowAuthModal(false)}
+              aria-label="Close"
+            >
+              <IconArrowRight className="h-6 w-6" />
+            </button>
+            <h2 className="text-2xl font-bold mb-4 text-medium-coffee">Sign In</h2>
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <input
+                type="email"
+                placeholder="Email"
+                value={authEmail}
+                onChange={e => setAuthEmail(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-medium-coffee"
+                required
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={authPassword}
+                onChange={e => setAuthPassword(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-medium-coffee"
+                required
+              />
+              {authError && <div className="text-red-600 text-sm">{authError}</div>}
+              <button
+                type="submit"
+                className="w-full btn-coffee-primary py-2 text-lg"
+                disabled={authLoading}
+              >
+                {authLoading ? 'Signing In...' : 'Sign In'}
+              </button>
+            </form>
+            <div className="my-4 flex items-center justify-center">
+              <span className="text-gray-400">or</span>
+            </div>
+            <button
+              onClick={handleSignInWithGoogle}
+              className="w-full btn-coffee-secondary py-2 text-lg flex items-center justify-center gap-2"
+              disabled={authLoading}
+            >
+              <img src="/images/logo-trans.png" alt="Google" className="h-5 w-5" />
+              Sign In with Google
+            </button>
+            <div className="mt-6 text-center">
+              <span className="text-gray-600">Don't have an account? </span>
+              <button
+                onClick={handleSignUpRedirect}
+                className="text-medium-coffee font-semibold hover:underline"
+              >
+                Sign Up
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Custom Bolt.new Badge Configuration */}
-      <style>{`
-        .bolt-badge {
-          transition: all 0.3s ease;
-        }
-        @keyframes badgeIntro {
-          0% { transform: rotateY(-90deg); opacity: 0; }
-          100% { transform: rotateY(0deg); opacity: 1; }
-        }
-        .bolt-badge-intro {
-          animation: badgeIntro 0.8s ease-out 1s both;
-        }
-        .bolt-badge-intro.animated {
-          animation: none;
-        }
-        @keyframes badgeHover {
-          0% { transform: scale(1) rotate(0deg); }
-          50% { transform: scale(1.1) rotate(22deg); }
-          100% { transform: scale(1) rotate(0deg); }
-        }
-        .bolt-badge:hover {
-          animation: badgeHover 0.6s ease-in-out;
-        }
-      `}</style>
+     
       <div className="min-h-screen bg-light-cream">
         <Header />
 
@@ -76,6 +154,67 @@ export default function Home() {
         <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden w-full py-24 md:py-32">
           {/* Uniform background color for hero section */}
           <div className="absolute inset-0 bg-light-cream"></div>
+          {/* Auth Modal (only overlays hero section) */}
+          {showAuthModal && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+              <div className="bg-light-cream rounded-lg shadow-lg p-8 w-full max-w-md relative">
+                <button
+                  className="absolute top-2 right-2 text-dark-charcoal hover:text-medium-coffee"
+                  onClick={() => setShowAuthModal(false)}
+                  aria-label="Close"
+                >
+                  <IconArrowRight className="h-6 w-6" />
+                </button>
+                <h2 className="text-2xl font-bold mb-4 text-medium-coffee">Sign In</h2>
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={authEmail}
+                    onChange={e => setAuthEmail(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-medium-coffee"
+                    required
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={authPassword}
+                    onChange={e => setAuthPassword(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-medium-coffee"
+                    required
+                  />
+                  {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                  <button
+                    type="submit"
+                    className="w-full btn-coffee-primary py-2 text-lg"
+                    disabled={authLoading}
+                  >
+                    {authLoading ? 'Signing In...' : 'Sign In'}
+                  </button>
+                </form>
+                <div className="my-4 flex items-center justify-center">
+                  <span className="text-gray-400">or</span>
+                </div>
+                <button
+                  onClick={handleSignInWithGoogle}
+                  className="w-full btn-coffee-secondary py-2 text-lg flex items-center justify-center gap-2"
+                  disabled={authLoading}
+                >
+                  <img src="/images/logo-trans.png" alt="Google" className="h-5 w-5" />
+                  Sign In with Google
+                </button>
+                <div className="mt-6 text-center">
+                  <span className="text-gray-600">Don't have an account? </span>
+                  <button
+                    onClick={handleSignUpRedirect}
+                    className="text-medium-coffee font-semibold hover:underline"
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           
           {/* Animated coffee elements */}
           <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-medium-coffee to-deep-espresso rounded-full opacity-10 animate-steam-rise blur-xl"></div>
@@ -97,8 +236,8 @@ export default function Home() {
               </h1>
               {/* Coffee-themed Subheading */}
               <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl text-medium-coffee mb-10 max-w-2xl leading-relaxed font-medium">
-                Actually learn to code to build projects in the time it takes to sip your morning coffee
-                <span className="block mt-4 font-bold text-dark-charcoal text-base sm:text-lg xl:text-xl">The only rule? No vibecoding.</span>
+                Actually learn to code projects in the time it takes to sip your morning coffee
+                <span className="block mt-8 font-bold text-dark-charcoal text-base sm:text-lg xl:text-xl">The only rule? No vibecoding.</span>
               </p>
               {/* Hero action buttons */}
               <div className="flex gap-6 mb-12">

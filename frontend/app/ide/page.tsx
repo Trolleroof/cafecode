@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   IconPlayerPlay,
   IconMessage,
@@ -39,6 +39,7 @@ import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import TavusConversation from '../../components/TavusConversation';
 import Image from 'next/image';
+import Terminal from '@/components/Terminal';
 
 
 interface FileNode {
@@ -173,7 +174,7 @@ function formatCodeInMessage(content: string) {
   return content;
 }
 
-export default function IDEPage() {
+function IDEPage() {
   // File management state - Start with empty files array
   const [files, setFiles] = useState<FileNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
@@ -192,6 +193,7 @@ export default function IDEPage() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  // Removed isChatOpen and showChatClosedMessage, chat is always open
 
   // Guided project state
   const [guidedProject, setGuidedProject] = useState<GuidedProject | null>(null);
@@ -423,18 +425,8 @@ export default function IDEPage() {
   };
 
   // Chat functionality
-  const handleSendMessage = async () => {
+  const handleSendMessage = async function() {
     if (!chatInput.trim()) return;
-
-    if (!guidedProject) {
-      setChatMessages(prev => [
-        ...prev,
-        { type: 'user', content: chatInput, timestamp: new Date() },
-        { type: 'assistant', content: 'Please start a project so that you can chat with me!', timestamp: new Date() }
-      ]);
-      setChatInput('');
-      return;
-    }
 
     const userMessage: ChatMessage = {
       type: 'user',
@@ -444,6 +436,17 @@ export default function IDEPage() {
 
     setChatMessages(prev => [...prev, userMessage]);
     setChatInput('');
+
+    // Prevent sending if no guided project is active
+    if (!guidedProject) {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Please start a guided project before chatting with the assistant. Click "Start Guided Project" at the top to begin!',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+
     setIsTyping(true);
 
     try {
@@ -1107,6 +1110,12 @@ export default function IDEPage() {
     }
   }, [showCongrats]);
 
+  // Add state to track if the terminal has been initialized
+  const [terminalInitialized, setTerminalInitialized] = useState(false);
+
+  // Memoize the Terminal component so it is not remounted on tab switch
+  const memoizedTerminal = useMemo(() => <Terminal />, []);
+
   return (
     <ProtectedRoute>
       <div className="flex flex-col h-screen bg-light-cream text-dark-charcoal transition-colors duration-300">
@@ -1166,22 +1175,19 @@ export default function IDEPage() {
 
         {/* Main Content */}
         <div className="flex flex-1 overflow-hidden relative">
-          <ResizablePanelGroup direction="horizontal" className="flex-1">
+          <ResizablePanelGroup direction="horizontal" className="flex-1 gap-0">
             {/* File Explorer */}
             <ResizablePanel 
-              defaultSize={isExplorerCollapsed ? 0 : 20} 
-              minSize={0}
-              maxSize={35}
+              defaultSize={isExplorerCollapsed ? 5 : 20} 
+              minSize={isExplorerCollapsed ? 5 : 15}
+              maxSize={isExplorerCollapsed ? 5 : 35}
               collapsible={true}
               onCollapse={() => setIsExplorerCollapsed(true)}
               onExpand={() => setIsExplorerCollapsed(false)}
+              className="border-0"
             >
               <FileExplorer
-                files={files}
                 onFileSelect={handleFileSelect}
-                onFileCreate={handleFileCreate}
-                onFileDelete={handleFileDelete}
-                onFileMove={handleFileMove}
                 selectedFileId={selectedFile?.id || null}
                 isCollapsed={isExplorerCollapsed}
                 onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
@@ -1202,9 +1208,17 @@ export default function IDEPage() {
             </ResizablePanel>
 
             {/* Editor and Preview */}
-            <ResizablePanel defaultSize={isExplorerCollapsed ? 70 : 50} minSize={30}>
-              <div className="flex flex-col h-full relative">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+            <ResizablePanel 
+              defaultSize={isExplorerCollapsed ? 65 : 50} 
+              minSize={isExplorerCollapsed ? 45 : 30}
+              maxSize={isExplorerCollapsed ? 75 : 70}
+              className="border-0"
+            >
+              <div className={`w-full h-full flex flex-col relative ${isExplorerCollapsed ? 'flex-1' : ''}`}>
+                <Tabs value={activeTab} onValueChange={(val) => {
+                  setActiveTab(val);
+                  if (val === 'terminal') setTerminalInitialized(true);
+                }} className="flex-1 flex flex-col">
                   <div className="flex items-center justify-between px-4 py-2 border-b border-cream-beige bg-cream-beige">
                     <TabsList className="bg-light-cream border border-cream-beige">
                       <TabsTrigger value="editor" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
@@ -1217,7 +1231,7 @@ export default function IDEPage() {
                       </TabsTrigger>
                       <TabsTrigger value="terminal" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
                         <IconTerminal className="mr-2 h-4 w-4" />
-                        Output
+                        Terminal
                       </TabsTrigger>
                     </TabsList>
 
@@ -1269,37 +1283,42 @@ export default function IDEPage() {
                     )}
                   </TabsContent>
 
-                  <TabsContent value="terminal" className="flex-1 m-0">
-                    <div className="h-full bg-dark-charcoal text-light-cream p-4 font-mono text-sm overflow-y-auto">
-                      <div className="flex items-center space-x-2 mb-4 text-medium-coffee">
-                        <IconTerminal className="h-4 w-4" />
-                        <span>Output Console</span>
-                      </div>
-                      {output.length > 0 ? (
-                        <div className="space-y-1">
-                          {output.map((line, index) => (
-                            <div key={index} className="text-light-cream">
-                              <span className="text-medium-coffee mr-2">{'>'}</span>
-                              {line}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-light-cream italic">
-                          Run your code to see output here...
-                        </div>
-                      )}
+                  {/* Always render the Terminal, but only show it when terminal tab is active */}
+                  <div
+                    style={{
+                      height: '400px', // Increased height
+                      width: '100%',
+                      background: '#111', // Black background for padding
+                      padding: '16px', // Add black padding
+                      boxSizing: 'border-box',
+                      display: activeTab === 'terminal' ? 'block' : 'none',
+                      overflowX: 'auto', // Enable horizontal scroll
+                      overflowY: 'auto',
+                    }}
+                  >
+                    {memoizedTerminal}
+                  </div>
+                  {output && output.length > 0 && activeTab === 'terminal' && (
+                    <div className="mt-4 bg-cream-beige rounded-lg p-4 shadow-inner border border-cream-beige">
+                      <h4 className="font-semibold mb-2 text-medium-coffee">Previous Output</h4>
+                      <pre className="text-sm text-dark-charcoal whitespace-pre-wrap break-words">{output.join('\n')}</pre>
                     </div>
-                  </TabsContent>
+                  )}
                 </Tabs>
               </div>
             </ResizablePanel>
 
             {/* Chat Panel */}
-            <ResizablePanel defaultSize={30} minSize={25} maxSize={50}>
-              <div className="flex flex-col h-full bg-cream-beige border-l border-cream-beige">
+            <ResizablePanel 
+              defaultSize={isExplorerCollapsed ? 30 : 35} 
+              minSize={isExplorerCollapsed ? 20 : 25}
+              maxSize={isExplorerCollapsed ? 35 : 60} 
+              style={{ minHeight: '400px', overflow: 'visible', maxWidth: '400px' }}
+              className="border-0"
+            >
+              <div className={`w-full h-full flex flex-col bg-cream-beige border-l border-cream-beige ${isExplorerCollapsed ? 'flex-shrink-0' : ''}`}>
                 {/* Chat Header */}
-                <div className="flex items-center justify-between p-4 border-b border-light-cream bg-light-cream">
+                <div className="flex items-center justify-between p-3 border-b-2 border-cream-beige bg-light-cream">
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 bg-medium-coffee rounded-full flex items-center justify-center">
                       <IconSparkles className="h-4 w-4 text-light-cream" />
@@ -1338,10 +1357,56 @@ export default function IDEPage() {
                     Please start a project before accessing the video assistant.
                   </div>
                 )}
-                <div className="flex-1 overflow-hidden transition-all duration-300">
-                  {isVoiceMode ? (
-                    guidedProject ? (
-                      <div className="h-full w-full bg-cream-beige/50">
+                <div className="flex-1 overflow-hidden transition-all duration-300 relative">
+                  {/* Chat messages area */}
+                  <div className="flex-1 overflow-y-auto px-6 pt-6 pb-0 space-y-4 bg-cream-beige" style={{paddingTop: '2rem', height: 'calc(100% - 160px)'}}>
+                    {chatMessages.map((msg, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2${idx === 0 ? ' mt-0' : ''}`}
+                      >
+                        <div className={`max-w-[85%] px-6 py-4 rounded-2xl shadow-lg text-base ${msg.type === 'user' ? 'bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream ml-auto' : 'bg-white text-dark-charcoal border-2 border-cream-beige/50 shadow-md'}`}
+                          style={idx === 0 ? { marginTop: 0 } : {}}>
+                          {msg.type === 'assistant' && (msg.content.includes('substantial') || msg.content.startsWith('🛠️ Fixing code')) ? (
+                            <div className="font-semibold text-base">
+                              {msg.content}
+                            </div>
+                          ) : msg.type === 'assistant' && msg.content.startsWith('🔧 **Code Fix Suggestions**') ? (
+                            <div className="bg-dark-charcoal text-light-cream p-3 rounded-lg font-mono relative text-base">
+                              <ReactMarkdown
+                                children={msg.content}
+                                remarkPlugins={[remarkGfm]}
+                                components={codeFixMarkdownComponents}
+                              />
+                            </div>
+                          ) : msg.type === 'assistant' ? (
+                            <div className="text-base">
+                              <ReactMarkdown
+                                children={msg.content}
+                                remarkPlugins={[remarkGfm]}
+                                components={regularMarkdownComponents}
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-base">{msg.content}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {isTyping && (
+                      <div className="flex justify-start">
+                        <div className="bg-white rounded-2xl px-6 py-4 mr-4 border-2 border-cream-beige/50 shadow-md text-base">
+                          <TypingIndicator />
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+                  
+                  {/* Voice assistant UI overlay - only covers the messages area */}
+                  {isVoiceMode && (
+                    <div className="absolute top-0 left-0 right-0 bottom-0 bg-cream-beige/50 z-10" style={{height: 'calc(100% - 140px)'}}>
+                      {guidedProject ? (
                         <TavusConversation 
                           currentCode={selectedFile?.content || ''}
                           currentLanguage={selectedFile?.language || 'plaintext'}
@@ -1349,120 +1414,78 @@ export default function IDEPage() {
                           projectFiles={files}
                           guidedProject={guidedProject}
                         />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center h-full bg-cream-beige/50">
-                        <div className="text-center">
-                          <IconVideo className="h-16 w-16 text-red-400 mx-auto mb-4" />
-                          <p className="text-deep-espresso text-lg font-semibold">Start a project to use the video assistant</p>
-                          <p className="text-deep-espresso/70 text-sm mt-2">You must begin a guided project before accessing this feature.</p>
-                        </div>
-                      </div>
-                    )
-                  ) : (
-                    <>
-                      {/* Chat Messages */}
-                      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-cream-beige/50 h-full" style={{paddingTop: '11rem'}}>
-                        {chatMessages.map((msg, idx) => (
-                          <div
-                            key={idx}
-                            className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2${idx === 0 ? ' mt-0' : ''}`}
-                          >
-                            <div className={`max-w-[80%] px-4 py-3 rounded-lg shadow-md ${msg.type === 'user' ? 'bg-medium-coffee text-light-cream' : 'bg-white text-dark-charcoal border border-cream-beige'}`}
-                              style={idx === 0 ? { marginTop: 0 } : {}}>
-                              {msg.type === 'assistant' && (msg.content.includes('substantial') || msg.content.startsWith('🛠️ Fixing code')) ? (
-                                <div className="font-semibold">
-                                  {msg.content}
-                                </div>
-                              ) : msg.type === 'assistant' && msg.content.startsWith('🔧 **Code Fix Suggestions**') ? (
-                                <div className="bg-dark-charcoal text-light-cream p-3 rounded-lg font-mono relative">
-                                  <ReactMarkdown
-                                    children={msg.content}
-                                    remarkPlugins={[remarkGfm]}
-                                    components={codeFixMarkdownComponents}
-                                  />
-                                </div>
-                              ) : msg.type === 'assistant' ? (
-                                <div>
-                                  <ReactMarkdown
-                                    children={msg.content}
-                                    remarkPlugins={[remarkGfm]}
-                                    components={regularMarkdownComponents}
-                                  />
-                                </div>
-                              ) : (
-                                <span>{msg.content}</span>
-                              )}
-                            </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <div className="text-center">
+                            <IconVideo className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                            <p className="text-deep-espresso text-lg font-semibold">Start a project to use the video assistant</p>
+                            <p className="text-deep-espresso/70 text-sm mt-2">You must begin a guided project before accessing this feature.</p>
                           </div>
-                        ))}
-                        
-                        {isTyping && (
-                          <div className="flex justify-start">
-                            <div className="bg-white rounded-2xl px-4 py-3 mr-4 border border-cream-beige">
-                              <TypingIndicator />
-                            </div>
-                          </div>
-                        )}
-                        <div ref={chatEndRef} />
-                      </div>
-
-                      {/* Chat Input */}
-                      <div className="p-4 border-t border-cream-beige bg-light-cream">
-                        <div className="flex space-x-2">
-                          <input
-                            type="text"
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                            placeholder="Ask me anything about this project"
-                            className="flex-1 bg-white border border-medium-coffee/50 rounded-xl px-4 py-4 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200"
-                            disabled={isTyping}
-                          />
-                          <Button
-                            onClick={handleSendMessage}
-                            disabled={!chatInput.trim() || isTyping}
-                            className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-6 rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                          >
-                            <IconArrowRight className="h-4 w-4" />
-                          </Button>
                         </div>
-                        
-                        {/* Enhanced Chat Action Buttons */}
-                        <div className="flex items-center justify-center mt-4 space-x-3">
-                          <Button
-                            onClick={handleGetHint}
-                            variant="outline"
-                            size="sm"
-                            className="btn-coffee-secondary"
-                          >
-                            <IconBulb className="mr-2 h-4 w-4" />
-                            Get Hint
-                          </Button>
-                          
-                          <Button
-                            onClick={handleFixCode}
-                            variant="outline"
-                            size="sm"
-                            className="btn-coffee-secondary"
-                          >
-                            <IconBolt className="mr-2 h-4 w-4" />
-                            Fix Code
-                          </Button>
-                          
-                          <Button
-                            onClick={handleExplainCode}
-                            variant="outline"
-                            size="sm"
-                            className="btn-coffee-secondary"
-                          >
-                            <IconMessage className="mr-2 h-4 w-4" />
-                            Explain
-                          </Button>
-                        </div>
-                      </div>
-                    </>
+                      )}
+                    </div>
                   )}
+                  
+                  {/* Always show chat input and action buttons at the bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 pt-6 pb-5 px-6 border-t border-cream-beige bg-light-cream">
+                    <div className="flex space-x-3 items-center">
+                      <div className="flex-1 flex space-x-2 items-center">
+                      <input
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                          placeholder="Ask me anything"
+                          className="flex-1 bg-white border-2 border-medium-coffee/30 rounded-2xl px-3 py-2 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200 shadow-md h-12 text-base"
+                          disabled={false}
+                          title=""
+                      />
+                      <Button
+                        onClick={handleSendMessage}
+                          disabled={false}
+                          className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-4 py-2 rounded-2xl transition-all duration-200 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg h-12 text-base"
+                          title=""
+                      >
+                          <IconArrowRight className="h-5 w-5" />
+                      </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center mt-4 space-x-3">
+                      <Button
+                        onClick={handleGetHint}
+                        variant="outline"
+                        size="sm"
+                        className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                        disabled={false}
+                        title=""
+                      >
+                        <IconBulb className="mr-2 h-4 w-4" />
+                        Get Hint
+                      </Button>
+                      <Button
+                        onClick={handleFixCode}
+                        variant="outline"
+                        size="sm"
+                        className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                        disabled={false}
+                        title=""
+                      >
+                        <IconBolt className="mr-2 h-4 w-4" />
+                        Fix Code
+                      </Button>
+                      <Button
+                        onClick={handleExplainCode}
+                        variant="outline"
+                        size="sm"
+                        className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                        disabled={false}
+                        title=""
+                      >
+                        <IconMessage className="mr-2 h-4 w-4" />
+                        Explain
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </ResizablePanel>
@@ -1479,7 +1502,7 @@ export default function IDEPage() {
           }}
           isStartingProject={isStartingProject}
           error={projectStartError}
-        />
+        ></ProjectDescriptionModal>
 
         {/* Confirmation Modal */}
         {pendingDeleteFolderId && (
@@ -1539,4 +1562,9 @@ export default function IDEPage() {
       </div>
     </ProtectedRoute>
   );
+}
+
+// Wrap export
+export default function ProtectedIDEPageWrapper() {
+  return <IDEPage />;
 }
