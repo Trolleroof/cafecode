@@ -20,6 +20,7 @@ import {
 // Add axios for API calls
 import axios from 'axios';
 import { useAuth } from '@/hooks/useAuth';
+import { backendUrl } from '../lib/utils';
 
 interface FileNode {
   id: string;
@@ -543,7 +544,7 @@ export default function FileExplorer({
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get('http://localhost:8000/api/files/list?recursive=true', {
+      const res = await axios.get(`${backendUrl}/files/list?recursive=true`, {
         headers: getAuthHeaders()
       });
       // Adapt backend data to FileNode[]
@@ -569,7 +570,7 @@ export default function FileExplorer({
   // Fetch file content from backend
   const fetchFileContent = async (file: FileNode) => {
     try {
-      const res = await axios.get(`http://localhost:8000/api/files/read`, {
+      const res = await axios.get(`${backendUrl}/files/read`, {
         params: { path: file.id },
         headers: getAuthHeaders(),
       });
@@ -593,7 +594,7 @@ export default function FileExplorer({
   // File operations
   const handleCreate = async (parentId: string | null, type: 'file' | 'folder', name: string) => {
     try {
-      await axios.post('http://localhost:8000/api/files/create', 
+      await axios.post(`${backendUrl}/files/create`, 
         { path: buildPathFromId(parentId, name, files), isFolder: type === 'folder' },
         { headers: getAuthHeaders() }
       );
@@ -605,7 +606,7 @@ export default function FileExplorer({
 
   const handleDelete = async (fileId: string) => {
     try {
-      await axios.delete('http://localhost:8000/api/files/delete', { 
+      await axios.delete(`${backendUrl}/files/delete`, { 
         data: { path: getPathFromId(fileId, files) },
         headers: getAuthHeaders()
       });
@@ -619,7 +620,7 @@ export default function FileExplorer({
     try {
       const oldPath = getPathFromId(fileId, files);
       const newPath = buildPathFromId(getParentId(fileId, files), newName, files);
-      await axios.post('http://localhost:8000/api/files/rename', 
+      await axios.post(`${backendUrl}/files/rename`, 
         { oldPath, newPath },
         { headers: getAuthHeaders() }
       );

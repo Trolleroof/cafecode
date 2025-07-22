@@ -7,7 +7,7 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import 'xterm/css/xterm.css';
 import { supabase } from '../lib/supabase';
 
-const WS_BASE_URL = 'ws://localhost:8000/terminal';
+const WS_BASE_URL = 'wss://v2-bolt-hackathon.onrender.com/terminal';
 
 const Terminal: React.FC = () => {
   const xtermRef = useRef<HTMLDivElement>(null);
@@ -37,11 +37,13 @@ const Terminal: React.FC = () => {
         term.writeln('🛑 Not authenticated. Please log in.');
         return;
       }
-      const wsUrl = `${WS_BASE_URL}?access_token=${session.access_token}`;
-      ws = new WebSocket(wsUrl);
+      // Remove token from URL, send as first message after connection
+      ws = new WebSocket(WS_BASE_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        // Send the access token as the first message
+        ws!.send(JSON.stringify({ type: 'auth', token: session.access_token }));
         term.writeln('🖧 WebSocket connected!');
         // Send initial size
         if (fitAddonRef.current) {
