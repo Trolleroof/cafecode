@@ -37,19 +37,17 @@ const Terminal: React.FC = () => {
         term.writeln('🛑 Not authenticated. Please log in.');
         return;
       }
-      // Remove token from URL, send as first message after connection
-      ws = new WebSocket(WS_BASE_URL);
+      // Pass the access token as a query parameter in the WebSocket URL
+      ws = new WebSocket(`${WS_BASE_URL}?access_token=${session.access_token}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        // Send the access token as the first message
-        ws!.send(JSON.stringify({ type: 'auth', token: session.access_token }));
         term.writeln('🖧 WebSocket connected!');
         // Send initial size
         if (fitAddonRef.current) {
           const { cols, rows } = fitAddonRef.current.proposeDimensions() || { cols: 80, rows: 24 };
           if (ws) {
-            ws!.send(JSON.stringify({ type: 'resize', cols, rows }));
+            ws.send(JSON.stringify({ type: 'resize', cols, rows }));
           }
         }
       };

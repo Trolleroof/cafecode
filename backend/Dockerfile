@@ -1,24 +1,11 @@
-# Use an official Node.js runtime as a parent image
-# We're using Node.js 18, as specified in your package.json "engines"
-FROM node:18
-
-# Set the working directory in the container
+FROM node:18-alpine
 WORKDIR /app
 
-# Set environment variable for production
-ENV NODE_ENV=production
+# Install Python 3 and build tools for node-gyp and native modules
+RUN apk add --no-cache python3 make g++
 
-# Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
-
-# Install dependencies using npm ci for reproducible builds
-RUN npm ci --only=production
-
-# Copy the rest of your application's code to the working directory
+RUN npm install
 COPY . .
-
-# Your app listens on port 3001, so we'll expose it
-EXPOSE 3001
-
-# The command to run your app
-CMD ["node", "server.js"] 
+EXPOSE 3000
+CMD [ "node", "server.js" ] 

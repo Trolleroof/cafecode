@@ -157,17 +157,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
-app.use('/api/code', codeRoutes);
-app.use('/api/python', pythonRoutes);
-app.use('/api/translate', translateRoutes);
-app.use('/api/hint', hintRoutes);
-app.use('/api/guided', guidedRoutes);
-app.use('/api/leetcode', leetcodeRoutes);
-app.use('/api/tavus', tavusRoutes);
-app.use('/api/nodejs', nodejsRoutes);
-app.use('/api/java', javaRoutes);
-app.use('/api/files', authenticateUser, filesRoutes); // Apply auth middleware to files routes
+// --- Apply authentication to all sensitive API routes ---
+// All routes below require a valid Supabase JWT token
+app.use('/api/files', authenticateUser, filesRoutes);
+app.use('/api/code', authenticateUser, codeRoutes);
+app.use('/api/python', authenticateUser, pythonRoutes);
+app.use('/api/nodejs', authenticateUser, nodejsRoutes);
+app.use('/api/leetcode', authenticateUser, leetcodeRoutes);
+app.use('/api/guided', authenticateUser, guidedRoutes);
+app.use('/api/hint', authenticateUser, hintRoutes);
+app.use('/api/translate', authenticateUser, translateRoutes);
+app.use('/api/tavus', authenticateUser, tavusRoutes);
+// --- End authentication enforcement ---
 
 // Root endpoint
 app.get('/', (req, res) => {
