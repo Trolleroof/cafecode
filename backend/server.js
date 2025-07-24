@@ -126,14 +126,19 @@ const authenticateUser = (req, res, next) => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
+    console.log('🔐 Auth Debug - Authorization header:', authHeader ? `Bearer ${authHeader.substring(7, 20)}...` : 'MISSING');
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Auth Error: Missing or invalid authorization header format');
       return res.status(401).json({ error: 'Missing or invalid authorization header' });
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    console.log('🔐 Auth Debug - Token length:', token.length);
     
     // Verify JWT token using Supabase secret
     const payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
+    console.log('✅ Auth Success - User ID:', payload.sub);
     
     // Set user info in request
     req.user = {
@@ -144,8 +149,14 @@ const authenticateUser = (req, res, next) => {
     
     next();
   } catch (err) {
-    console.error('Authentication error:', err.message);
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    console.error('❌ Authentication error:', err.name, '-', err.message);
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired', details: 'Please log in again' });
+    } else if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token', details: err.message });
+    } else {
+      return res.status(401).json({ error: 'Invalid or expired token', details: err.message });
+    }
   }
 };
 
