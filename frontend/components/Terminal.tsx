@@ -7,7 +7,8 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import 'xterm/css/xterm.css';
 import { supabase } from '../lib/supabase';
 
-const WS_BASE_URL = 'ws://localhost:8000/terminal';
+const WS_BASE_URL = 'wss://v2-bolt-hackathon.onrender.com/terminal';
+//const WS_BASE_URL = 'ws://localhost:8000/terminal'
 
 const Terminal: React.FC = () => {
   const xtermRef = useRef<HTMLDivElement>(null);
@@ -37,8 +38,8 @@ const Terminal: React.FC = () => {
         term.writeln('🛑 Not authenticated. Please log in.');
         return;
       }
-      const wsUrl = `${WS_BASE_URL}?access_token=${session.access_token}`;
-      ws = new WebSocket(wsUrl);
+      // Pass the access token as a query parameter in the WebSocket URL
+      ws = new WebSocket(`${WS_BASE_URL}?access_token=${session.access_token}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -46,7 +47,9 @@ const Terminal: React.FC = () => {
         // Send initial size
         if (fitAddonRef.current) {
           const { cols, rows } = fitAddonRef.current.proposeDimensions() || { cols: 80, rows: 24 };
-          ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+          if (ws) {
+            ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+          }
         }
       };
       ws.onmessage = (event) => term.write(event.data);

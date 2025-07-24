@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bars3Icon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../lib/supabase';
-import { useEffect } from 'react';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'leet'>(null);
   const router = useRouter();
+  const pathname = usePathname();
   const [session, setSession] = useState<any>(null);
   const [loadingBrewing, setLoadingBrewing] = useState(false);
   // Removed: showAuthModal, authLoading, authError, authEmail, authPassword, pendingRoute
@@ -27,17 +27,11 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
-    // Listen for route changes to stop loading animation when /login loads
-    const handleRouteChange = (url: string) => {
-      if (url === '/login') {
-        setLoadingBrewing(false);
-      }
-    };
-    router.events?.on?.('routeChangeComplete', handleRouteChange);
-    return () => {
-      router.events?.off?.('routeChangeComplete', handleRouteChange);
-    };
-  }, [router]);
+    // On route change, if the new route is /login, stop the loading animation.
+    if (pathname === '/login') {
+      setLoadingBrewing(false);
+    }
+  }, [pathname]);
 
   const handleNavClick = (href: string) => {
     setIsMenuOpen(false);

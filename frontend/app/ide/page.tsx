@@ -25,7 +25,6 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
 import FileExplorer from '@/components/FileExplorer';
-import MonacoEditor from '@/components/MonacoEditor';
 import HTMLPreview from '@/components/HTMLPreview';
 import RunDropdown from '@/components/RunDropdown';
 import TypingIndicator from '@/components/TypingIndicator';
@@ -39,7 +38,10 @@ import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import TavusConversation from '../../components/TavusConversation';
 import Image from 'next/image';
-import Terminal from '@/components/Terminal';
+import dynamic from 'next/dynamic';
+
+const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
+const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
 
 
 interface FileNode {

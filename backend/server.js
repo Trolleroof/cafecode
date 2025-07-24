@@ -64,9 +64,21 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://v2-bolt-hackathon.vercel.app',
+  'https://v2-bolt-hackathon.onrender.com'
+];
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -145,17 +157,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
-app.use('/api/code', codeRoutes);
-app.use('/api/python', pythonRoutes);
-app.use('/api/translate', translateRoutes);
-app.use('/api/hint', hintRoutes);
-app.use('/api/guided', guidedRoutes);
-app.use('/api/leetcode', leetcodeRoutes);
-app.use('/api/tavus', tavusRoutes);
-app.use('/api/nodejs', nodejsRoutes);
-app.use('/api/java', javaRoutes);
-app.use('/api/files', authenticateUser, filesRoutes); // Apply auth middleware to files routes
+// --- Apply authentication to all sensitive API routes ---
+// All routes below require a valid Supabase JWT token
+app.use('/api/files', authenticateUser, filesRoutes);
+app.use('/api/code', authenticateUser, codeRoutes);
+app.use('/api/python', authenticateUser, pythonRoutes);
+app.use('/api/nodejs', authenticateUser, nodejsRoutes);
+app.use('/api/leetcode', authenticateUser, leetcodeRoutes);
+app.use('/api/guided', authenticateUser, guidedRoutes);
+app.use('/api/hint', authenticateUser, hintRoutes);
+app.use('/api/translate', authenticateUser, translateRoutes);
+app.use('/api/tavus', authenticateUser, tavusRoutes);
+// --- End authentication enforcement ---
 
 // Root endpoint
 app.get('/', (req, res) => {
