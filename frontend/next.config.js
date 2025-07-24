@@ -9,7 +9,7 @@ const nextConfig = {
   async rewrites() {
     const useLocalhost = process.env.NEXT_PUBLIC_USE_LOCALHOST === 'true';
     // const backendUrl = useLocalhost ? 'http://localhost:8000/api' : 'https://cafecode-backend.onrender.com/api';
-    const backendUrl = 'https://cafecode-backend.onrender.com/api'
+    const backendUrl = 'http://localhost:8000/api'
     return [
       {
         source: '/api/:path*',
@@ -47,5 +47,6 @@ const nextConfig = {
     return config;
   },
 };
+
 
 module.exports = nextConfig;
