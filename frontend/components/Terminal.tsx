@@ -7,7 +7,7 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import 'xterm/css/xterm.css';
 import { supabase } from '../lib/supabase';
 
-const WS_BASE_URL = 'ws://v2-bolt-hackathon.onrender.com/terminal';
+const WS_BASE_URL = 'wss://v2-bolt-hackathon.onrender.com/terminal';
 //const WS_BASE_URL = 'ws://localhost:8000/terminal'
 
 const Terminal: React.FC = () => {
