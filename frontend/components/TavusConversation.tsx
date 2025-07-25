@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TavusConversationProps {
   currentCode: string;
@@ -20,6 +21,7 @@ const TavusConversation: React.FC<TavusConversationProps> = ({ currentCode, curr
   const [iframeError, setIframeError] = useState(false); // Track iframe load errors
   const lastProjectIdRef = useRef<string | null>(null);
   const isCreatingConversation = useRef(false);
+  const { session } = useAuth();
 
   // Helper to clear localStorage and state
   const clearConversation = () => {
@@ -76,7 +78,10 @@ const TavusConversation: React.FC<TavusConversationProps> = ({ currentCode, curr
         }
         const response = await fetch('/api/tavus/create-conversation', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
           body: JSON.stringify({
             conversational_context: guidedProject.projectContext,
             currentCode,
@@ -112,7 +117,10 @@ const TavusConversation: React.FC<TavusConversationProps> = ({ currentCode, curr
       if (convId) {
         fetch(`/api/tavus/delete-conversation`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
           body: JSON.stringify({ conversationId: convId })
         });
         if (typeof window !== 'undefined') {

@@ -23,6 +23,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ChatMessage {
   type: 'user' | 'assistant';
@@ -327,6 +328,8 @@ function getSafeField(obj: Record<string, any> | undefined, keys: string[], fall
 
 function LeetCodePage() {
   const router = useRouter();
+  const { session } = useAuth(); // Add this line to get authentication
+  
   const [code, setCode] = useState('// Start coding your solution here\n\n');
   const [language, setLanguage] = useState('javascript');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
@@ -435,11 +438,16 @@ function LeetCodePage() {
   }, [chatHistory.length, isTyping]);
 
   useEffect(() => {
-    if (!hasFetchedProblems.current) {
+    if (!hasFetchedProblems.current && session?.access_token) {
       hasFetchedProblems.current = true;
       setIsProblemsLoading(true); // <-- set loading true before fetch
       console.log('Fetching LeetCode problems...');
-      fetch('/api/leetcode/assigned')
+      fetch('/api/leetcode/assigned', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
         .then(async res => {
           if (!res.ok) throw new Error(await res.text());
           const contentType = res.headers.get('content-type');
@@ -460,16 +468,21 @@ function LeetCodePage() {
           setIsProblemsLoading(false); // <-- set loading false after fetch
         });
     }
-  }, []);
+  }, [session?.access_token]);
 
   useEffect(() => {
     // Prevent race conditions: track the slug for which this effect is running
     let isCurrent = true;
     const slug = currentProblem?.slug;
-    if (slug) {
+    if (slug && session?.access_token) {
       console.log('[useEffect-testcases] currentProblem.slug changed:', slug);
       console.log('[useEffect-testcases] currentProblem:', currentProblem);
-      fetch(`/api/leetcode/testcases?slug=${slug}`)
+      fetch(`/api/leetcode/testcases?slug=${slug}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      })
         .then(async res => {
           if (!res.ok) {
             console.warn('Testcases API returned error, using empty testcases');
@@ -523,7 +536,7 @@ function LeetCodePage() {
     return () => {
       isCurrent = false;
     };
-  }, [currentProblem?.slug]);
+  }, [currentProblem?.slug, session?.access_token]);
 
   const handleCodeChange: OnChange = (value) => {
     setCode(value || '');
@@ -548,7 +561,10 @@ function LeetCodePage() {
       if (!currentProblem) {
         const response = await fetch('/api/leetcode/startProblem', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
           body: JSON.stringify({
             problemDescription: inputMessage,
             language: language
@@ -585,7 +601,10 @@ function LeetCodePage() {
         // This is a chat message within the context of the current problem
         const response = await fetch('/api/leetcode/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
           body: JSON.stringify({
             history: chatHistory,
             currentStepInstruction: currentProblem.steps[currentStepIndex]?.instruction,
@@ -638,7 +657,10 @@ function LeetCodePage() {
     try {
       const response = await fetch('/api/leetcode/analyzeStep', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({
           stepId: currentStep.id,
           code: code,
@@ -731,7 +753,10 @@ function LeetCodePage() {
     // Call backend to generate guided steps (reuse startProblem logic)
     const stepsRes = await fetch('/api/leetcode/startProblem', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`
+      },
       body: JSON.stringify({
         problemDescription: problem.title,
         language: 'python',
@@ -764,7 +789,12 @@ function LeetCodePage() {
     });
     // Fetch structured problem data (examples, inputs, outputs)
     try {
-      const structuredRes = await fetch(`/api/leetcode/problem/${problem.titleSlug}/structured`);
+      const structuredRes = await fetch(`/api/leetcode/problem/${problem.titleSlug}/structured`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const structuredData = await structuredRes.json();
       if (structuredData.success && structuredData.meta && structuredData.meta.description) {
         setStructuredProblem(structuredData);
@@ -785,7 +815,10 @@ function LeetCodePage() {
     try {
       const response = await fetch('/api/code/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({ code, language })
       });
       if (!response.ok) throw new Error(await response.text());
@@ -919,7 +952,10 @@ function LeetCodePage() {
     try {
       const response = await fetch('/api/leetcode/similar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({
           slug: currentProblem.slug,
           title: currentProblem.title,

@@ -64,9 +64,21 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://v2-bolt-hackathon.vercel.app',
+  'https://v2-bolt-hackathon.onrender.com'
+];
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -83,7 +95,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Initialize Gemini AI service
 let geminiService = null;
 
 async function initializeServices() {
@@ -114,14 +125,19 @@ const authenticateUser = (req, res, next) => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
+    console.log('🔐 Auth Debug - Authorization header:', authHeader ? `Bearer ${authHeader.substring(7, 20)}...` : 'MISSING');
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Auth Error: Missing or invalid authorization header format');
       return res.status(401).json({ error: 'Missing or invalid authorization header' });
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    console.log('🔐 Auth Debug - Token length:', token.length);
     
     // Verify JWT token using Supabase secret
     const payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
+    console.log('✅ Auth Success - User ID:', payload.sub);
     
     // Set user info in request
     req.user = {
@@ -132,8 +148,14 @@ const authenticateUser = (req, res, next) => {
     
     next();
   } catch (err) {
-    console.error('Authentication error:', err.message);
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    console.error('❌ Authentication error:', err.name, '-', err.message);
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired', details: 'Please log in again' });
+    } else if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid token', details: err.message });
+    } else {
+      return res.status(401).json({ error: 'Invalid or expired token', details: err.message });
+    }
   }
 };
 
@@ -145,17 +167,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
-app.use('/api/code', codeRoutes);
-app.use('/api/python', pythonRoutes);
-app.use('/api/translate', translateRoutes);
-app.use('/api/hint', hintRoutes);
-app.use('/api/guided', guidedRoutes);
-app.use('/api/leetcode', leetcodeRoutes);
-app.use('/api/tavus', tavusRoutes);
-app.use('/api/nodejs', nodejsRoutes);
-app.use('/api/java', javaRoutes);
-app.use('/api/files', authenticateUser, filesRoutes); // Apply auth middleware to files routes
+// --- Apply authentication to all sensitive API routes ---
+// All routes below require a valid Supabase JWT token
+app.use('/api/files', authenticateUser, filesRoutes);
+app.use('/api/code', authenticateUser, codeRoutes);
+app.use('/api/python', authenticateUser, pythonRoutes);
+app.use('/api/nodejs', authenticateUser, nodejsRoutes);
+app.use('/api/leetcode', authenticateUser, leetcodeRoutes);
+app.use('/api/guided', authenticateUser, guidedRoutes);
+app.use('/api/hint', authenticateUser, hintRoutes);
+app.use('/api/translate', authenticateUser, translateRoutes);
+app.use('/api/tavus', authenticateUser, tavusRoutes);
+// --- End authentication enforcement ---
 
 // Root endpoint
 app.get('/', (req, res) => {
