@@ -124,6 +124,13 @@ IMPORTANT GUIDELINES:
 - Do not repeat the full pattern explanation in every step, but always reference the pattern and the sub-part being implemented.
 - Emphasize that steps should be much smaller and more numerous than typical guides, and each step should be easy for a beginner to follow.
 - Do NOT use markdown formatting, asterisks, bold, or italics in the step instructions. Only use plain text.
+- For **full-stack** web projects, guide the user to create BOTH a frontend and a backend:
+  - Immediately after creating the main project folder, add a 'frontend' folder for UI code and a 'backend' folder for server code.
+  - Backend code should use **Node.js with Express** (e.g., 'backend/server.js', 'backend/routes/yourRoute.js').
+  - Frontend files can be HTML/CSS/JavaScript or React components placed under the 'frontend' folder.
+  - When adding API functionality, create endpoints inside 'backend/routes' and show how the frontend should call them using fetch().
+  - Use in-memory data structures (arrays/objects) or small JSON files for persistence. Do NOT ask the user to install or configure databases.
+  - Remind the user that the "Run" button executes the current file; do NOT instruct them to run terminal commands or install packages.
 
 Example format:
 [
@@ -633,9 +640,9 @@ router.post("/recap", async (req, res) => {
     const stepsContext = guidedProject && guidedProject.steps
       ? guidedProject.steps.map((s, i) => `Step ${i + 1}: ${s.instruction}`).join('\n')
       : '';
-    const capabilities = ideCapabilities || 'The IDE is web-based. It cannot run terminal or shell commands, install packages, or use a real OS shell. Only code editing, file management, and code execution for supported languages are supported.';
+    const capabilities = ideCapabilities || 'The IDE is web-based. It supports a built-in terminal, code editing, file management, and code execution for supported languages.';
 
-    const prompt = `You are a helpful coding mentor. Summarize what the user learned in this guided project as a concise list of bullet points in markdown (use - or * for each point).\n\nProject context:\n${projectContext}\n\nGuided steps:\n${stepsContext}\n\nChat history:\n${chatContext}\n\nIMPORTANT: ${capabilities}\n\nDo NOT mention anything about using a terminal, shell, or command prompt. Only include things the user could have learned in this web-based IDE.\n\nFormat your response as a markdown bullet list. Be specific, positive, and beginner-friendly.`;
+    const prompt = `You are a helpful coding mentor. Summarize what the user learned in this guided project as a concise list of bullet points in markdown (use - or * for each point).\n\nProject context:\n${projectContext}\n\nGuided steps:\n${stepsContext}\n\nChat history:\n${chatContext}\n\nIMPORTANT: ${capabilities}\n\nIf the project involved using the terminal, include points about how to use the terminal, run commands, install packages, and best practices for beginners. Mention how the terminal can be used for running scripts, installing packages (such as with npm, pip, etc.), or checking output, if relevant.\n\nAlso include points such as:\n- How to use the file explorer to create, rename, and delete files and folders.\n- How to use the terminal to run code, install packages, or check for errors.\n- The importance of saving files before running code.\n- How to read error messages and use them to debug code.\n- How to use the \"Run\" button and when to use the terminal instead.\n- How to switch between files and organize code in folders.\n- How to use code comments for documentation and clarity.\n- How to ask for help or use the chat/assistant features.\n- Best practices for writing clean, readable code.\n\nFormat your response as a markdown bullet list. Be specific, positive, and beginner-friendly.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
