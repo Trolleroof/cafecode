@@ -39,6 +39,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import TavusConversation from '../../components/TavusConversation';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import { useAuth } from '@/hooks/useAuth';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
@@ -208,6 +209,7 @@ function IDEPage() {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [showVideoWarning, setShowVideoWarning] = useState(false);
   const router = useRouter();
+  const { session } = useAuth();
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -454,7 +456,10 @@ function IDEPage() {
     try {
       const response = await fetch('/api/guided/simple-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({ 
           history: [...chatMessages, userMessage],
           projectFiles: files,
@@ -513,7 +518,10 @@ function IDEPage() {
     try {
       const response = await fetch('/api/hint', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({
           code: selectedFile.content,
           language: selectedFile.language,
@@ -613,7 +621,10 @@ function IDEPage() {
       };
       const response = await fetch('/api/code/fix', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify(body)
       });
 
@@ -683,7 +694,10 @@ function IDEPage() {
     try {
       const response = await fetch('/api/translate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({
           text: `Explain this ${selectedFile.language} code: ${selectedFile.content}`,
           projectFiles: files
@@ -723,7 +737,10 @@ function IDEPage() {
       window.console.log('[GUIDE-LOG] Sending fetch to /api/guided/startProject');
       const response = await fetch('/api/guided/startProject', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({ 
           projectDescription: description,
           projectFiles: files 
@@ -882,7 +899,10 @@ function IDEPage() {
       console.log('Calling backend analyzeStep API for code analysis...');
       const response = await fetch('/api/guided/analyzeStep', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
         body: JSON.stringify({
           projectId: guidedProject.projectId,
           stepId: guidedProject.steps[guidedProject.currentStep].id,
@@ -1091,7 +1111,10 @@ function IDEPage() {
         try {
           const response = await fetch('/api/guided/recap', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`
+            },
             body: JSON.stringify({
               projectFiles: files,
               chatHistory: chatMessages,

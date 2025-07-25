@@ -95,7 +95,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Initialize Gemini AI service
 let geminiService = null;
 
 async function initializeServices() {
