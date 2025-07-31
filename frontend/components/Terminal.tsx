@@ -7,8 +7,8 @@ import { ClipboardAddon } from '@xterm/addon-clipboard';
 import 'xterm/css/xterm.css';
 import { supabase } from '../lib/supabase';
 
-const WS_BASE_URL = 'wss://cafecode-bacend.fly.dev/terminal';
-//const WS_BASE_URL = 'ws://localhost:8000/terminal'
+// const WS_BASE_URL = 'wss://cafecode-bacend.fly.dev/terminal';
+const WS_BASE_URL = 'ws://localhost:8000/terminal'
 
 const Terminal: React.FC = () => {
   const xtermRef = useRef<HTMLDivElement>(null);
@@ -43,7 +43,6 @@ const Terminal: React.FC = () => {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        term.writeln('🖧 WebSocket connected!');
         // Send initial size
         if (fitAddonRef.current) {
           const { cols, rows } = fitAddonRef.current.proposeDimensions() || { cols: 80, rows: 24 };

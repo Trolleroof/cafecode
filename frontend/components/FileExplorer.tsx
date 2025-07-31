@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   File,
   Folder,
@@ -14,7 +14,14 @@ import {
   FileCode2,
   Search,
   Menu,
-  GripVertical
+  GripVertical,
+  Copy,
+  Scissors,
+  Download,
+  Upload,
+  RefreshCw,
+  MoreHorizontal,
+  Edit3
 } from 'lucide-react';
 
 // Add axios for API calls
@@ -29,6 +36,8 @@ interface FileNode {
   content?: string;
   children?: FileNode[];
   language?: string;
+  size?: number;
+  modified?: Date;
 }
 
 interface FileExplorerProps {
@@ -40,7 +49,7 @@ interface FileExplorerProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   stepProgression?: React.ReactNode;
-  onRefresh?: () => void; // <-- Add this prop
+  onRefresh?: () => void;
   onFileSelect?: (file: FileNode) => void;
 }
 
@@ -132,8 +141,8 @@ const getFileIcon = (fileName: string) => {
 const isValidFileExtension = (fileName: string): boolean => {
   const extension = fileName.split('.').pop()?.toLowerCase();
   return [
-    'js','ts','py','java','cpp','c','cs','go','rb','php','html','css','json','xml','sh','md','swift','kt','rs','sql','yaml','yml','dockerfile','bat','pl','r','scala','lua','dart','ini','makefile','toml','vue','svelte','scss','less','coffee','h','tsx','jsx'
-  ].includes(extension || '');
+    'js','ts','py','java','cpp','c','cs','go','rb','php','html','css','json','xml','sh','md','swift','kt','rs','sql','yaml','yml','dockerfile','bat','pl','r','scala','lua','dart','ini','makefile','toml','vue','svelte','scss','less','coffee','h','tsx','jsx','txt','env','gitignore','npmrc','babelrc','eslintrc','prettierrc','config'
+  ].includes(extension || '') || fileName === 'Dockerfile' || fileName === 'Makefile' || fileName.includes('.');
 };
 
 const getLanguageFromFileName = (fileName: string): string => {
@@ -188,10 +197,13 @@ const FileTreeNode: React.FC<{
   level: number;
   onSelect: (file: FileNode) => void;
   onDelete: (fileId: string) => void;
+  onRename: (fileId: string, newName: string) => void;
+  onCopy: (fileId: string) => void;
+  onCut: (fileId: string) => void;
   onMove?: (fileId: string, newParentId: string | null) => void;
   selectedFileId: string | null;
   onCreateFile: (parentId: string) => void;
-  onCreateFolder: (parentId: string) => void;
+  onCreateFolder: (parentId: string, type: 'file' | 'folder') => void;
   searchTerm: string;
   searchFilter: SearchFilter;
   maxDepth?: number;
@@ -204,6 +216,9 @@ const FileTreeNode: React.FC<{
   level, 
   onSelect, 
   onDelete, 
+  onRename,
+  onCopy,
+  onCut,
   onMove,
   selectedFileId, 
   onCreateFile, 
@@ -216,7 +231,8 @@ const FileTreeNode: React.FC<{
   onDragEnd,
   onDrop
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  // Change isExpanded default to false
+  const [isExpanded, setIsExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -225,11 +241,12 @@ const FileTreeNode: React.FC<{
     return null;
   }
 
-  const handleClick = () => {
-    if (node.type === 'file') {
-      onSelect(node);
-    } else {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
+    if (node.type === 'folder') {
       setIsExpanded(!isExpanded);
+    } else {
+      onSelect(node);
     }
   };
 
@@ -246,11 +263,8 @@ const FileTreeNode: React.FC<{
         
       case 'all':
       default:
-        // Search by name and check if children match
-        return node.name.toLowerCase().includes(term) ||
-          (node.children && node.children.some(child => 
-            child.name.toLowerCase().includes(term)
-          ));
+        // Only search current node name when folders are collapsed
+        return node.name.toLowerCase().includes(term);
     }
   }, [searchTerm, searchFilter, node]);
 
@@ -258,7 +272,7 @@ const FileTreeNode: React.FC<{
     return null;
   }
 
-  const handleDragStart = (e: React.DragEvent) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     if (onDragStart && onMove) {
       onDragStart(node.id);
       e.dataTransfer.setData('text/plain', node.id);
@@ -266,14 +280,14 @@ const FileTreeNode: React.FC<{
     }
   };
 
-  const handleDragEnd = (e: React.DragEvent) => {
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
     setIsDragOver(false);
     if (onDragEnd) {
       onDragEnd();
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     if (onMove && draggedFileId && draggedFileId !== node.id && node.type === 'folder') {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
@@ -281,13 +295,13 @@ const FileTreeNode: React.FC<{
     }
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragOver(false);
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(false);
     
@@ -318,13 +332,6 @@ const FileTreeNode: React.FC<{
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* Drag handle */}
-        {onMove && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing">
-            <GripVertical className="h-3 w-3 text-deep-espresso/50 flex-shrink-0" />
-          </div>
-        )}
-        
         {node.type === 'folder' ? (
           isExpanded ? (
             <FolderOpen className="h-5 w-5 text-orange-400 flex-shrink-0" />
@@ -334,11 +341,17 @@ const FileTreeNode: React.FC<{
         ) : (
           getFileIcon(node.name)
         )}
+        
         <span 
           className="text-sm flex-1 min-w-0 truncate font-mono"
-          title={node.name}
+          title={node.id}
         >
           {node.name}
+          {node.id.includes('/') && (
+            <span className="ml-2 text-xs text-gray-400 font-mono">
+              {node.id.substring(0, node.id.lastIndexOf('/'))}
+            </span>
+          )}
         </span>
         
         {showActions && (
@@ -358,7 +371,7 @@ const FileTreeNode: React.FC<{
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onCreateFolder(node.id);
+                    onCreateFolder(node.id, 'folder');
                   }}
                   className="p-1 hover:bg-cream-beige rounded"
                   title="New Folder"
@@ -390,7 +403,10 @@ const FileTreeNode: React.FC<{
               level={level + 1}
               onSelect={onSelect}
               onDelete={onDelete}
-              onMove={onMove}
+              onRename={onRename}
+              onCopy={onCopy}
+              onCut={() => {}}
+              onMove={() => {}}
               selectedFileId={selectedFileId}
               onCreateFile={onCreateFile}
               onCreateFolder={onCreateFolder}
@@ -400,7 +416,7 @@ const FileTreeNode: React.FC<{
               draggedFileId={draggedFileId}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
-              onDrop={onDrop}
+              onDrop={() => {}}
             />
           ))}
         </div>
@@ -411,58 +427,74 @@ const FileTreeNode: React.FC<{
 
 // Helper: Convert backend recursive file list to FileNode tree
 function convertBackendFilesToTree(backendFiles: any[]): FileNode[] {
-  // backendFiles: [{ name, isDirectory } ...] with paths like 'src/index.js'
-  const root: { [key: string]: FileNode } = {};
+  const rootNode: FileNode = { id: '', name: 'root', type: 'folder', children: [] };
+
+  // Sort files to ensure parents are processed before children and folders before files
+  backendFiles.sort((a, b) => {
+    const aPathParts = a.name.split('/');
+    const bPathParts = b.name.split('/');
+
+    // Prioritize shorter paths (parents) first
+    if (aPathParts.length !== bPathParts.length) {
+      return aPathParts.length - bPathParts.length;
+    }
+
+    // Then prioritize folders over files at the same level
+    if (a.isDirectory !== b.isDirectory) {
+      return a.isDirectory ? -1 : 1;
+    }
+    
+    return a.name.localeCompare(b.name);
+  });
+
   for (const file of backendFiles) {
     const parts = file.name.split('/');
-    let current = root;
-    let pathSoFar = '';
+    let currentParent = rootNode;
+    let currentPath = '';
+
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
-      pathSoFar = pathSoFar ? pathSoFar + '/' + part : part;
-      if (!current[part]) {
-        const isFolder = (i < parts.length - 1) || file.isDirectory;
-        current[part] = {
-          id: pathSoFar,
+      const isLastPart = (i === parts.length - 1);
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+      let existingNode = currentParent.children?.find(child => child.name === part);
+
+      if (!existingNode) {
+        existingNode = {
+          id: currentPath,
           name: part,
-          type: isFolder ? 'folder' : 'file',
-          children: isFolder ? [] : undefined,
+          type: (isLastPart && !file.isDirectory) ? 'file' : 'folder',
+          children: [],
         };
-      }
-      if (i === parts.length - 1) {
-        // Mark as file or folder
-        current[part].type = file.isDirectory ? 'folder' : 'file';
-      }
-      if (i < parts.length - 1) {
-        // Find or create the child folder in the array
-        let child = (current[part].children as FileNode[]);
-        // Convert array to object for next iteration
-        let childObj: { [key: string]: FileNode } = {};
-        for (const c of child) {
-          childObj[c.name] = c;
+        if (currentParent.children) {
+          currentParent.children.push(existingNode);
+        } else {
+          currentParent.children = [existingNode];
         }
-        current[part].children = child;
-        current = childObj;
+      }
+
+      if (!isLastPart) {
+        currentParent = existingNode;
+      } else if (!file.isDirectory) {
+        // If it's the last part and it's a file, ensure its type is 'file' and no children
+        existingNode.type = 'file';
+        existingNode.children = undefined;
       }
     }
   }
-  // Convert root object to array recursively
-  function toArray(obj: { [key: string]: FileNode }): FileNode[] {
-    return Object.values(obj).map((node) =>
-      node.type === 'folder' && node.children
-        ? { ...node, children: toArray(arrayToObj(node.children)) }
-        : { ...node }
-    );
-  }
-  // Helper to convert array of FileNode to object by name
-  function arrayToObj(arr: FileNode[] = []): { [key: string]: FileNode } {
-    const obj: { [key: string]: FileNode } = {};
-    for (const node of arr) {
-      obj[node.name] = node;
+
+  // Recursively remove empty children arrays from files (not folders)
+  function cleanTree(node: FileNode): FileNode {
+    if (node.type === 'file') {
+      return { ...node, children: undefined };
     }
-    return obj;
+    if (node.children) {
+      node.children = node.children.map(cleanTree);
+    }
+    return node;
   }
-  return toArray(root);
+
+  return rootNode.children || [];
 }
 
 // Helper: Find a node by id in the tree
@@ -478,18 +510,20 @@ function findNodeById(id: string, nodes: FileNode[]): FileNode | null {
 }
 
 // Helper: Get path from id (id is the path)
-function getPathFromId(id: string, nodes: FileNode[]): string {
+function getPathFromId(id: string, files: FileNode[]): string {
+  // In this new structure, id IS the path already.
   return id;
 }
 
 // Helper: Build path from parentId and name
-function buildPathFromId(parentId: string | null, name: string, nodes: FileNode[]): string {
-  if (!parentId || parentId === '.') return name;
+function buildPathFromId(parentId: string | null, name: string, files: FileNode[]): string {
+  // If creating at the root (parentId is null or '.'), just use the name
+  if (!parentId || parentId === '.' || parentId === '/') return name;
   return parentId + '/' + name;
 }
 
 // Helper: Get parent id from file id
-function getParentId(id: string, nodes: FileNode[]): string | null {
+function getParentId(id: string, files: FileNode[]): string | null {
   const parts = id.split('/');
   if (parts.length <= 1) return null;
   parts.pop();
@@ -513,6 +547,7 @@ export default function FileExplorer({
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [refreshFlag, setRefreshFlag] = useState(0);
+  const [clipboard, setClipboard] = useState<{fileId: string, operation: 'copy' | 'cut'} | null>(null);
 
   // Helper to get auth headers
   const getAuthHeaders = () => {
@@ -535,11 +570,11 @@ export default function FileExplorer({
   const [draggedFileId, setDraggedFileId] = useState<string | undefined>(undefined);
 
   // Fetch file tree from backend
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     if (!session?.access_token) {
       setError('Authentication required');
-        return;
-      }
+      return;
+    }
       
     setLoading(true);
     setError(null);
@@ -551,18 +586,18 @@ export default function FileExplorer({
       const nodes = convertBackendFilesToTree(res.data.files);
       setFiles(nodes);
     } catch (err: any) {
-      setError(err.message || 'Failed to load files');
+      console.error('Failed to fetch files:', err);
+      setError(err.response?.data?.error || err.message || 'Failed to load files');
     } finally {
       setLoading(false);
     }
-  };
+  }, [session]);
 
   useEffect(() => {
     if (session?.access_token) {
       fetchFiles();
     }
-    // eslint-disable-next-line
-  }, [refreshFlag, session]);
+  }, [refreshFlag, session, fetchFiles]);
 
   // Helper to trigger refresh
   const triggerRefresh = () => setRefreshFlag(f => f + 1);
@@ -576,6 +611,7 @@ export default function FileExplorer({
       });
       return res.data.data;
     } catch (err) {
+      console.error('Failed to read file:', err);
       return '';
     }
   };
@@ -583,6 +619,8 @@ export default function FileExplorer({
   // File select handler
   const handleFileSelect = async (file: FileNode) => {
     if (file.type === 'file') {
+      // Prevent reloading if already selected
+      if (selectedFile && selectedFile.id === file.id) return;
       const content = await fetchFileContent(file);
       const language = getLanguageFromFileName(file.name);
       const fileWithContent = { ...file, content, language };
@@ -599,24 +637,31 @@ export default function FileExplorer({
         { headers: getAuthHeaders() }
       );
       triggerRefresh();
-    } catch (err) {
-      alert('Failed to create ' + type);
+    } catch (err: any) {
+      console.error('Failed to create:', err);
+      alert(err.response?.data?.error || 'Failed to create ' + type);
     }
   };
 
   const handleDelete = async (fileId: string) => {
+    // Remove confirmation dialog
     try {
       await axios.delete(`${backendUrl}/files/delete`, { 
         data: { path: getPathFromId(fileId, files) },
         headers: getAuthHeaders()
       });
       triggerRefresh();
-    } catch (err) {
-      alert('Failed to delete');
+    } catch (err: any) {
+      console.error('Failed to delete:', err);
+      alert(err.response?.data?.error || 'Failed to delete');
     }
   };
 
   const handleRename = async (fileId: string, newName: string) => {
+    if (!newName.trim() || newName === fileId.split('/').pop()) {
+      return;
+    }
+    
     try {
       const oldPath = getPathFromId(fileId, files);
       const newPath = buildPathFromId(getParentId(fileId, files), newName, files);
@@ -625,22 +670,60 @@ export default function FileExplorer({
         { headers: getAuthHeaders() }
       );
       triggerRefresh();
-    } catch (err) {
-      alert('Failed to rename');
+    } catch (err: any) {
+      console.error('Failed to rename:', err);
+      alert(err.response?.data?.error || 'Failed to rename');
+    }
+  };
+
+  const handleCopy = (fileId: string) => {
+    setClipboard({ fileId, operation: 'copy' });
+  };
+
+  const handleCut = (fileId: string) => {
+    setClipboard({ fileId, operation: 'cut' });
+  };
+
+  const handlePaste = async (targetFolderId: string | null) => {
+    if (!clipboard) return;
+    
+    try {
+      const sourcePath = getPathFromId(clipboard.fileId, files);
+      const fileName = clipboard.fileId.split('/').pop() || clipboard.fileId;
+      const targetPath = buildPathFromId(targetFolderId, fileName, files);
+      
+      if (clipboard.operation === 'copy') {
+        await axios.post(`${backendUrl}/files/copy`, 
+          { sourcePath, destinationPath: targetPath },
+          { headers: getAuthHeaders() }
+        );
+      } else { // cut (move)
+        await axios.post(`${backendUrl}/files/rename`, 
+          { oldPath: sourcePath, newPath: targetPath },
+          { headers: getAuthHeaders() }
+        );
+      }
+      
+      setClipboard(null);
+      triggerRefresh();
+    } catch (err: any) {
+      console.error('Failed to paste:', err);
+      alert(err.response?.data?.error || 'Failed to paste');
     }
   };
 
   // UI: Create file/folder dialog
-  const handleShowCreate = (parentId: string | null, type: 'file' | 'folder') => {
+  const handleShowCreate = (parentId: string | null, type: 'file' | 'folder' = 'file') => {
     setCreateParentId(parentId);
     setCreateType(type);
     setShowCreateDialog(true);
     setNewName('');
   };
+  
   const handleCreateConfirm = async () => {
     if (!newName.trim()) return;
     if (createType === 'file' && !isValidFileExtension(newName.trim())) {
-      alert('Only .py, .css, .html, .js files allowed!');
+      alert('Please provide a valid file extension!');
       return;
     }
     await handleCreate(createParentId, createType, newName.trim());
@@ -657,17 +740,20 @@ export default function FileExplorer({
         level={level}
         onSelect={handleFileSelect}
         onDelete={handleDelete}
-        onMove={undefined} // onMove is not implemented yet
+        onRename={handleRename}
+        onCopy={handleCopy}
+        onCut={() => {}}
+        onMove={() => {}}
         selectedFileId={selectedFileId}
-        onCreateFile={(parentId) => handleShowCreate(parentId, 'file')}
-        onCreateFolder={(parentId) => handleShowCreate(parentId, 'folder')}
+        onCreateFile={handleShowCreate}
+        onCreateFolder={handleShowCreate}
         searchTerm={searchTerm}
         searchFilter={searchFilter}
         maxDepth={10}
         draggedFileId={draggedFileId}
         onDragStart={setDraggedFileId}
         onDragEnd={() => setDraggedFileId(undefined)}
-        onDrop={undefined} // onDrop is not implemented yet
+        onDrop={() => {}}
       />
     ));
 
@@ -714,7 +800,7 @@ export default function FileExplorer({
         </div>
         <div className="flex gap-1">
           <button
-            onClick={() => handleShowCreate(null, 'file')}
+            onClick={() => handleShowCreate(null)}
             className="p-1 hover:bg-cream-beige rounded"
             title="New File"
           >
@@ -727,18 +813,14 @@ export default function FileExplorer({
           >
             <Folder className="h-4 w-4 text-deep-espresso" />
           </button>
-          {/* Refresh Button */}
-          {onRefresh && (
-            <button
-              onClick={handleRefresh}
-              className="p-1 hover:bg-cream-beige rounded"
-              title="Refresh File List"
-            >
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="h-4 w-4 text-deep-espresso">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0012 19a7 7 0 006.418-4M18.418 15A7.003 7.003 0 0012 5a7 7 0 00-6.418 4" />
-              </svg>
-            </button>
-          )}
+          <button
+            onClick={handleRefresh}
+            className="p-1 hover:bg-cream-beige rounded"
+            title="Refresh File List"
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 text-deep-espresso ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
@@ -756,10 +838,22 @@ export default function FileExplorer({
         </div>
       </div>
       
+      {/* Error Display */}
+      {error && (
+        <div className="p-2 bg-red-100 border border-red-300 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+      
       {/* File Tree */}
       <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-4">
         <div className="min-w-max">
-          {files.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-32 text-center p-4">
+              <RefreshCw className="h-8 w-8 text-deep-espresso/50 mb-2 animate-spin" />
+              <p className="text-deep-espresso/70 text-sm">Loading files...</p>
+            </div>
+          ) : files.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center p-4">
               <File className="h-8 w-8 text-deep-espresso/50 mb-2" />
               <p className="text-deep-espresso/70 text-sm">No files yet</p>
@@ -783,14 +877,14 @@ export default function FileExplorer({
             </label>
             <input
               className="bg-cream-beige px-3 py-2 rounded w-full mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent text-medium-coffee text-base"
-              placeholder={createType === 'file' ? 'e.g. main.py' : 'e.g. components'}
+              placeholder={createType === 'file' ? 'e.g. main.py, app.js, index.html' : 'e.g. components, src, assets'}
               value={newName}
               onChange={e => setNewName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleCreateConfirm(); }}
               autoFocus
             />
             {createType === 'file' && (
-              <p className="text-xs text-brown-900/80 mb-2">Allowed: .py, .css, .html, .js</p>
+              <p className="text-xs text-brown-900/80 mb-2">Include file extension (e.g. .py, .js, .html, .css)</p>
             )}
             <div className="flex gap-2 justify-end mt-4">
               <button onClick={() => setShowCreateDialog(false)} className="px-4 py-1.5 rounded bg-cream-beige hover:bg-white text-deep-espresso font-medium">Cancel</button>

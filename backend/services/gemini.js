@@ -91,7 +91,7 @@ Return JSON:
   "analysis_summary": "overall summary"
 }
 
-Focus on syntax errors, logic bugs, performance issues, code style, security vulnerabilities, and readability.`;
+Focus on syntax errors, logic bugs, performance issues, code style, security vulnerabilities, and readability. Consider the specific technology stack and best practices for that framework.`;
   }
 
   createFixPrompt(code, language, errorMessage, lineNumber = null, projectFiles = null) {
@@ -114,7 +114,7 @@ Return JSON:
   "explanation": "overall explanation"
 }
 
-Fix the specific error while preserving original structure and logic.`;
+Fix the specific error while preserving original structure and logic. Consider the specific technology stack and follow best practices for that framework.`;
   }
 
   createHintPrompt(code, language, stepInstruction = null, lineRanges = null, stepId = null, projectFiles = null) {

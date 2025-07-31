@@ -183,7 +183,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         {stepNumber === totalSteps ? (
           <Button
             onClick={onFinish}
-            disabled={!isComplete}
+            // disabled={!isComplete} // DEMO MODE: Commented out to allow skipping steps
             size="lg"
             className="flex-1 min-w-0 px-2 py-1 bg-deep-espresso hover:bg-medium-coffee text-light-cream font-bold rounded-xl shadow-lg transition-all duration-200 text-sm"
           >
@@ -193,7 +193,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         ) : (
           <Button
             onClick={onNextStep}
-            disabled={!isComplete}
+            // disabled={!isComplete} // DEMO MODE: Commented out to allow skipping steps
             size="lg"
             className="flex-1 min-w-0 px-2 py-1 bg-medium-coffee hover:bg-deep-espresso text-light-cream font-bold rounded-xl shadow-lg transition-all duration-200 text-sm"
           >
