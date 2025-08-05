@@ -7,6 +7,6 @@ RUN apk add --no-cache python3 make g++ bash
 COPY package*.json ./
 RUN npm install
 COPY . .
-EXPOSE 3000
-ENV PORT=3000
+EXPOSE 8000
+ENV PORT=8000
 CMD [ "node", "server.js" ] 
