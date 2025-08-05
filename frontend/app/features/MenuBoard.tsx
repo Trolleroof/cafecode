@@ -6,10 +6,10 @@ import {
   IconBulb,
   IconWindow,
   IconMessage,
-  IconTrophy
+  IconTrophy,
+  IconBook
 } from '@tabler/icons-react';
 import Image from 'next/image';
-import Leetcode from "/Users/nikhi/v2-bolt-hackathon-1/frontend/public/images/leetcode.png"
 
 const features = [
   {
@@ -45,11 +45,11 @@ const features = [
     color: '#e7c08a',
   },
   {
-    icon: <IconTrophy className="inline mr-1" />,
-    title: 'LeetCode Practice',
-    price: '🏆 Training Ground',
-    tags: ['LeetCode', 'Problem Practice', 'Similar Generation', 'Step-by-Step', 'Interview Ready'],
-    description: "Practice basic Leetcode problems and patterns that appear in SWE interviews",
+    icon: <IconBook className="inline mr-1" />,
+    title: 'Guided Projects',
+    price: '📚 Learning Path',
+    tags: ['Step-by-Step', 'Project-Based', 'Beginner Friendly', 'Real Projects', 'Interactive Learning'],
+    description: "Learn coding through guided projects with step-by-step instructions and real-world applications",
     color: '#e7c08a',
     featured: true,
   },

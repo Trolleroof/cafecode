@@ -21,7 +21,8 @@ import {
   Upload,
   RefreshCw,
   MoreHorizontal,
-  Edit3
+  Edit3,
+  Trash2
 } from 'lucide-react';
 
 // Add axios for API calls
@@ -388,7 +389,7 @@ const FileTreeNode: React.FC<{
               className="p-1 hover:bg-deep-espresso rounded"
               title="Delete"
             >
-              <X className="h-3 w-3 text-deep-espresso" />
+              <Trash2 className="h-3 w-3 text-deep-espresso" />
             </button>
           </div>
         )}

@@ -97,7 +97,8 @@ Project: ${projectDescription}
 ${projectContext}
 
 TECHNOLOGY DETECTION AND SUPPORT:
-- If the user mentions React, React.js, or ReactJS in their project description, provide a special response asking them to input their React project requirements
+- If the user mentions React, React.js, or ReactJS in their project description, create steps for a React application.
+- For React projects, start with creating the main App.jsx component and index.html.
 - If the user mentions Vue, Vue.js, or VueJS, create steps for a Vue application
 - If the user mentions Angular, create steps for an Angular application
 - If the user mentions Next.js, create steps for a Next.js application
@@ -105,51 +106,6 @@ TECHNOLOGY DETECTION AND SUPPORT:
 - If the user mentions Python, Django, or Flask, create steps for a Python backend
 - If the user mentions a full-stack application, create both frontend and backend steps
 - If no specific technology is mentioned, default to vanilla HTML/CSS/JavaScript for web projects
-
-REACT-SPECIFIC GUIDELINES (when React is mentioned):
-- Instead of creating detailed steps, ask the user to provide more specific requirements for their React project
-- Tell them to describe what components, features, or functionality they want to build
-- Ask them to specify if they want a simple component, a full application, or specific React features
-- Guide them to provide more detailed input before creating the step-by-step guide
-
-VUE-SPECIFIC GUIDELINES (when Vue is mentioned):
-- Start with creating a Vue app structure
-- Use .vue single-file components
-- Include proper Vue template, script, and style sections
-- Use Vue directives (v-if, v-for, v-model, etc.)
-- Include proper Vue event handling
-- Use Vue composition API or options API as appropriate
-
-ANGULAR-SPECIFIC GUIDELINES (when Angular is mentioned):
-- Start with creating an Angular app structure
-- Use TypeScript syntax
-- Create components, services, and modules as needed
-- Use Angular CLI commands (but explain them as IDE actions)
-- Include proper Angular template syntax
-- Use Angular dependency injection
-
-NEXT.JS-SPECIFIC GUIDELINES (when Next.js is mentioned):
-- Start with creating a Next.js app structure
-- Use pages directory for routing
-- Include proper Next.js file-based routing
-- Use Next.js API routes for backend functionality
-- Include proper Next.js data fetching methods
-
-NODE.JS/EXPRESS GUIDELINES (when backend/server is mentioned):
-- Start with creating a Node.js project structure
-- Use Express.js for routing
-- Include proper package.json setup
-- Create API endpoints
-- Use middleware for functionality
-- Include proper error handling
-
-PYTHON BACKEND GUIDELINES (when Python/Django/Flask is mentioned):
-- Start with creating a Python project structure
-- Use appropriate framework (Django or Flask)
-- Create proper Python virtual environment setup
-- Include proper routing and views
-- Use database models if needed
-- Include proper error handling
 
 STRICT JSON RULE: YOU MUST ALWAYS RETURN A VALID JSON ARRAY OF STEPS. DO NOT RETURN A SEQUENCE OF OBJECTS. ALWAYS WRAP THE STEPS IN [ ] BRACKETS. IF YOU DO NOT FOLLOW THIS, YOUR RESPONSE WILL BE REJECTED.
 
@@ -220,33 +176,33 @@ Make sure each step is clear, specific, and achievable. Focus on one task per st
 ***REPEAT: ONLY RETURN A VALID JSON ARRAY OF STEPS, WRAPPED IN [ ] BRACKETS. DO NOT RETURN A SEQUENCE OF OBJECTS. DO NOT INCLUDE ANY EXTRA TEXT OR MARKDOWN.***`;
 
     // Check if this is a React project and provide special response
-    const isReactProject = /react|react\.js|reactjs/i.test(projectDescription);
+    // const isReactProject = /react|react\.js|reactjs/i.test(projectDescription);
     
-    if (isReactProject) {
-      // For React projects, return a special response asking for more input
-      const reactSteps = [
-        {
-          "id": "1",
-          "instruction": "Please provide more specific details about your React project. What components, features, or functionality do you want to build? For example: 'I want to create a todo list app with add/delete functionality' or 'I want to build a simple counter component with increment/decrement buttons'.",
-          "lineRanges": [1, 1]
-        }
-      ];
+    // if (isReactProject) {
+    //   // For React projects, return a special response asking for more input
+    //   const reactSteps = [
+    //     {
+    //       "id": "1",
+    //       "instruction": "Please provide more specific details about your React project. What components, features, or functionality do you want to build? For example: 'I want to create a todo list app with add/delete functionality' or 'I want to build a simple counter component with increment/decrement buttons'.",
+    //       "lineRanges": [1, 1]
+    //     }
+    //   ];
       
-      const welcomeMessage = {
-        type: "assistant",
-        content: `I see you want to create a React project! 🚀\n\nTo provide you with the best step-by-step guidance, I need more specific details about what you want to build. Please describe:\n\n• What type of React application or component you want to create\n• What features or functionality you want to include\n• Any specific requirements or preferences\n\nFor example:\n• "I want to create a todo list app with add/delete functionality"\n• "I want to build a simple counter component with increment/decrement buttons"\n• "I want to create a React app that displays a list of users from an API"\n\nOnce you provide more details, I'll create a detailed step-by-step guide for your specific React project!`,
-      };
+    //   const welcomeMessage = {
+    //     type: "assistant",
+    //     content: `I see you want to create a React project! 🚀\n\nTo provide you with the best step-by-step guidance, I need more specific details about what you want to build. Please describe:\n\n• What type of React application or component you want to create\n• What features or functionality you want to include\n• Any specific requirements or preferences\n\nFor example:\n• "I want to create a todo list app with add/delete functionality"\n• "I want to build a simple counter component with increment/decrement buttons"\n• "I want to create a React app that displays a list of users from an API"\n\nOnce you provide more details, I'll create a detailed step-by-step guide for your specific React project!`,
+    //   };
 
-      activeProjects.set(projectId, {
-        description: projectDescription,
-        steps: reactSteps,
-        currentStep: 0,
-        projectFiles: projectFiles || []
-      });
+    //   activeProjects.set(projectId, {
+    //     description: projectDescription,
+    //     steps: reactSteps,
+    //     currentStep: 0,
+    //     projectFiles: projectFiles || []
+    //   });
 
-      res.json({ projectId, steps: reactSteps, welcomeMessage, projectContext: projectDescription });
-      return;
-    }
+    //   res.json({ projectId, steps: reactSteps, welcomeMessage, projectContext: projectDescription });
+    //   return;
+    // }
 
     // --- Comment out Gemini prompt usage for new/similar problem generation (if any) ---
     // (No explicit similar problem generation found in this file, but if any Gemini prompt for new/similar, comment it out)
@@ -456,7 +412,7 @@ IMPORTANT: Mark as correct if the code STRUCTURE and ELEMENTS fulfill the step r
     console.log("Full prompt being sent to Gemini:", prompt);
     // --- Comment out Gemini prompt usage for new/similar problem generation (if any) ---
     // (No explicit similar problem generation found in this file, but if any Gemini prompt for new/similar, comment it out)
-    // const result = await req.geminiService.model.generateContent(prompt);
+    const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
     console.log("Gemini response received, length:", responseText.length);
     
