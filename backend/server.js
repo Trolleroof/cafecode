@@ -125,7 +125,6 @@ const authenticateUser = (req, res, next) => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    console.log('🔐 Auth Debug - Authorization header:', authHeader ? `Bearer ${authHeader.substring(7, 20)}...` : 'MISSING');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       console.log('❌ Auth Error: Missing or invalid authorization header format');

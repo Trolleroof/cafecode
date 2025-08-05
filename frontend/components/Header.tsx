@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'leet'>(null);
+  const [loadingButton, setLoadingButton] = useState<null | 'ide'>(null);
   const router = useRouter();
   const pathname = usePathname();
   const [session, setSession] = useState<any>(null);
@@ -52,16 +52,6 @@ const Header = () => {
     setLoadingButton('ide');
     setTimeout(() => {
       router.push('/ide');
-    }, 900);
-  };
-  const handleGoToLeet = () => {
-    if (!session) {
-      router.push('/login');
-      return;
-    }
-    setLoadingButton('leet');
-    setTimeout(() => {
-      router.push('/leetcode');
     }, 900);
   };
 

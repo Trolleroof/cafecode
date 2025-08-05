@@ -166,20 +166,26 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           <ArrowLeft className="h-4 w-4 mr-2" />
           Previous
         </Button>
-        <Button
-          onClick={onCheckStep}
-          variant="outline"
-          size="lg"
-          className="flex-1 min-w-0 px-2 py-1 bg-medium-coffee border-medium-coffee text-light-cream hover:bg-deep-espresso hover:border-deep-espresso hover:text-light-cream transition-all duration-200 font-bold shadow-sm flex items-center justify-center rounded-xl text-sm"
-          disabled={isChecking}
-        >
-          {isChecking ? (
-            <Loader2 className="animate-spin h-4 w-4 mr-2" />
-          ) : (
-            <Search className="mr-2 h-4 w-4" />
-          )}
-          {isChecking ? 'Checking...' : 'Check'}
-        </Button>
+        <div className="flex items-center flex-1 min-w-0">
+          <Button
+            onClick={onCheckStep}
+            variant="outline"
+            size="lg"
+            className={`flex-1 min-w-0 px-2 py-1 border-medium-coffee font-bold shadow-sm flex items-center justify-center rounded-xl text-sm transition-all duration-200
+              ${isComplete && !isChecking ? 'bg-green-500 border-green-600 text-white hover:bg-green-600 hover:border-green-700' : 'bg-medium-coffee border-medium-coffee text-light-cream hover:bg-deep-espresso hover:border-deep-espresso hover:text-light-cream'}
+            `}
+            disabled={isChecking}
+          >
+            {isChecking ? (
+              <Loader2 className="animate-spin h-4 w-4 mr-2" />
+            ) : isComplete ? (
+              <CheckCircle className="mr-2 h-5 w-5" />
+            ) : (
+              <Search className="mr-2 h-4 w-4" />
+            )}
+            {isChecking ? 'Checking...' : isComplete ? 'Checked!' : 'Check'}
+          </Button>
+        </div>
         {stepNumber === totalSteps ? (
           <Button
             onClick={onFinish}

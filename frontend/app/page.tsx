@@ -29,7 +29,7 @@ const MenuBoard = dynamic(() => import('./features/MenuBoard'), { ssr: false });
 
 export default function Home() {
   const router = useRouter();
-  const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'leet'>(null);
+  const [loadingButton, setLoadingButton] = useState<null | 'ide'>(null);
 
   // Auth modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -42,13 +42,6 @@ export default function Home() {
     setLoadingButton('ide');
     setTimeout(() => {
       router.push('/ide');
-    }, 900);
-  };
-
-  const handleLeetCodePractice = () => {
-    setLoadingButton('leet');
-    setTimeout(() => {
-      router.push('/leetcode');
     }, 900);
   };
 
@@ -255,20 +248,6 @@ export default function Home() {
                     'Go to IDE'
                   )}
                 </button>
-                <button
-                  onClick={handleLeetCodePractice}
-                  className="btn-coffee-secondary px-8 py-4 text-lg xl:text-2xl font-bold rounded-xl shadow hover:shadow-lg transition flex items-center justify-center gap-2"
-                  disabled={loadingButton !== null}
-                >
-                  {loadingButton === 'leet' ? (
-                    <>
-                      <IconRefresh className="h-5 w-5 animate-spin" />
-                      Loading Practice...
-                    </>
-                  ) : (
-                    'LeetCode Practice'
-                  )}
-                </button>
               </div>
             </div>
             {/* Right: Hero Image */}
@@ -362,7 +341,7 @@ export default function Home() {
                 {
                   icon: IconCircleCheck,
                   title: 'Serve Excellence',
-                  description: 'Learn and practice the most common LeetCode patterns asked to applicants during SWE interviews to get the job. Perfect your craft.',
+                  description: 'Learn and practice the most common IDE features and tools to get the job. Perfect your craft.',
                   image: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=600',
                   color: 'from-medium-coffee to-cream-beige'
                 }
@@ -412,7 +391,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Testimonials Section - Coffee Reviews themed */}
+        {/* Testimonials Section - Coffee Reviews themed
         <section className="py-32 bg-gradient-to-br from-cream-beige via-light-cream to-cream-beige relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(163,106,62,0.1),transparent_50%)]"></div>
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,rgba(129,77,51,0.1),transparent_50%)]"></div>
@@ -493,7 +472,7 @@ export default function Home() {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* Pricing Section - Coffee Menu themed */}
         <section id="pricing" className="py-32 bg-light-cream relative overflow-hidden">
@@ -506,9 +485,9 @@ export default function Home() {
                 <span className="text-dark-charcoal font-semibold text-sm">Our Menu</span>
               </div>
               
-              <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-dark-charcoal mb-8 leading-tight">
+              <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-dark-charcoal mb-5 leading-tight">
                 Simple, Transparent
-                <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Pricing</span>
+                <span className="block bg-gradient-to-r pt-6 pb-2 from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Pricing</span>
               </h2>
               <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium">
                 Start with our free house blend and upgrade as your taste develops. No hidden fees, no complicated menu.
@@ -529,7 +508,7 @@ export default function Home() {
                     'Community support',
                     'Basic syntax highlighting'
                   ],
-                  cta: 'Start Free',
+                  cta: 'Coming Soon!',
                   popular: false,
                   color: 'from-deep-espresso to-dark-charcoal'
                 },
@@ -547,7 +526,7 @@ export default function Home() {
                     'Code templates',
                     'Progress tracking'
                   ],
-                  cta: 'Start Pro Trial',
+                  cta: 'Coming Soon!',
                   popular: true,
                   color: 'from-medium-coffee to-deep-espresso'
                 },
@@ -565,7 +544,7 @@ export default function Home() {
                     'Bulk user management',
                     'Advanced analytics'
                   ],
-                  cta: 'Contact Sales',
+                  cta: 'Coming Soon!',
                   popular: false,
                   color: 'from-deep-espresso to-medium-coffee'
                 }
@@ -580,10 +559,7 @@ export default function Home() {
                 >
                   {plan.popular && (
                     <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
-                      <div className="bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream px-8 py-4 rounded-full text-sm font-bold flex items-center space-x-3 shadow-xl">
-                        <IconSparkles className="h-6 w-6" />
-                        <span>Most Popular</span>
-                      </div>
+                  
                     </div>
                   )}
 

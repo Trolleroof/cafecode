@@ -40,6 +40,9 @@ import TavusConversation from '../../components/TavusConversation';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/hooks/useAuth';
+import axios from 'axios';
+import { backendUrl } from '@/lib/utils';
+import ReactPreview from '@/components/ReactPreview';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
@@ -177,6 +180,78 @@ function formatCodeInMessage(content: string) {
   return content;
 }
 
+// Helper: Convert backend recursive file list to FileNode tree (copied from FileExplorer)
+function convertBackendFilesToTree(backendFiles: any[]): FileNode[] {
+  const rootNode: FileNode = { id: '', name: 'root', type: 'folder', children: [] };
+
+  // Sort files to ensure parents are processed before children and folders before files
+  backendFiles.sort((a, b) => {
+    const aPathParts = a.name.split('/');
+    const bPathParts = b.name.split('/');
+
+    // Prioritize shorter paths (parents) first
+    if (aPathParts.length !== bPathParts.length) {
+      return aPathParts.length - bPathParts.length;
+    }
+
+    // Then prioritize folders over files at the same level
+    if (a.isDirectory !== b.isDirectory) {
+      return a.isDirectory ? -1 : 1;
+    }
+    
+    return a.name.localeCompare(b.name);
+  });
+
+  for (const file of backendFiles) {
+    const parts = file.name.split('/');
+    let currentParent = rootNode;
+    let currentPath = '';
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLastPart = (i === parts.length - 1);
+      currentPath = currentPath ? `${currentPath}/${part}` : part;
+
+      let existingNode = currentParent.children?.find(child => child.name === part);
+
+      if (!existingNode) {
+        existingNode = {
+          id: currentPath,
+          name: part,
+          type: (isLastPart && !file.isDirectory) ? 'file' : 'folder',
+          children: [],
+        };
+        if (currentParent.children) {
+          currentParent.children.push(existingNode);
+        } else {
+          currentParent.children = [existingNode];
+        }
+      }
+
+      if (!isLastPart) {
+        currentParent = existingNode;
+      } else if (!file.isDirectory) {
+        // If it's the last part and it's a file, ensure its type is 'file' and no children
+        existingNode.type = 'file';
+        existingNode.children = undefined;
+      }
+    }
+  }
+
+  // Recursively remove empty children arrays from files (not folders)
+  function cleanTree(node: FileNode): FileNode {
+    if (node.type === 'file') {
+      return { ...node, children: undefined };
+    }
+    if (node.children) {
+      node.children = node.children.map(cleanTree);
+    }
+    return node;
+  }
+
+  return rootNode.children || [];
+}
+
 function IDEPage() {
   // File management state - Start with empty files array
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -210,6 +285,17 @@ function IDEPage() {
   const [showVideoWarning, setShowVideoWarning] = useState(false);
   const router = useRouter();
   const { session } = useAuth();
+
+  // Helper to get auth headers (inline from FileExplorer)
+  const getAuthHeaders = () => {
+    if (!session?.access_token) {
+      throw new Error('No authentication token available');
+    }
+    return {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json'
+    };
+  };
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -727,12 +813,15 @@ function IDEPage() {
   // 1. Add a loading state for starting guided project
   const [isStartingProject, setIsStartingProject] = useState(false);
   const [projectStartError, setProjectStartError] = useState<string | null>(null);
+  const [isReactProject, setIsReactProject] = useState(false);
 
   // 2. Update handleStartGuidedProject to set loading state
   const handleStartGuidedProject = async (description: string) => {
     window.console.log('[GUIDE-LOG] handleStartGuidedProject called with:', description);
     setIsStartingProject(true);
     setProjectStartError(null);
+    // Check if this is a React project
+    setIsReactProject(/react|react\.js|reactjs/i.test(description));
     try {
       window.console.log('[GUIDE-LOG] Sending fetch to /api/guided/startProject');
       const response = await fetch('/api/guided/startProject', {
@@ -797,6 +886,20 @@ function IDEPage() {
       const currentStep = guidedProject.steps[guidedProject.currentStep];
       console.log('Current step:', currentStep);
 
+      // Fetch current files from backend to ensure we have the latest file structure
+      let currentFiles: FileNode[] = [];
+      try {
+        const res = await axios.get(`${backendUrl}/files/list?recursive=true`, {
+          headers: getAuthHeaders()
+        });
+        // Convert backend files to tree structure (same logic as FileExplorer)
+        currentFiles = convertBackendFilesToTree(res.data.files);
+      } catch (err) {
+        console.error('Failed to fetch current files:', err);
+        // Fallback to existing files state if API fails
+        currentFiles = files;
+      }
+
       // Check if this step is about creating a file or folder
       const fileCreateMatch = currentStep.instruction.match(/create (an? |the )?(html|css|js|javascript|python)? ?file (called |named )?['"]?([\w\-.]+)['"]?/i);
       const folderCreateMatch = currentStep.instruction.match(/create (an? |the )?folder (called |named )?['"]?([\w\-.]+)['"]?/i);
@@ -805,7 +908,8 @@ function IDEPage() {
       // Handle file creation steps
       if (fileCreateMatch) {
         const requiredFileName = fileCreateMatch[4];
-        const allFiles = getAllFiles(files);
+        const allFiles = getAllFiles(currentFiles);
+        // Check if ANY file in the codebase has the required name, regardless of path
         const fileExists = allFiles.some((f: FileNode) => f.name.toLowerCase() === requiredFileName.toLowerCase());
         
         if (fileExists) {
@@ -833,11 +937,18 @@ function IDEPage() {
       // Handle folder creation steps
       if (folderCreateMatch || simpleFolderMatch) {
         const requiredFolderName = folderCreateMatch ? folderCreateMatch[3] : null;
-        const allFolders = getAllFolders(files);
+        const allFolders = getAllFolders(currentFiles);
         
         if (requiredFolderName) {
           // Named folder creation
-          const folderExists = allFolders.some((f: FileNode) => f.name.toLowerCase() === requiredFolderName.toLowerCase());
+          const folderExists = allFolders.some((f: FileNode) => {
+            if (requiredFolderName.includes('/')) {
+              // Path specified, match full path
+              return f.id === requiredFolderName;
+            }
+            // No path, must be at root
+            return f.id === requiredFolderName;
+          });
           if (folderExists) {
             setStepComplete(true);
             setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
@@ -978,14 +1089,15 @@ function IDEPage() {
   // Only allow moving forward if the current step is complete
   const handleNextStep = () => {
     if (!guidedProject) return;
-    if (!stepComplete) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'Please complete the current step before moving to the next one.',
-        timestamp: new Date()
-      }]);
-      return;
-    }
+    // DEMO MODE: Commented out to allow skipping steps
+    // if (!stepComplete) {
+    //   setChatMessages(prev => [...prev, {
+    //     type: 'assistant',
+    //     content: 'Please complete the current step before moving to the next one.',
+    //     timestamp: new Date()
+    //   }]);
+    //   return;
+    // }
     const nextStepIndex = guidedProject.currentStep + 1;
     if (nextStepIndex < guidedProject.steps.length) {
       setGuidedProject({
@@ -1297,12 +1409,14 @@ function IDEPage() {
                         jsContent={getAllFiles(files).find(f => f.language === 'javascript')?.content}
                         onConsoleLog={(message) => setOutput(prev => [...prev, message])}
                       />
+                    ) : isReactProject ? (
+                      <ReactPreview port={3000} />
                     ) : (
                       <div className="flex items-center justify-center h-full bg-cream-beige/20">
                         <div className="text-center">
                           <IconPlayerPlay className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
-                          <p className="text-deep-espresso text-lg">Preview available for HTML files</p>
-                          <p className="text-deep-espresso/70 text-sm mt-2">Create an HTML file to see the preview</p>
+                          <p className="text-deep-espresso text-lg">Preview available for HTML files and React projects</p>
+                          <p className="text-deep-espresso/70 text-sm mt-2">Create an HTML file or start a React project to see the preview</p>
                         </div>
                       </div>
                     )}
