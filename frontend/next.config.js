@@ -10,7 +10,7 @@ const nextConfig = {
     const useLocalhost = process.env.NEXT_PUBLIC_USE_LOCALHOST === 'true';
 
     // const backendUrl = useLocalhost ? 'http://localhost:8000/api' : 'https://cafecode-backend.onrender.com/api';
-    const backendUrl = 'http://localhost:8000/api'
+    const backendUrl = 'https://cafecode-bacend.fly.dev/api'
 
 
     return [
