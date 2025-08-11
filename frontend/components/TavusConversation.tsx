@@ -79,13 +79,18 @@ const TavusConversation: React.FC<TavusConversationProps> = ({ currentCode, curr
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            conversational_context: guidedProject.projectContext,
+            conversational_context: `${guidedProject.projectContext}\n\nAssistant style guidelines: Keep responses short (2-3 sentences), friendly, encouraging, and conversational. Focus on concrete next actions for the current step. Avoid long explanations unless explicitly asked.`,
             currentCode,
             currentLanguage,
             output,
             projectFiles,
             persona_id: process.env.NEXT_PUBLIC_TAVUS_PERSONA_ID!,
             replica_id: process.env.NEXT_PUBLIC_TAVUS_REPLICA_ID!,
+            properties: {
+              guidance_priority: 'actionable_tips',
+              response_tone: 'friendly',
+              response_length: 'short',
+            }
           })
         });
         if (!response.ok) {
@@ -207,10 +212,14 @@ ${currentCode}`);
   if (conversationUrl) {
     return (
       <div className="w-full h-full bg-dark-charcoal">
+        <div className="h-10 px-3 flex items-center justify-between bg-cream-beige border-b border-cream-beige">
+          <div className="text-deep-espresso font-semibold text-sm">Voice Assistant</div>
+          <div className="text-deep-espresso/70 text-xs">Short, conversational guidance</div>
+        </div>
         <iframe
           src={conversationUrl}
           allow="camera; microphone; fullscreen; speaker; display-capture"
-          className="w-full h-full border-0"
+          className="w-full h-[calc(100%-2.5rem)] border-0"
           onError={handleIframeError}
         ></iframe>
       </div>

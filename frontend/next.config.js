@@ -45,6 +45,9 @@ const nextConfig = {
 
     return config;
   },
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@heroicons/react'],
+  },
 };
 
 module.exports = nextConfig;

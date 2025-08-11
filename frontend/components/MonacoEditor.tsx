@@ -13,7 +13,7 @@ interface MonacoEditorProps {
   readOnly?: boolean;
 }
 
-const MonacoEditor: React.FC<MonacoEditorProps> = ({
+const MonacoEditor: React.FC<MonacoEditorProps> = React.memo(({
   language,
   value,
   onChange,
@@ -92,6 +92,6 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       }}
     />
   );
-};
+});
 
 export default MonacoEditor;

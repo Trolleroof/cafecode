@@ -5,6 +5,7 @@ import '@fontsource/sora';
 import '@fontsource/jetbrains-mono';
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { usePathname } from 'next/navigation';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'Cafécode',
@@ -40,6 +41,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         {children}
         <SpeedInsights />
+        <Toaster />
       </body>
     </html>
   )

@@ -38,6 +38,7 @@ import { useRouter } from 'next/navigation';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import TavusConversation from '../../components/TavusConversation';
+import dynamic from 'next/dynamic';
 import { api } from '@/lib/api';
 
 
@@ -196,6 +197,7 @@ export default function IDEPage() {
   // Guided project state
   const [guidedProject, setGuidedProject] = useState<GuidedProject | null>(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const [pendingStepCount, setPendingStepCount] = useState<number | null>(null);
   const [stepComplete, setStepComplete] = useState(false);
   const [isCheckingStep, setIsCheckingStep] = useState(false);
 
@@ -710,7 +712,7 @@ export default function IDEPage() {
   const [projectStartError, setProjectStartError] = useState<string | null>(null);
 
   // 2. Update handleStartGuidedProject to set loading state
-  const handleStartGuidedProject = async (description: string) => {
+  const handleStartGuidedProject = async (description: string, stepCount: number) => {
     window.console.log('[GUIDE-LOG] handleStartGuidedProject called with:', description);
     setIsStartingProject(true);
     setProjectStartError(null);
@@ -721,7 +723,8 @@ export default function IDEPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           projectDescription: description,
-          projectFiles: files 
+          projectFiles: files,
+          stepCount
         })
       });
       window.console.log('[GUIDE-LOG] Fetch completed, status:', response.status);
@@ -1065,6 +1068,8 @@ export default function IDEPage() {
   const [showCongrats, setShowCongrats] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
   const [recapText, setRecapText] = useState('');
+  const [recapJoke, setRecapJoke] = useState('');
+  const [recapStepsCount, setRecapStepsCount] = useState<number | null>(null);
   const [isRecapLoading, setIsRecapLoading] = useState(false);
 
   const handleFinishProject = async () => {
@@ -1096,6 +1101,8 @@ export default function IDEPage() {
           });
           const result = await response.json();
           setRecapText(result.recap || 'Here is a summary of what you learned!');
+          if (typeof result.joke === 'string') setRecapJoke(result.joke);
+          if (typeof result.stepsCount === 'number') setRecapStepsCount(result.stepsCount);
           setShowRecap(true);
         } catch (e) {
           setRecapText('Could not fetch recap. Please try again later.');
@@ -1471,9 +1478,9 @@ export default function IDEPage() {
         <ProjectDescriptionModal
           isOpen={showProjectModal}
           onClose={() => setShowProjectModal(false)}
-          onSubmit={(desc) => {
-            window.console.log('[GUIDE-LOG] ProjectDescriptionModal submitted with:', desc);
-            handleStartGuidedProject(desc);
+          onSubmit={(desc, count) => {
+            window.console.log('[GUIDE-LOG] ProjectDescriptionModal submitted with:', desc, count);
+            handleStartGuidedProject(desc, count);
           }}
           isStartingProject={isStartingProject}
           error={projectStartError}
@@ -1504,33 +1511,51 @@ export default function IDEPage() {
         )}
 
         {showCongrats && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-[#f7ecd4] to-[#e7dbc7]">
-            <div className="relative flex flex-col items-center max-w-lg w-full p-0 animate-fade-in">
-              {/* Celebration Emojis */}
-              <div className="flex flex-row items-center justify-center gap-4 mt-8 mb-2">
-                <span className="text-7xl drop-shadow-lg animate-bounce-slow">🎉</span>
-                <span className="text-8xl drop-shadow-lg animate-pulse">☕️</span>
-                <span className="text-7xl drop-shadow-lg animate-bounce-slow">🎊</span>
+          <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/20">
+            <div className="w-full max-w-3xl mt-0 animate-slide-in-top">
+              <div className="bg-white rounded-b-3xl shadow-2xl border border-cream-beige overflow-hidden">
+                <div className="px-6 pt-8 pb-4 bg-gradient-to-b from-cream-beige to-white">
+                  <h2 className="text-3xl font-extrabold text-deep-espresso text-center">Project complete! 🎉</h2>
+                  <p className="text-center text-medium-coffee mt-2">Here’s what you learned and built.</p>
+                </div>
+                <div className="px-6 py-4 max-h-[55vh] overflow-y-auto">
+                  {isRecapLoading ? (
+                    <div className="flex items-center justify-center py-10 text-medium-coffee">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      Generating your summary…
+                    </div>
+                  ) : (
+                    <>
+                      {recapStepsCount !== null && (
+                        <p className="text-sm text-deep-espresso/70 mb-2">Total steps: {recapStepsCount}</p>
+                      )}
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown children={recapText} remarkPlugins={[remarkGfm]} />
+                      </div>
+                      {recapJoke && (
+                        <div className="mt-4 p-3 rounded-lg bg-cream-beige text-deep-espresso text-sm border border-cream-beige">
+                          🤭 {recapJoke}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="px-6 py-4 border-t border-cream-beige bg-cream-beige/50 flex justify-center">
+                  <button
+                    className="px-6 py-3 rounded-xl bg-medium-coffee text-light-cream font-semibold shadow-md hover:bg-deep-espresso transition"
+                    onClick={() => {
+                      setShowCongrats(false);
+                      setShowRecap(false);
+                      setIsRecapLoading(false);
+                      setRecapText('');
+                      setRecapJoke('');
+                      setRecapStepsCount(null);
+                    }}
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
-              {/* Title and Subtitle */}
-              <h2 className="text-4xl font-extrabold text-deep-espresso mb-2 mt-2 text-center drop-shadow-sm">You finished the project!</h2>
-              <p className="text-xl text-medium-coffee mb-6 text-center font-medium">You finished your Cafécode guided project.<br/>Take a sip, celebrate, and keep building! <span className="inline-block">☕️</span></p>
-              {/* Congrats Card (no recap) */}
-              <div className="w-full bg-white rounded-3xl p-8 shadow-2xl border border-cream-beige flex flex-col items-center mb-6 min-h-[120px]">
-                <h3 className="font-extrabold text-2xl mb-3 text-medium-coffee text-center">Congratulations on finishing your Cafécode guided project!</h3>
-              </div>
-              {/* Close Button */}
-              <button
-                className="mt-2 mb-8 px-10 py-4 rounded-2xl bg-medium-coffee text-light-cream font-bold text-xl shadow-lg hover:bg-deep-espresso transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:ring-offset-2"
-                onClick={() => {
-                  setShowCongrats(false);
-                  setShowRecap(false);
-                  setIsRecapLoading(false);
-                  setRecapText('');
-                }}
-              >
-                Close
-              </button>
             </div>
           </div>
         )}

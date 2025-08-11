@@ -74,7 +74,7 @@ const createProjectContext = (projectFiles) => {
 // Start a new guided project
 router.post("/startProject", async (req, res) => {
   try {
-    const { projectDescription, projectFiles } = req.body;
+    const { projectDescription, projectFiles, stepCount } = req.body;
 
     if (!projectDescription) {
       return res.status(400).json({ error: "Project description is required" });
@@ -84,6 +84,11 @@ router.post("/startProject", async (req, res) => {
     const projectContext = createProjectContext(projectFiles);
 
     // Enhanced prompt for guided projects
+    const desiredSteps = Number.isFinite(stepCount) ? Math.max(0, Math.min(50, Number(stepCount))) : undefined;
+    const stepsInstruction = typeof desiredSteps === 'number'
+      ? `Create approximately ${desiredSteps} steps (it's okay to be within +/- 2 steps if needed for clarity).`
+      : 'Choose a beginner-friendly number of small steps (between 8 and 20).';
+
     const prompt = `***STRICT FORMAT REQUIREMENT:***
 YOUR RESPONSE MUST BE A VALID JSON ARRAY OF STEPS, WRAPPED IN [ ] BRACKETS. DO NOT RETURN A SEQUENCE OF OBJECTS. DO NOT INCLUDE ANY EXTRA TEXT, EXPLANATIONS, OR MARKDOWN BEFORE OR AFTER THE ARRAY. ONLY RETURN THE JSON ARRAY. IF YOU DO NOT FOLLOW THIS, YOUR RESPONSE WILL BE REJECTED.
 
@@ -119,6 +124,7 @@ IMPORTANT GUIDELINES:
 - For file creation steps, include what content should be in the file
 - For code writing steps, be clear about what the code should do
 - Make the steps as granular and detailed as possible, even if it results in 12-20 steps for a typical project. Err on the side of making more, smaller steps.
+ - ${stepsInstruction}
 - If the solution involves a common algorithmic pattern (such as two pointers, sliding window, recursion, dynamic programming, etc.), explicitly mention the pattern in the relevant step(s) and explain what part of the pattern is being implemented in that step. Do this every time a new part of the pattern is coded.
 - Use language like: "This step implements the first part of the two pointers pattern: initializing the pointers." or "Now, apply the sliding window pattern by moving the right pointer."
 - Do not repeat the full pattern explanation in every step, but always reference the pattern and the sub-part being implemented.
@@ -153,69 +159,67 @@ Make sure each step is clear, specific, and achievable. Focus on one task per st
 
 ***REPEAT: ONLY RETURN A VALID JSON ARRAY OF STEPS, WRAPPED IN [ ] BRACKETS. DO NOT RETURN A SEQUENCE OF OBJECTS. DO NOT INCLUDE ANY EXTRA TEXT OR MARKDOWN.***`;
 
-    // --- Comment out Gemini prompt usage for new/similar problem generation (if any) ---
-    // (No explicit similar problem generation found in this file, but if any Gemini prompt for new/similar, comment it out)
-    const result = await req.geminiService.model.generateContent(prompt);
-    const response = await result.response;
-    const responseText = response.text();
-    console.log("[Gemini RAW response]", responseText);
+    // Generate with retries for robustness
     let steps;
     let cleanResponse;
-    try {
-      cleanResponse = extractJsonFromResponse(responseText);
-      console.log("[Gemini Extracted JSON for parsing]", cleanResponse);
-      // More robust fallback: If the extracted string looks like a sequence of objects, wrap in array
-      if (
-        !cleanResponse.trim().startsWith('[') &&
-        /^{[\s\S]*},\s*{[\s\S]*}$/.test(cleanResponse.trim())
-      ) {
-        cleanResponse = `[${cleanResponse}]`;
-        console.log('[Gemini Fallback] Wrapped sequence of objects in array brackets.');
-      }
-      // If it starts with [ and ends with ], but parsing fails, try to repair
+    let lastError = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        steps = robustJsonParse(cleanResponse);
-      } catch (e) {
-        if (cleanResponse.trim().startsWith('[') && cleanResponse.trim().endsWith(']')) {
-          // Attempt to repair: remove trailing commas
-          let repaired = cleanResponse.replace(/,\s*\]/g, ']');
-          try {
-            steps = robustJsonParse(repaired);
-            console.log('[Gemini Repair] Removed trailing comma before closing bracket.');
-          } catch (e2) {
-            // Attempt to filter out non-object lines
-            let lines = cleanResponse.split('\n').filter(line => line.trim().startsWith('{') && line.trim().endsWith('}'));
-            if (lines.length > 0) {
-              let joined = `[${lines.join(',')}]`;
-              try {
+        const result = await req.geminiService.model.generateContent(prompt);
+        const response = await result.response;
+        const responseText = response.text();
+        console.log(`[Gemini RAW response][attempt ${attempt}]`, responseText?.slice(0, 500));
+        cleanResponse = extractJsonFromResponse(responseText);
+        console.log("[Gemini Extracted JSON for parsing]", cleanResponse?.slice(0, 500));
+        if (
+          !cleanResponse.trim().startsWith('[') &&
+          /^{[\s\S]*},\s*{[\s\S]*}$/.test(cleanResponse.trim())
+        ) {
+          cleanResponse = `[${cleanResponse}]`;
+          console.log('[Gemini Fallback] Wrapped sequence of objects in array brackets.');
+        }
+        // Try parsing with repairs
+        try {
+          steps = robustJsonParse(cleanResponse);
+        } catch (e) {
+          if (cleanResponse.trim().startsWith('[') && cleanResponse.trim().endsWith(']')) {
+            let repaired = cleanResponse.replace(/,\s*\]/g, ']');
+            try {
+              steps = robustJsonParse(repaired);
+              console.log('[Gemini Repair] Removed trailing comma before closing bracket.');
+            } catch (e2) {
+              let lines = cleanResponse.split('\n').filter(line => line.trim().startsWith('{') && line.trim().endsWith('}'));
+              if (lines.length > 0) {
+                let joined = `[${lines.join(',')}]`;
                 steps = robustJsonParse(joined);
                 console.log('[Gemini Repair] Filtered to only object lines.');
-              } catch (e3) {
-                throw e3;
+              } else {
+                throw e2;
               }
-            } else {
-              throw e2;
             }
+          } else {
+            throw e;
           }
-        } else {
-          throw e;
+        }
+
+        if (!Array.isArray(steps) || steps.length === 0) {
+          throw new Error('Invalid steps format');
+        }
+        break; // success
+      } catch (err) {
+        lastError = err;
+        console.error(`[Gemini Parsing Error][attempt ${attempt}]`, err?.message || err);
+        if (attempt === 3) {
+          return res.status(500).json({ error: "Failed to parse steps from AI response." });
         }
       }
-      // Validate the steps format
-      if (!Array.isArray(steps) || steps.length === 0) {
-        throw new Error("Invalid steps format: not an array or empty array");
-      }
-      // Validate each step
-      steps = steps.map((step, index) => ({
-        id: String(index + 1),
-        instruction: step.instruction || `Step ${index + 1}`,
-        lineRanges: Array.isArray(step.lineRanges) ? step.lineRanges : [1, 3],
-      }));
-    } catch (parseError) {
-      console.error("[Gemini Parsing Error]", parseError);
-      console.error("[Gemini Problematic String]", typeof cleanResponse !== "undefined" ? cleanResponse : "(no cleanResponse)");
-      return res.status(500).json({ error: "Failed to parse steps from AI response." });
     }
+    // Validate each step
+    steps = steps.map((step, index) => ({
+      id: String(index + 1),
+      instruction: step.instruction || `Step ${index + 1}`,
+      lineRanges: Array.isArray(step.lineRanges) ? step.lineRanges : [1, 3],
+    }));
 
     activeProjects.set(projectId, {
       description: projectDescription,
@@ -238,6 +242,53 @@ Make sure each step is clear, specific, and achievable. Focus on one task per st
   } catch (error) {
     console.error("Error starting project:", error);
     res.status(500).json({ error: "Failed to start project" });
+  }
+});
+
+// Propose a project (purpose + steps preview) without creating state
+router.post("/propose", async (req, res) => {
+  try {
+    const { projectDescription, projectFiles, stepCount } = req.body;
+    if (!projectDescription) {
+      return res.status(400).json({ error: "Project description is required" });
+    }
+    const projectContext = createProjectContext(projectFiles);
+    const desiredSteps = Number.isFinite(stepCount) ? Math.max(0, Math.min(50, Number(stepCount))) : undefined;
+    const stepsInstruction = typeof desiredSteps === 'number'
+      ? `Create approximately ${desiredSteps} beginner-friendly steps.`
+      : 'Choose a beginner-friendly number of small steps (between 8 and 20).';
+
+    const prompt = `Return ONLY JSON with fields {"purpose": string, "steps": [{"id": string, "instruction": string, "lineRanges": number[]}]}.
+Project: ${projectDescription}
+${projectContext}
+${stepsInstruction}
+Rules:
+- Keep language extremely simple
+- Make each step a tiny actionable task (no terminal commands)
+- Do NOT include markdown or extra commentary`;
+
+    const result = await req.geminiService.model.generateContent(prompt);
+    const response = await result.response;
+    const responseText = response.text();
+    let json;
+    try {
+      json = robustJsonParse(extractJsonFromResponse(responseText));
+    } catch (e) {
+      return res.status(500).json({ error: "Failed to parse proposal from AI" });
+    }
+    if (!json || typeof json.purpose !== 'string' || !Array.isArray(json.steps)) {
+      return res.status(500).json({ error: "AI did not return a valid proposal" });
+    }
+    // Normalize steps ids
+    const steps = json.steps.map((s, idx) => ({
+      id: String(idx + 1),
+      instruction: s.instruction || `Step ${idx + 1}`,
+      lineRanges: Array.isArray(s.lineRanges) ? s.lineRanges : [1, 3],
+    }));
+    res.json({ proposal: { purpose: json.purpose, steps } });
+  } catch (e) {
+    console.error('Error proposing project:', e);
+    res.status(500).json({ error: 'Failed to generate project proposal' });
   }
 });
 
@@ -359,9 +410,7 @@ IMPORTANT: Mark as correct if the code STRUCTURE and ELEMENTS fulfill the step r
 
     console.log("Sending prompt to Gemini for analysis...");
     console.log("Full prompt being sent to Gemini:", prompt);
-    // --- Comment out Gemini prompt usage for new/similar problem generation (if any) ---
-    // (No explicit similar problem generation found in this file, but if any Gemini prompt for new/similar, comment it out)
-    // const result = await req.geminiService.model.generateContent(prompt);
+    const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
     console.log("Gemini response received, length:", responseText.length);
     
@@ -635,14 +684,22 @@ router.post("/recap", async (req, res) => {
       : '';
     const capabilities = ideCapabilities || 'The IDE is web-based. It cannot run terminal or shell commands, install packages, or use a real OS shell. Only code editing, file management, and code execution for supported languages are supported.';
 
-    const prompt = `You are a helpful coding mentor. Summarize what the user learned in this guided project as a concise list of bullet points in markdown (use - or * for each point).\n\nProject context:\n${projectContext}\n\nGuided steps:\n${stepsContext}\n\nChat history:\n${chatContext}\n\nIMPORTANT: ${capabilities}\n\nDo NOT mention anything about using a terminal, shell, or command prompt. Only include things the user could have learned in this web-based IDE.\n\nFormat your response as a markdown bullet list. Be specific, positive, and beginner-friendly.`;
+    const prompt = `Return ONLY JSON with fields {"recap": string, "joke": string}.\n\nYou are a helpful coding mentor. Create a concise bullet list in markdown for what the user learned. Also include a short, lighthearted joke about the specific project.\n\nProject context:\n${projectContext}\n\nGuided steps:\n${stepsContext}\n\nChat history:\n${chatContext}\n\nIMPORTANT: ${capabilities}\n\nRules:\n- Keep recap to 6-10 bullets using - or *\n- Be positive, beginner-friendly\n- Joke must be about this project\n- Do NOT include any extra fields.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
-    // Try to extract just the bullet list from markdown
-    const bulletListMatch = responseText.match(/([-*] .+\n?)+/g);
-    const recap = bulletListMatch ? bulletListMatch[0].trim() : responseText.trim();
-    res.json({ recap });
+    let json;
+    try {
+      json = robustJsonParse(extractJsonFromResponse(responseText));
+    } catch (e) {
+      // Fallback: try to pull bullet list and make a generic joke
+      const bulletListMatch = responseText.match(/([-*] .+\n?)+/g);
+      const recap = bulletListMatch ? bulletListMatch[0].trim() : responseText.trim();
+      const stepsCount = Array.isArray(guidedProject?.steps) ? guidedProject.steps.length : 0;
+      return res.json({ recap, stepsCount, joke: 'Looks like your project brewed up success—no coffee spills in the code!' });
+    }
+    const stepsCount = Array.isArray(guidedProject?.steps) ? guidedProject.steps.length : 0;
+    res.json({ recap: json.recap, stepsCount, joke: json.joke });
   } catch (error) {
     console.error("Error generating recap:", error);
     res.status(500).json({ error: "Failed to generate recap" });

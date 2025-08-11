@@ -271,6 +271,26 @@ const FileTreeNode: React.FC<{
   );
 };
 
+function FileList({ files, render }: { files: FileNode[]; render: (file: FileNode) => React.ReactNode }) {
+  // Simple windowed rendering for performance when many files
+  const WINDOW = 200;
+  const [start, setStart] = useState(0);
+  const onScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
+    const el = e.currentTarget;
+    const ratio = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight);
+    const newStart = Math.floor(ratio * Math.max(0, files.length - WINDOW));
+    setStart(newStart);
+  };
+  const slice = files.slice(start, start + WINDOW);
+  return (
+    <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-4" onScroll={onScroll}>
+      <div className="min-w-max">
+        {slice.map(render)}
+      </div>
+    </div>
+  );
+}
+
 export default function FileExplorer({
   files,
   onFileSelect,
@@ -404,37 +424,36 @@ export default function FileExplorer({
       </div>
       
       {/* File Tree */}
-      <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-4">
-        <div className="min-w-max">
-          {files.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 text-center p-4">
-              <File className="h-8 w-8 text-deep-espresso/50 mb-2" />
-              <p className="text-deep-espresso/70 text-sm">No files yet</p>
-              <p className="text-deep-espresso/50 text-xs mt-1">Create your first file to get started</p>
-            </div>
-          ) : (
-            files.map((file) => (
-              <FileTreeNode
-                key={file.id}
-                node={file}
-                level={0}
-                onSelect={onFileSelect}
-                onDelete={onFileDelete}
-                onMove={onFileMove}
-                selectedFileId={selectedFileId}
-                onCreateFile={handleCreateFile}
-                onCreateFolder={handleCreateFolder}
-                searchTerm={searchTerm}
-                searchFilter={searchFilter}
-                draggedFileId={draggedFileId}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onDrop={handleDrop}
-              />
-            ))
-          )}
+      {files.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-32 text-center p-4">
+          <File className="h-8 w-8 text-deep-espresso/50 mb-2" />
+          <p className="text-deep-espresso/70 text-sm">No files yet</p>
+          <p className="text-deep-espresso/50 text-xs mt-1">Create your first file to get started</p>
         </div>
-      </div>
+      ) : (
+        <FileList
+          files={files}
+          render={(file) => (
+            <FileTreeNode
+              key={file.id}
+              node={file}
+              level={0}
+              onSelect={onFileSelect}
+              onDelete={onFileDelete}
+              onMove={onFileMove}
+              selectedFileId={selectedFileId}
+              onCreateFile={handleCreateFile}
+              onCreateFolder={handleCreateFolder}
+              searchTerm={searchTerm}
+              searchFilter={searchFilter}
+              draggedFileId={draggedFileId}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDrop={handleDrop}
+            />
+          )}
+        />
+      )}
 
       {/* Create Dialog */}
       {showCreateDialog && (

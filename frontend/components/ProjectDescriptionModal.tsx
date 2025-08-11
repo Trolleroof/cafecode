@@ -4,7 +4,7 @@ import { X, Loader2 } from 'lucide-react';
 interface ProjectDescriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (description: string) => void;
+  onSubmit: (description: string, stepCount: number) => void;
   isStartingProject?: boolean;
   error?: string | null;
 }
@@ -12,17 +12,22 @@ interface ProjectDescriptionModalProps {
 export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isStartingProject = false, error }: ProjectDescriptionModalProps) {
   const [description, setDescription] = useState('');
   const [progress, setProgress] = useState(0);
+  const [stepCount, setStepCount] = useState<number>(10);
+  const [proposal, setProposal] = useState<{ purpose: string; steps: { id: string; instruction: string; lineRanges: number[] }[] } | null>(null);
+  const [isProposing, setIsProposing] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (description.trim() && !isStartingProject) {
-      onSubmit(description.trim());
+      onSubmit(description.trim(), Math.max(0, Math.min(50, stepCount)));
     }
   };
 
   const handleClose = () => {
     setDescription('');
     setProgress(0);
+    setStepCount(10);
+    setProposal(null);
     onClose();
   };
 
@@ -115,7 +120,68 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
                   required
                 />
               </div>
+              <div className="mb-4">
+                <label htmlFor="steps" className="block text-base font-medium mb-2 text-deep-espresso">
+                  Number of steps (0-50)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="steps"
+                    type="range"
+                    min={0}
+                    max={50}
+                    value={stepCount}
+                    onChange={(e) => setStepCount(parseInt(e.target.value))}
+                    className="flex-1"
+                    required
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={50}
+                    value={stepCount}
+                    onChange={(e) => setStepCount(Number(e.target.value))}
+                    className="w-20 px-2 py-1 rounded-md border border-medium-coffee bg-cream-beige text-dark-charcoal text-sm"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-deep-espresso/70 mt-1">AI will adjust slightly if needed for clarity. Selecting is required.</p>
+              </div>
+              {proposal && (
+                <div className="mb-4 border border-cream-beige rounded-lg bg-white max-h-48 overflow-y-auto p-3">
+                  <p className="text-sm font-semibold text-deep-espresso mb-2">Purpose</p>
+                  <p className="text-sm text-dark-charcoal mb-3">{proposal.purpose}</p>
+                  <p className="text-sm font-semibold text-deep-espresso mb-2">Proposed Steps</p>
+                  <ol className="list-decimal ml-5 space-y-1">
+                    {proposal.steps.map((s) => (
+                      <li key={s.id} className="text-sm text-dark-charcoal">{s.instruction}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
               <div className="flex justify-end gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!description.trim()) return;
+                    try {
+                      setIsProposing(true);
+                      const res = await fetch('/api/guided/propose', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projectDescription: description.trim(), projectFiles: [], stepCount })
+                      });
+                      const data = await res.json();
+                      if (data?.proposal) setProposal(data.proposal);
+                    } finally {
+                      setIsProposing(false);
+                    }
+                  }}
+                  className="px-4 py-2 text-sm font-medium rounded-md border bg-cream-beige text-deep-espresso border-medium-coffee hover:bg-medium-coffee hover:text-light-cream transition-colors disabled:opacity-50"
+                  disabled={isProposing}
+                >
+                  {isProposing ? 'Proposing…' : 'Preview Proposal'}
+                </button>
                 <button
                   type="button"
                   onClick={handleClose}
