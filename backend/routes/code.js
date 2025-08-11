@@ -144,25 +144,58 @@ router.post('/run',
       console.log(`🚀 Executing ${req.validatedBody.language} code (${req.validatedBody.code.length} characters)`);
 
       const { code, language } = req.validatedBody;
+      
+      // Sanitize and validate code input
+      if (!code || typeof code !== 'string' || code.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid code input',
+          error_code: 'INVALID_INPUT'
+        });
+      }
+      
+      // Check for potentially dangerous patterns in code
+      const dangerousPatterns = [
+        /import\s+os\s*;?\s*os\.system\s*\(/i,
+        /import\s+subprocess\s*;?\s*subprocess\.run\s*\(/i,
+        /eval\s*\(/i,
+        /exec\s*\(/i,
+        /__import__\s*\(/i,
+        /process\.exec\s*\(/i,
+        /require\s*\(\s*['"]child_process['"]\s*\)/i,
+        /spawn\s*\(/i,
+        /exec\s*\(/i
+      ];
+      
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(code)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Code contains potentially dangerous operations that are not allowed',
+            error_code: 'DANGEROUS_CODE_DETECTED'
+          });
+        }
+      }
+      
       const timestamp = Date.now();
       let tempFile, command, output, error;
 
       // Create temporary file and execute based on language
       switch (language) {
         case 'python':
-          tempFile = path.join('/tmp', `code_${timestamp}.py`);
+          tempFile = path.join('/tmp', `code_${timestamp}_${Math.random().toString(36).substr(2, 9)}.py`);
           fs.writeFileSync(tempFile, code);
           command = `python3 "${tempFile}"`;
           break;
         
         case 'javascript':
-          tempFile = path.join('/tmp', `code_${timestamp}.js`);
+          tempFile = path.join('/tmp', `code_${timestamp}_${Math.random().toString(36).substr(2, 9)}.js`);
           fs.writeFileSync(tempFile, code);
           command = `node "${tempFile}"`;
           break;
         
         case 'java':
-          const className = `Code_${timestamp}`;
+          const className = `Code_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
           tempFile = path.join('/tmp', `${className}.java`);
           // Wrap code in a class if it's not already
           const javaCode = code.includes('public class') ? code : 
@@ -172,16 +205,16 @@ router.post('/run',
           break;
         
         case 'cpp':
-          tempFile = path.join('/tmp', `code_${timestamp}.cpp`);
+          tempFile = path.join('/tmp', `code_${timestamp}_${Math.random().toString(36).substr(2, 9)}.cpp`);
           fs.writeFileSync(tempFile, code);
-          const cppExecutable = path.join('/tmp', `code_${timestamp}`);
+          const cppExecutable = path.join('/tmp', `code_${timestamp}_${Math.random().toString(36).substr(2, 9)}`);
           command = `cd /tmp && g++ -o "${cppExecutable}" "${tempFile}" && "${cppExecutable}"`;
           break;
         
         case 'c':
-          tempFile = path.join('/tmp', `code_${timestamp}.c`);
+          tempFile = path.join('/tmp', `code_${timestamp}_${Math.random().toString(36).substr(2, 9)}.c`);
           fs.writeFileSync(tempFile, code);
-          const cExecutable = path.join('/tmp', `code_${timestamp}`);
+          const cExecutable = path.join('/tmp', `code_${timestamp}_${Math.random().toString(36).substr(2, 9)}`);
           command = `cd /tmp && gcc -o "${cExecutable}" "${tempFile}" && "${cExecutable}"`;
           break;
         
@@ -197,7 +230,8 @@ router.post('/run',
       try {
         const { stdout, stderr } = await execAsync(command, {
           timeout: 30000, // 30 seconds timeout
-          maxBuffer: 1024 * 1024 * 10 // 10MB buffer for large outputs
+          maxBuffer: 1024 * 1024 * 10, // 10MB buffer for large outputs
+          cwd: '/tmp' // Restrict working directory
         });
         
         output = stdout;
@@ -232,7 +266,7 @@ router.post('/run',
         
         // Clean up compiled executables for C/C++
         if (language === 'cpp' || language === 'c') {
-          const executable = path.join('/tmp', `code_${timestamp}`);
+          const executable = path.join('/tmp', `code_${timestamp}_${Math.random().toString(36).substr(2, 9)}`);
           if (fs.existsSync(executable)) {
             fs.unlinkSync(executable);
           }
@@ -240,7 +274,7 @@ router.post('/run',
         
         // Clean up Java class files
         if (language === 'java') {
-          const className = `Code_${timestamp}`;
+          const className = `Code_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
           const classFile = path.join('/tmp', `${className}.class`);
           if (fs.existsSync(classFile)) {
             fs.unlinkSync(classFile);

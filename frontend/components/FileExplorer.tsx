@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { File, Folder, FolderOpen, Plus, X, FileText, Code, Globe, Search, Menu, GripVertical } from 'lucide-react';
 
 interface FileNode {
@@ -272,21 +272,16 @@ const FileTreeNode: React.FC<{
 };
 
 function FileList({ files, render }: { files: FileNode[]; render: (file: FileNode) => React.ReactNode }) {
-  // Simple windowed rendering for performance when many files
-  const WINDOW = 200;
-  const [start, setStart] = useState(0);
-  const onScroll: React.UIEventHandler<HTMLDivElement> = (e) => {
-    const el = e.currentTarget;
-    const ratio = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight);
-    const newStart = Math.floor(ratio * Math.max(0, files.length - WINDOW));
-    setStart(newStart);
-  };
-  const slice = files.slice(start, start + WINDOW);
+  const [scrollTop, setScrollTop] = useState(0);
+  
+  const onScroll: React.UIEventHandler<HTMLDivElement> = useCallback((e) => {
+    const target = e.target as HTMLDivElement;
+    setScrollTop(target.scrollTop);
+  }, []);
+
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-4" onScroll={onScroll}>
-      <div className="min-w-max">
-        {slice.map(render)}
-      </div>
+    <div className="flex-1 overflow-y-auto" onScroll={onScroll}>
+      {files.map(render)}
     </div>
   );
 }
@@ -302,54 +297,72 @@ export default function FileExplorer({
   onToggleCollapse,
   stepProgression,
 }: FileExplorerProps) {
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [createType, setCreateType] = useState<'file' | 'folder'>('file');
-  const [createParentId, setCreateParentId] = useState<string | null>(null);
-  const [newName, setNewName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchFilter, setSearchFilter] = useState<SearchFilter>('all');
-  const [draggedFileId, setDraggedFileId] = useState<string | undefined>(undefined);
+  const [draggedFileId, setDraggedFileId] = useState<string | null>(null);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const [createMenuPosition, setCreateMenuPosition] = useState<{ x: number; y: number } | null>(null);
 
-  const handleCreate = () => {
-    if (newName.trim()) {
-      // Validate file extension for files
-      if (createType === 'file' && !isValidFileExtension(newName.trim())) {
-        alert('Only .py (Python), .css (CSS), and .html (HTML) files are allowed!');
-        return;
+  // Memoize filtered files to prevent unnecessary re-renders
+  const filteredFiles = useMemo(() => {
+    if (!searchTerm.trim()) return files;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return files.filter(file => {
+      if (searchFilter === 'name') {
+        return file.name.toLowerCase().includes(searchLower);
       }
-      
-      onFileCreate(createParentId, createType, newName.trim());
-      setShowCreateDialog(false);
-      setNewName('');
+      // 'all' filter - search in both name and content
+      return file.name.toLowerCase().includes(searchLower) || 
+             (file.content && file.content.toLowerCase().includes(searchLower));
+    });
+  }, [files, searchTerm, searchFilter]);
+
+  // Cleanup function for component unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup any pending operations
+      setDraggedFileId(null);
+      setShowCreateMenu(false);
+      setCreateMenuPosition(null);
+    };
+  }, []);
+
+  const handleCreate = useCallback(() => {
+    setShowCreateMenu(true);
+    setCreateMenuPosition({ x: 0, y: 0 });
+  }, []);
+
+  const handleCreateFile = useCallback((parentId: string | null) => {
+    const name = prompt('Enter file name:');
+    if (name && name.trim()) {
+      onFileCreate(parentId, 'file', name.trim());
+      setShowCreateMenu(false);
     }
-  };
+  }, [onFileCreate]);
 
-  const handleCreateFile = (parentId: string | null) => {
-    setCreateType('file');
-    setCreateParentId(parentId);
-    setShowCreateDialog(true);
-  };
+  const handleCreateFolder = useCallback((parentId: string | null) => {
+    const name = prompt('Enter folder name:');
+    if (name && name.trim()) {
+      onFileCreate(parentId, 'folder', name.trim());
+      setShowCreateMenu(false);
+    }
+  }, [onFileCreate]);
 
-  const handleCreateFolder = (parentId: string | null) => {
-    setCreateType('folder');
-    setCreateParentId(parentId);
-    setShowCreateDialog(true);
-  };
-
-  const handleDragStart = (fileId: string) => {
+  const handleDragStart = useCallback((fileId: string) => {
     setDraggedFileId(fileId);
-  };
+  }, []);
 
-  const handleDragEnd = () => {
-    setDraggedFileId(undefined);
-  };
+  const handleDragEnd = useCallback(() => {
+    setDraggedFileId(null);
+  }, []);
 
-  const handleDrop = (targetFileId: string) => {
+  const handleDrop = useCallback((targetFileId: string) => {
     if (draggedFileId && onFileMove) {
       onFileMove(draggedFileId, targetFileId);
-      setDraggedFileId(undefined);
+      setDraggedFileId(null);
     }
-  };
+  }, [draggedFileId, onFileMove]);
 
   if (isCollapsed) {
     return (
@@ -393,14 +406,14 @@ export default function FileExplorer({
         </div>
         <div className="flex gap-1">
           <button
-            onClick={() => handleCreateFile(null)}
+            onClick={handleCreate}
             className="p-1 hover:bg-cream-beige rounded"
             title="New File"
           >
             <Plus className="h-4 w-4 text-deep-espresso" />
           </button>
           <button
-            onClick={() => handleCreateFolder(null)}
+            onClick={handleCreate}
             className="p-1 hover:bg-cream-beige rounded"
             title="New Folder"
           >
@@ -424,7 +437,7 @@ export default function FileExplorer({
       </div>
       
       {/* File Tree */}
-      {files.length === 0 ? (
+      {filteredFiles.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-32 text-center p-4">
           <File className="h-8 w-8 text-deep-espresso/50 mb-2" />
           <p className="text-deep-espresso/70 text-sm">No files yet</p>
@@ -432,7 +445,7 @@ export default function FileExplorer({
         </div>
       ) : (
         <FileList
-          files={files}
+          files={filteredFiles}
           render={(file) => (
             <FileTreeNode
               key={file.id}
@@ -456,35 +469,56 @@ export default function FileExplorer({
       )}
 
       {/* Create Dialog */}
-      {showCreateDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      {showCreateMenu && createMenuPosition && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          style={{ top: createMenuPosition.y, left: createMenuPosition.x }}
+        >
           <div className="bg-light-cream p-4 rounded-lg border border-medium-coffee min-w-[300px]">
             <h2 className="text-deep-espresso mb-2 font-semibold">
-              Create New {createType === 'file' ? 'File' : 'Folder'}
+              Create New {createMenuPosition.x > window.innerWidth / 2 ? 'Folder' : 'File'}
             </h2>
-            {createType === 'file' && (
+            {createMenuPosition.x > window.innerWidth / 2 ? (
               <p className="text-deep-espresso/70 text-xs mb-4">
-                Allowed extensions: .py, .css, .html, .js
+                Enter folder name:
+              </p>
+            ) : (
+              <p className="text-deep-espresso/70 text-xs mb-4">
+                Enter file name (with extension):
               </p>
             )}
             <input
               type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder={createType === 'file' ? 'filename.html' : 'folder-name'}
+              value={createMenuPosition.x > window.innerWidth / 2 ? '' : 'filename.html'}
+              onChange={(e) => {}}
+              placeholder={createMenuPosition.x > window.innerWidth / 2 ? 'folder-name' : 'filename.html'}
               className="w-full px-3 py-2 bg-cream-beige text-dark-charcoal rounded mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee"
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (createMenuPosition.x > window.innerWidth / 2) {
+                    handleCreateFolder(null);
+                  } else {
+                    handleCreateFile(null);
+                  }
+                }
+              }}
               autoFocus
             />
             <div className="flex gap-2">
               <button
-                onClick={handleCreate}
+                onClick={() => {
+                  if (createMenuPosition.x > window.innerWidth / 2) {
+                    handleCreateFolder(null);
+                  } else {
+                    handleCreateFile(null);
+                  }
+                }}
                 className="px-3 py-1 bg-medium-coffee text-light-cream rounded hover:bg-deep-espresso font-semibold"
               >
                 Create
               </button>
               <button
-                onClick={() => setShowCreateDialog(false)}
+                onClick={() => setShowCreateMenu(false)}
                 className="px-3 py-1 bg-cream-beige text-deep-espresso rounded hover:bg-deep-espresso hover:text-light-cream"
               >
                 Cancel

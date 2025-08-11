@@ -190,29 +190,14 @@ app.use((error, req, res, next) => {
   res.status(statusCode).json(errorResponse);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully...');
-  server.close(() => {
-    console.log('👋 Process terminated');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received, shutting down gracefully...');
-  server.close(() => {
-    console.log('👋 Process terminated');
-    process.exit(0);
-  });
-});
-
 // Start server
+let server = null; // Declare server variable in global scope
+
 async function startServer() {
   try {
     await initializeServices();
     
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    server = app.listen(PORT, '0.0.0.0', () => {
       console.log('🚀 CodeCraft IDE Backend Server Started');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log(`📡 Server running on: http://localhost:${PORT}`);
@@ -230,5 +215,31 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+// Graceful shutdown handlers
+const gracefulShutdown = (signal) => {
+  console.log(`🛑 ${signal} received, shutting down gracefully...`);
+  
+  if (server) {
+    server.close(() => {
+      console.log('👋 HTTP server closed');
+      
+      // Close any remaining connections
+      process.exit(0);
+    });
+    
+    // Force close after 10 seconds
+    setTimeout(() => {
+      console.error('⚠️ Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 10000);
+  } else {
+    console.log('👋 Process terminated');
+    process.exit(0);
+  }
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 startServer();
