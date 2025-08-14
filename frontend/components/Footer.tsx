@@ -1,5 +1,6 @@
 import React from 'react';
-import { GlobeAltIcon, ChatBubbleLeftRightIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { GlobeAltIcon, ChatBubbleLeftRightIcon, EnvelopeIcon, CodeBracketIcon, TrophyIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 
 const Footer = () => {
   return (
@@ -38,10 +39,30 @@ const Footer = () => {
           <div>
             <h3 className="font-heading text-lg font-semibold mb-6 text-medium-coffee">Our Blend</h3>
             <ul className="space-y-4">
-              <li><a href="#features" className="text-cream-beige hover:text-light-cream transition-colors">Features</a></li>
-              <li><a href="#pricing" className="text-cream-beige hover:text-light-cream transition-colors">Menu</a></li>
-              <li><a href="#" className="text-cream-beige hover:text-light-cream transition-colors">What's New</a></li>
-              <li><a href="#" className="text-cream-beige hover:text-light-cream transition-colors">Roadmap</a></li>
+              <li>
+                <Link href="/features" className="text-cream-beige hover:text-light-cream transition-colors flex items-center">
+                  <SparklesIcon className="h-4 w-4 mr-2" />
+                  Features
+                </Link>
+              </li>
+              <li>
+                <Link href="/ide" className="text-cream-beige hover:text-light-cream transition-colors flex items-center">
+                  <CodeBracketIcon className="h-4 w-4 mr-2" />
+                  Code Editor
+                </Link>
+              </li>
+              <li>
+                <Link href="/leetcode" className="text-cream-beige hover:text-light-cream transition-colors flex items-center">
+                  <TrophyIcon className="h-4 w-4 mr-2" />
+                  LeetCode Practice
+                </Link>
+              </li>
+              <li>
+                <Link href="/" className="text-cream-beige hover:text-light-cream transition-colors flex items-center">
+                  <span className="mr-2">🏠</span>
+                  Home
+                </Link>
+              </li>
             </ul>
           </div>
 
