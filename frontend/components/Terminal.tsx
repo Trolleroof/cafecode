@@ -84,7 +84,16 @@ const Terminal: React.FC = () => {
     };
   }, []);
 
-  return <div ref={xtermRef} style={{ width: '100%', height: 400 }} />;
+  return (
+    <div style={{ 
+      backgroundColor: 'rgb(0, 0, 0)', 
+      paddingTop: '16px',
+      width: '100%', 
+      height: 400 
+    }}>
+      <div ref={xtermRef} style={{ width: '100%', height: '100%' }} />
+    </div>
+  );
 };
 
 export default Terminal; 

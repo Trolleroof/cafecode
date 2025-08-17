@@ -14,6 +14,7 @@ const nextConfig = {
     // const backendUrl = useLocalhost ? 'http://localhost:8000/api' : 'https://cafecode-backend.onrender.com/api';
     const backendUrl = 'https://cafecode-bacend.fly.dev/api'
 
+    // const backendUrl = 'http://localhost:8000/api';
 
     return [
       {

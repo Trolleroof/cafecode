@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   File,
   Folder,
   FolderOpen,
   Plus,
-  X,
   FileText,
   Code,
   Globe,
@@ -14,21 +13,9 @@ import {
   FileCode2,
   Search,
   Menu,
-  GripVertical,
-  Copy,
-  Scissors,
-  Download,
-  Upload,
   RefreshCw,
-  MoreHorizontal,
-  Edit3,
   Trash2
 } from 'lucide-react';
-
-// Add axios for API calls
-import axios from 'axios';
-import { useAuth } from '@/hooks/useAuth';
-import { backendUrl } from '../lib/utils';
 
 interface FileNode {
   id: string;
@@ -203,8 +190,8 @@ const FileTreeNode: React.FC<{
   onCut: (fileId: string) => void;
   onMove?: (fileId: string, newParentId: string | null) => void;
   selectedFileId: string | null;
-  onCreateFile: (parentId: string) => void;
-  onCreateFolder: (parentId: string, type: 'file' | 'folder') => void;
+  onCreateFile: (parentId: string | null, type: 'file' | 'folder', name: string) => void;
+  onCreateFolder: (parentId: string | null, type: 'file' | 'folder', name: string) => void;
   searchTerm: string;
   searchFilter: SearchFilter;
   maxDepth?: number;
@@ -362,7 +349,7 @@ const FileTreeNode: React.FC<{
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onCreateFile(node.id);
+                    onCreateFile(node.id, 'file', '');
                   }}
                   className="p-1 hover:bg-cream-beige rounded"
                   title="New File"
@@ -372,7 +359,7 @@ const FileTreeNode: React.FC<{
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onCreateFolder(node.id, 'folder');
+                    onCreateFolder(node.id, 'folder', '');
                   }}
                   className="p-1 hover:bg-cream-beige rounded"
                   title="New Folder"
@@ -406,8 +393,8 @@ const FileTreeNode: React.FC<{
               onDelete={onDelete}
               onRename={onRename}
               onCopy={onCopy}
-              onCut={() => {}}
-              onMove={() => {}}
+              onCut={onCut}
+              onMove={onMove}
               selectedFileId={selectedFileId}
               onCreateFile={onCreateFile}
               onCreateFolder={onCreateFolder}
@@ -532,34 +519,19 @@ function getParentId(id: string, files: FileNode[]): string | null {
 }
 
 export default function FileExplorer({
+  files,
   selectedFileId,
   isCollapsed = false,
   onToggleCollapse,
   stepProgression,
   onRefresh,
   onFileSelect,
-}: Omit<FileExplorerProps, 'files' | 'onFileCreate' | 'onFileDelete' | 'onFileMove'>) {
-  // Get Supabase session for authentication
-  const { session } = useAuth();
-  
-  // Internal state for file tree
-  const [files, setFiles] = useState<FileNode[]>([]);
+  onFileCreate,
+  onFileDelete,
+  onFileMove,
+}: FileExplorerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
-  const [refreshFlag, setRefreshFlag] = useState(0);
-  const [clipboard, setClipboard] = useState<{fileId: string, operation: 'copy' | 'cut'} | null>(null);
-
-  // Helper to get auth headers
-  const getAuthHeaders = () => {
-    if (!session?.access_token) {
-      throw new Error('No authentication token available');
-    }
-    return {
-      'Authorization': `Bearer ${session.access_token}`,
-      'Content-Type': 'application/json'
-    };
-  };
 
   // UI: Create file/folder dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -570,146 +542,15 @@ export default function FileExplorer({
   const [searchFilter, setSearchFilter] = useState<SearchFilter>('all');
   const [draggedFileId, setDraggedFileId] = useState<string | undefined>(undefined);
 
-  // Fetch file tree from backend
-  const fetchFiles = useCallback(async () => {
-    if (!session?.access_token) {
-      setError('Authentication required');
-      return;
-    }
-      
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await axios.get(`${backendUrl}/files/list?recursive=true`, {
-        headers: getAuthHeaders()
-      });
-      // Adapt backend data to FileNode[]
-      const nodes = convertBackendFilesToTree(res.data.files);
-      setFiles(nodes);
-    } catch (err: any) {
-      console.error('Failed to fetch files:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to load files');
-    } finally {
-      setLoading(false);
-    }
-  }, [session]);
-
-  useEffect(() => {
-    if (session?.access_token) {
-      fetchFiles();
-    }
-  }, [refreshFlag, session, fetchFiles]);
-
-  // Helper to trigger refresh
-  const triggerRefresh = () => setRefreshFlag(f => f + 1);
-
-  // Fetch file content from backend
-  const fetchFileContent = async (file: FileNode) => {
-    try {
-      const res = await axios.get(`${backendUrl}/files/read`, {
-        params: { path: file.id },
-        headers: getAuthHeaders(),
-      });
-      return res.data.data;
-    } catch (err) {
-      console.error('Failed to read file:', err);
-      return '';
+  const handleFileSelect = (file: FileNode) => {
+    if (onFileSelect) {
+      onFileSelect(file);
     }
   };
 
-  // File select handler
-  const handleFileSelect = async (file: FileNode) => {
-    if (file.type === 'file') {
-      // Prevent reloading if already selected
-      if (selectedFile && selectedFile.id === file.id) return;
-      const content = await fetchFileContent(file);
-      const language = getLanguageFromFileName(file.name);
-      const fileWithContent = { ...file, content, language };
-      setSelectedFile(fileWithContent);
-      if (onFileSelect) onFileSelect(fileWithContent);
-    }
-  };
-
-  // File operations
-  const handleCreate = async (parentId: string | null, type: 'file' | 'folder', name: string) => {
-    try {
-      await axios.post(`${backendUrl}/files/create`, 
-        { path: buildPathFromId(parentId, name, files), isFolder: type === 'folder' },
-        { headers: getAuthHeaders() }
-      );
-      triggerRefresh();
-    } catch (err: any) {
-      console.error('Failed to create:', err);
-      alert(err.response?.data?.error || 'Failed to create ' + type);
-    }
-  };
-
-  const handleDelete = async (fileId: string) => {
-    // Remove confirmation dialog
-    try {
-      await axios.delete(`${backendUrl}/files/delete`, { 
-        data: { path: getPathFromId(fileId, files) },
-        headers: getAuthHeaders()
-      });
-      triggerRefresh();
-    } catch (err: any) {
-      console.error('Failed to delete:', err);
-      alert(err.response?.data?.error || 'Failed to delete');
-    }
-  };
-
-  const handleRename = async (fileId: string, newName: string) => {
-    if (!newName.trim() || newName === fileId.split('/').pop()) {
-      return;
-    }
-    
-    try {
-      const oldPath = getPathFromId(fileId, files);
-      const newPath = buildPathFromId(getParentId(fileId, files), newName, files);
-      await axios.post(`${backendUrl}/files/rename`, 
-        { oldPath, newPath },
-        { headers: getAuthHeaders() }
-      );
-      triggerRefresh();
-    } catch (err: any) {
-      console.error('Failed to rename:', err);
-      alert(err.response?.data?.error || 'Failed to rename');
-    }
-  };
-
-  const handleCopy = (fileId: string) => {
-    setClipboard({ fileId, operation: 'copy' });
-  };
-
-  const handleCut = (fileId: string) => {
-    setClipboard({ fileId, operation: 'cut' });
-  };
-
-  const handlePaste = async (targetFolderId: string | null) => {
-    if (!clipboard) return;
-    
-    try {
-      const sourcePath = getPathFromId(clipboard.fileId, files);
-      const fileName = clipboard.fileId.split('/').pop() || clipboard.fileId;
-      const targetPath = buildPathFromId(targetFolderId, fileName, files);
-      
-      if (clipboard.operation === 'copy') {
-        await axios.post(`${backendUrl}/files/copy`, 
-          { sourcePath, destinationPath: targetPath },
-          { headers: getAuthHeaders() }
-        );
-      } else { // cut (move)
-        await axios.post(`${backendUrl}/files/rename`, 
-          { oldPath: sourcePath, newPath: targetPath },
-          { headers: getAuthHeaders() }
-        );
-      }
-      
-      setClipboard(null);
-      triggerRefresh();
-    } catch (err: any) {
-      console.error('Failed to paste:', err);
-      alert(err.response?.data?.error || 'Failed to paste');
+  const handleRefresh = () => {
+    if (onRefresh) {
+      onRefresh();
     }
   };
 
@@ -723,11 +564,11 @@ export default function FileExplorer({
   
   const handleCreateConfirm = async () => {
     if (!newName.trim()) return;
-    if (createType === 'file' && !isValidFileExtension(newName.trim())) {
+    if (createType === 'file' && !newName.trim().includes('.')) {
       alert('Please provide a valid file extension!');
       return;
     }
-    await handleCreate(createParentId, createType, newName.trim());
+    onFileCreate(createParentId, createType, newName.trim());
     setShowCreateDialog(false);
     setNewName('');
   };
@@ -740,14 +581,14 @@ export default function FileExplorer({
         node={file}
         level={level}
         onSelect={handleFileSelect}
-        onDelete={handleDelete}
-        onRename={handleRename}
-        onCopy={handleCopy}
+        onDelete={onFileDelete}
+        onRename={() => {}}
+        onCopy={() => {}}
         onCut={() => {}}
-        onMove={() => {}}
+        onMove={onFileMove}
         selectedFileId={selectedFileId}
-        onCreateFile={handleShowCreate}
-        onCreateFolder={handleShowCreate}
+        onCreateFile={(parentId, type, name) => handleShowCreate(parentId, type)}
+        onCreateFolder={(parentId, type, name) => handleShowCreate(parentId, type)}
         searchTerm={searchTerm}
         searchFilter={searchFilter}
         maxDepth={10}
@@ -757,12 +598,6 @@ export default function FileExplorer({
         onDrop={() => {}}
       />
     ));
-
-  // UI: Refresh button
-  const handleRefresh = () => {
-    triggerRefresh();
-    if (onRefresh) onRefresh();
-  };
 
   if (isCollapsed) {
     return (

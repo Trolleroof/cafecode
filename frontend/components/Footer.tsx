@@ -1,5 +1,6 @@
 import React from 'react';
 import { GlobeAltIcon, ChatBubbleLeftRightIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 
 const Footer = () => {
   return (
@@ -19,18 +20,18 @@ const Footer = () => {
               Where every line of code is crafted with the same care as your morning coffee.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-cream-beige hover:text-medium-coffee transition-colors">
+              <Link href="/" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <GlobeAltIcon className="h-6 w-6" />
-              </a>
-              <a href="#" className="text-cream-beige hover:text-medium-coffee transition-colors">
+              </Link>
+              <Link href="/ide" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <ChatBubbleLeftRightIcon className="h-6 w-6" />
-              </a>
-              <a href="#" className="text-cream-beige hover:text-medium-coffee transition-colors">
+              </Link>
+              <Link href="/leetcode" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <GlobeAltIcon className="h-6 w-6" />
-              </a>
-              <a href="#" className="text-cream-beige hover:text-medium-coffee transition-colors">
+              </Link>
+              <Link href="mailto:contact@cafecode.dev" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <EnvelopeIcon className="h-6 w-6" />
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -38,10 +39,8 @@ const Footer = () => {
           <div>
             <h3 className="font-heading text-lg font-semibold mb-6 text-medium-coffee">Our Blend</h3>
             <ul className="space-y-4">
-              <li><a href="#features" className="text-cream-beige hover:text-light-cream transition-colors">Features</a></li>
-              <li><a href="#pricing" className="text-cream-beige hover:text-light-cream transition-colors">Menu</a></li>
-              <li><a href="#" className="text-cream-beige hover:text-light-cream transition-colors">What's New</a></li>
-              <li><a href="#" className="text-cream-beige hover:text-light-cream transition-colors">Roadmap</a></li>
+              <li><Link href="/#features" className="text-cream-beige hover:text-light-cream transition-colors">Features</Link></li>
+              <li><Link href="/ide" className="text-cream-beige hover:text-light-cream transition-colors">Code Editor</Link></li>
             </ul>
           </div>
 
@@ -49,10 +48,10 @@ const Footer = () => {
           <div>
             <h3 className="font-heading text-lg font-semibold mb-6 text-medium-coffee">Café Support</h3>
             <ul className="space-y-4">
-              <li><a href="#" className="text-cream-beige hover:text-light-cream transition-colors">Documentation</a></li>
-              <li><a href="#" className="text-cream-beige hover:text-light-cream transition-colors">Tutorials</a></li>
-              <li><a href="#" className="text-cream-beige hover:text-light-cream transition-colors">Community</a></li>
-              <li><a href="#" className="text-cream-beige hover:text-light-cream transition-colors">Contact</a></li>
+              <li><Link href="/docs" className="text-cream-beige hover:text-light-cream transition-colors">Documentation</Link></li>
+              <li><Link href="/tutorials" className="text-cream-beige hover:text-light-cream transition-colors">Tutorials</Link></li>
+              <li><Link href="/community" className="text-cream-beige hover:text-light-cream transition-colors">Community</Link></li>
+              <li><Link href="/contact" className="text-cream-beige hover:text-light-cream transition-colors">Contact</Link></li>
             </ul>
           </div>
         </div>
@@ -62,9 +61,9 @@ const Footer = () => {
             © 2025 Cafécode. All rights reserved. Brewed with ❤️ for developers.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
-            <a href="#" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Privacy Policy</a>
-            <a href="#" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Terms of Service</a>
-            <a href="#" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Cookie Policy</a>
+            <Link href="/privacy" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Terms of Service</Link>
+            <Link href="/cookies" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Cookie Policy</Link>
           </div>
         </div>
       </div>

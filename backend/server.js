@@ -67,6 +67,7 @@ app.use(limiter);
 const allowedOrigins = [
   'http://localhost:3000',
   'https://v2-bolt-hackathon.vercel.app',
+  'https://www.trycafecode.xyz',
   'https://v2-bolt-hackathon.onrender.com'
 ];
 app.use(cors({

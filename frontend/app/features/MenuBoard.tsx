@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import MenuItemCard from './MenuItemCard';
+import FeatureDemoModal from './FeatureDemoModal';
 import {
   IconCoffee,
   IconTool,
@@ -10,53 +11,137 @@ import {
   IconBook
 } from '@tabler/icons-react';
 import Image from 'next/image';
+import './animations.css';
 
 const features = [
   {
     icon: <IconCoffee />,
     title: 'Brewster AI Assistant',
     price: '☕ Premium Blend',
-    tags: ['Code Analysis', 'AI Chat', '24/7 Available'],
-    description: 'Personalized AI help, just like your favorite barista remembers your order.',
+    tags: ['Code Analysis', 'AI Chat', '24/7 Available', 'Context Aware'],
+    description: (
+      <div>
+        <p className="mb-2">Your personal coding companion that understands your style and provides intelligent suggestions.</p>
+        <ul className="text-sm opacity-80 space-y-1">
+          <li>• Explains complex code patterns</li>
+          <li>• Suggests optimizations</li>
+          <li>• Helps debug issues</li>
+        </ul>
+      </div>
+    ),
     color: '#a36a3e',
+    demoAction: 'Try AI Chat',
   },
   {
-    icon: <IconTool className="inline mr-1" />,
-    title: 'Fix & Understand',
+    icon: <IconTool />,
+    title: 'Smart Code Fixes',
     price: '⚡ Express Service',
-    tags: ['Auto Fix', 'Smart Hints', 'Learn Why'],
-    description: 'Speedy code fixes and smart hints to help you learn and improve instantly.',
+    tags: ['Auto Fix', 'Smart Hints', 'Learn Why', 'Real-time'],
+    description: (
+      <div>
+        <p className="mb-2">Intelligent code analysis that catches errors before they become problems.</p>
+        <ul className="text-sm opacity-80 space-y-1">
+          <li>• Real-time error detection</li>
+          <li>• One-click fixes</li>
+          <li>• Educational explanations</li>
+        </ul>
+      </div>
+    ),
     color: '#814d33',
+    demoAction: 'See Demo',
   },
   {
     icon: <IconWindow />,
-    title: 'Browser Environment',
-    price: '🚀 Instant Brew',
-    tags: ['No Setup', 'Instant Run', 'All Browsers'],
-    description: 'Run code instantly in your browser. No setup, no hassle, just code.',
+    title: 'Instant Code Runner',
+    price: '🚀 Zero Setup',
+    tags: ['No Install', 'Instant Run', 'All Languages', 'Cloud Powered'],
+    description: (
+      <div>
+        <p className="mb-2">Execute code instantly in a fully-featured browser environment.</p>
+        <ul className="text-sm opacity-80 space-y-1">
+          <li>• Support for 20+ languages</li>
+          <li>• Package management included</li>
+          <li>• Share projects instantly</li>
+        </ul>
+      </div>
+    ),
     color: '#6f4e37',
+    demoAction: 'Run Code',
   },
   {
     icon: <IconMessage />,
-    title: 'Gabby Virtual Pal',
+    title: 'Gabby Virtual Mentor',
     price: '💝 Comfort Blend',
-    tags: ['Project Support', 'Motivation', 'Always There'],
-    description: 'A friendly chat pal to keep you motivated and supported on your journey.',
+    tags: ['Project Support', 'Motivation', 'Career Guidance', 'Community'],
+    description: (
+      <div>
+        <p className="mb-2">More than just a chatbot - your coding journey companion and career mentor.</p>
+        <ul className="text-sm opacity-80 space-y-1">
+          <li>• Personalized learning paths</li>
+          <li>• Interview preparation</li>
+          <li>• Portfolio reviews</li>
+        </ul>
+      </div>
+    ),
     color: '#e7c08a',
+    demoAction: 'Chat Now',
   },
   {
-    icon: <IconBook className="inline mr-1" />,
-    title: 'Guided Projects',
-    price: '📚 Learning Path',
-    tags: ['Step-by-Step', 'Project-Based', 'Beginner Friendly', 'Real Projects', 'Interactive Learning'],
-    description: "Learn coding through guided projects with step-by-step instructions and real-world applications",
-    color: '#e7c08a',
+    icon: <IconBook />,
+    title: 'Guided Learning Projects',
+    price: '📚 Master Path',
+    tags: ['Step-by-Step', 'Real Projects', 'Portfolio Ready', 'Industry Standards', 'Certification'],
+    description: (
+      <div>
+        <p className="mb-2">Build real-world applications with expert guidance and industry best practices.</p>
+        <ul className="text-sm opacity-80 space-y-1">
+          <li>• 50+ curated projects</li>
+          <li>• From beginner to advanced</li>
+          <li>• GitHub integration</li>
+          <li>• Completion certificates</li>
+        </ul>
+      </div>
+    ),
+    color: '#8b4513',
     featured: true,
+    demoAction: 'Start Project',
+  },
+  {
+    icon: <IconTrophy />,
+    title: 'Skill Challenges',
+    price: '🏆 Competition Mode',
+    tags: ['Daily Challenges', 'Leaderboards', 'Skill Tracking', 'Achievements'],
+    description: (
+      <div>
+        <p className="mb-2">Level up your skills with gamified coding challenges and compete with peers.</p>
+        <ul className="text-sm opacity-80 space-y-1">
+          <li>• Algorithm challenges</li>
+          <li>• Weekly competitions</li>
+          <li>• Progress tracking</li>
+        </ul>
+      </div>
+    ),
+    color: '#d4af37',
+    demoAction: 'Take Challenge',
   },
 ];
 
 export default function MenuBoard() {
+  const [selectedFeature, setSelectedFeature] = useState<typeof features[0] | null>(null);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+
+  const handleDemoClick = (feature: typeof features[0]) => {
+    setSelectedFeature(feature);
+    setIsDemoModalOpen(true);
+  };
+
   return (
+    <>
+      <FeatureDemoModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+        feature={selectedFeature}
+      />
     <div
       className="relative py-20 px-4 min-h-screen"
       style={{
@@ -71,39 +156,93 @@ export default function MenuBoard() {
       {/* Coffee ring stains */}
       <svg className="absolute bottom-10 left-1/4 w-40 h-12 rotate-12 opacity-30 z-0" viewBox="0 0 128 40"><ellipse cx="64" cy="20" rx="60" ry="16" fill="none" stroke="#e7c08a" strokeWidth="4" opacity=".5"/><ellipse cx="64" cy="20" rx="50" ry="12" fill="none" stroke="#6f4e37" strokeWidth="2" opacity=".3"/></svg>
       {/* Header */}
-      <header className="text-center mb-20 relative z-10">
-        <h1
-          className="font-caveat text-7xl md:text-8xl font-extrabold bg-gradient-to-r from-[#a36a3e] via-[#e7c08a] to-[#814d33] bg-clip-text text-transparent drop-shadow-lg inline-block"
-          style={{ fontFamily: 'var(--font-heading), cursive', letterSpacing: '0.04em', transform: 'rotate(-2deg)' }}
-        >
-          CAFÉCODE'S FEATURES
-        </h1>
-        <div className="w-40 h-5 mx-auto mt-3 mb-4">
-          {/* Gold flourish SVG */}
-          <svg width="100%" height="20" viewBox="0 0 160 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 16C32 4 128 4 152 16" stroke="#e7c08a" strokeWidth="4" strokeLinecap="round"/>
-          </svg>
+      <header className="text-center mb-24 relative z-10">
+        <div className="relative inline-block">
+          <h1
+            className="font-caveat text-6xl md:text-7xl lg:text-8xl font-extrabold bg-gradient-to-r from-[#a36a3e] via-[#e7c08a] to-[#814d33] bg-clip-text text-transparent drop-shadow-2xl inline-block animate-fade-in"
+            style={{ 
+              fontFamily: 'var(--font-heading), cursive', 
+              letterSpacing: '0.04em', 
+              transform: 'rotate(-2deg)',
+              textShadow: '0 4px 8px rgba(163, 106, 62, 0.3)'
+            }}
+          >
+            CAFÉCODE'S FEATURES
+          </h1>
+          {/* Animated underline */}
+          <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-48 h-6 animate-fade-in" style={{ animationDelay: '0.5s', animationFillMode: 'both' }}>
+            <svg width="100%" height="24" viewBox="0 0 192 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path 
+                d="M12 20C48 6 144 6 180 20" 
+                stroke="url(#gradient)" 
+                strokeWidth="6" 
+                strokeLinecap="round"
+                className="animate-draw-line"
+              />
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#a36a3e" />
+                  <stop offset="50%" stopColor="#e7c08a" />
+                  <stop offset="100%" stopColor="#814d33" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
         </div>
-        <p className="font-body text-xl text-[#231f20]/80 max-w-2xl mx-auto mt-2" style={{ fontFamily: 'var(--font-body), sans-serif' }}>
-          Discover our coding blends, brewed for every developer.
+        
+        <p className="font-body text-xl md:text-2xl text-[#231f20]/80 max-w-3xl mx-auto mt-8 animate-fade-in leading-relaxed" 
+           style={{ 
+             fontFamily: 'var(--font-body), sans-serif',
+             animationDelay: '0.8s',
+             animationFillMode: 'both'
+           }}>
+          Discover our premium coding tools and features, carefully crafted for developers at every level.
         </p>
+        
+        {/* Feature count badge */}
+        <div className="inline-flex items-center gap-2 mt-6 px-6 py-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg border border-amber-200 animate-fade-in"
+             style={{ animationDelay: '1.1s', animationFillMode: 'both' }}>
+          <span className="text-2xl">✨</span>
+          <span className="font-semibold text-[#6f4e37]">{features.length} Premium Features</span>
+        </div>
       </header>
 
       {/* Menu Items */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 max-w-7xl mx-auto relative z-10">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8 lg:gap-12 max-w-8xl mx-auto relative z-10 px-4">
         {features.map((feature, i) => (
           <div
             key={i}
-            className="animate-fade-in"
+            className="animate-fade-in transform-gpu"
             style={{
-              animationDelay: `${i * 0.1 + 0.2}s`,
+              animationDelay: `${i * 0.15 + 1.4}s`,
               animationFillMode: 'both',
             }}
           >
-            <MenuItemCard {...feature} />
+            <MenuItemCard {...feature} onDemoClick={() => handleDemoClick(feature)} />
           </div>
         ))}
       </section>
+      
+      {/* Call to action section */}
+      <section className="text-center mt-20 relative z-10 animate-fade-in" style={{ animationDelay: '2.5s', animationFillMode: 'both' }}>
+        <div className="max-w-4xl mx-auto px-4">
+          <h2 className="font-caveat text-4xl md:text-5xl font-bold text-[#6f4e37] mb-6" style={{ transform: 'rotate(-1deg)' }}>
+            Ready to Start Your Coding Journey?
+          </h2>
+          <p className="text-lg text-[#5d4037] mb-8 max-w-2xl mx-auto">
+            Join thousands of developers who are already brewing their perfect code with CaféCode's premium features.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <button className="px-8 py-4 bg-gradient-to-r from-[#a36a3e] to-[#814d33] text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 transform">
+              Start Free Trial ☕
+            </button>
+            <button className="px-8 py-4 bg-white/80 backdrop-blur-sm text-[#6f4e37] font-semibold rounded-xl border-2 border-[#e7c08a] hover:bg-[#e7c08a] hover:text-white transition-all duration-300 hover:scale-105 transform">
+              View Pricing 💰
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
+    </>
   );
 }

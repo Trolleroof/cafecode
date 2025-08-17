@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   IconPlayerPlay,
   IconMessage,
@@ -278,6 +278,7 @@ function IDEPage() {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [stepComplete, setStepComplete] = useState(false);
   const [isCheckingStep, setIsCheckingStep] = useState(false);
+  const [filesError, setFilesError] = useState<string | null>(null);
 
   // UI state
   const [activeTab, setActiveTab] = useState('editor');
@@ -296,6 +297,33 @@ function IDEPage() {
       'Content-Type': 'application/json'
     };
   };
+
+  const fetchFiles = useCallback(async () => {
+    if (!session?.access_token) {
+      setFilesError('Authentication required');
+      return;
+    }
+      
+    setFilesError(null);
+    try {
+      const res = await axios.get(`${backendUrl}/files/list?recursive=true`, {
+        headers: getAuthHeaders()
+      });
+      // Adapt backend data to FileNode[]
+      const nodes = convertBackendFilesToTree(res.data.files);
+      setFiles(nodes);
+    } catch (err: any) {
+      console.error('Failed to fetch files:', err);
+      setFilesError(err.response?.data?.error || err.message || 'Failed to load files');
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (session?.access_token) {
+      fetchFiles();
+    }
+  }, [session, fetchFiles]);
+
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -317,45 +345,42 @@ function IDEPage() {
   }, [selectedFile?.id]);
 
   // File operations
-  const handleFileSelect = (file: FileNode) => {
-    setSelectedFile(file);
-    setHighlightedLines([]); // Clear highlights when switching files
+  const handleFileSelect = async (file: FileNode) => {
+    if (file.type === 'file') {
+      // Prevent reloading if already selected
+      if (selectedFile && selectedFile.id === file.id) return;
+      
+      try {
+        const res = await axios.get(`${backendUrl}/files/read`, {
+          params: { path: file.id },
+          headers: getAuthHeaders(),
+        });
+        const content = res.data.data;
+        const language = getLanguageFromFileName(file.name);
+        const fileWithContent = { ...file, content, language };
+        setSelectedFile(fileWithContent);
+      } catch (err) {
+        console.error('Failed to read file:', err);
+        // Handle error, e.g., show a notification to the user
+      }
+    }
   };
 
-  const handleFileCreate = (parentId: string | null, type: 'file' | 'folder', name: string) => {
-    const newFile: FileNode = {
-      id: Date.now().toString(),
-      name,
-      type,
-      content: type === 'file' ? '' : undefined,
-      children: type === 'folder' ? [] : undefined,
-      language: type === 'file' ? getLanguageFromFileName(name) : undefined
-    };
-
-    const addFileToTree = (nodes: FileNode[], parentId: string | null): FileNode[] => {
-      if (parentId === null) {
-        return [...nodes, newFile];
-      }
-      
-      return nodes.map(node => {
-        if (node.id === parentId && node.type === 'folder') {
-          return {
-            ...node,
-            children: [...(node.children || []), newFile]
-          };
-        } else if (node.children) {
-          return {
-            ...node,
-            children: addFileToTree(node.children, parentId)
-          };
-        }
-        return node;
-      });
-    };
-
-    setFiles(addFileToTree(files, parentId));
-    if (type === 'file') {
-      setSelectedFile(newFile);
+  const buildPathFromId = (parentId: string | null, name: string): string => {
+    if (!parentId || parentId === '.' || parentId === '/') return name;
+    return parentId + '/' + name;
+  };
+  
+  const handleFileCreate = async (parentId: string | null, type: 'file' | 'folder', name: string) => {
+    try {
+      await axios.post(`${backendUrl}/files/create`, 
+        { path: buildPathFromId(parentId, name), isFolder: type === 'folder' },
+        { headers: getAuthHeaders() }
+      );
+      fetchFiles(); // Refetch files to update the tree
+    } catch (err: any) {
+      console.error('Failed to create:', err);
+      // Optionally, set an error state to show in the UI
     }
   };
 
@@ -364,7 +389,7 @@ function IDEPage() {
   const [pendingDeleteFolderName, setPendingDeleteFolderName] = useState<string | null>(null);
 
   // Update handleFileDelete to show confirmation for folders
-  const handleFileDelete = (fileId: string) => {
+  const handleDeleteRequest = (fileId: string) => {
     // Find the node to delete
     const findNode = (nodes: FileNode[]): FileNode | null => {
       for (const node of nodes) {
@@ -383,28 +408,27 @@ function IDEPage() {
       return;
     }
     // If not a folder, delete immediately
-    actuallyDeleteFile(fileId);
+    handleFileDelete(fileId);
   };
 
   // Actual delete logic
-  const actuallyDeleteFile = (fileId: string) => {
-    const deleteFromTree = (nodes: FileNode[]): FileNode[] => {
-      return nodes.filter(node => {
-        if (node.id === fileId) {
-          return false;
-        }
-        if (node.children) {
-          node.children = deleteFromTree(node.children);
-        }
-        return true;
+  const handleFileDelete = async (fileId: string) => {
+    try {
+      await axios.delete(`${backendUrl}/files/delete`, { 
+        data: { path: fileId },
+        headers: getAuthHeaders()
       });
-    };
-    setFiles(deleteFromTree(files));
-    if (selectedFile?.id === fileId) {
-      setSelectedFile(null);
+      fetchFiles(); // Refetch to update the tree
+      if (selectedFile?.id === fileId) {
+        setSelectedFile(null);
+      }
+    } catch (err: any) {
+      console.error('Failed to delete:', err);
+      // Optionally, set an error state
+    } finally {
+      setPendingDeleteFolderId(null);
+      setPendingDeleteFolderName(null);
     }
-    setPendingDeleteFolderId(null);
-    setPendingDeleteFolderName(null);
   };
 
   const handleFileMove = (fileId: string, newParentId: string | null) => {
@@ -1324,10 +1348,14 @@ function IDEPage() {
               className="border-0"
             >
               <FileExplorer
+                files={files}
                 onFileSelect={handleFileSelect}
                 selectedFileId={selectedFile?.id || null}
                 isCollapsed={isExplorerCollapsed}
                 onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
+                onFileCreate={handleFileCreate}
+                onFileDelete={handleDeleteRequest}
+                onRefresh={fetchFiles}
                 stepProgression={guidedProject && (
                   <GuidedStepPopup
                     instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
@@ -1427,7 +1455,7 @@ function IDEPage() {
                     style={{
                       height: '400px', // Increased height
                       width: '100%',
-                      background: '#111', // Black background for padding
+                      background: 'black', // Black background for padding
                       padding: '16px', // Add black padding
                       boxSizing: 'border-box',
                       display: activeTab === 'terminal' ? 'block' : 'none',
@@ -1658,7 +1686,7 @@ function IDEPage() {
                 </button>
                 <button
                   className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
-                  onClick={() => actuallyDeleteFile(pendingDeleteFolderId)}
+                  onClick={() => handleFileDelete(pendingDeleteFolderId)}
                 >
                   Delete
                 </button>

@@ -6,7 +6,7 @@ interface ReactPreviewProps {
   port?: number;
 }
 
-export default function ReactPreview({ port = 3000 }: ReactPreviewProps) {
+const ReactPreview: React.FC<ReactPreviewProps> = ({ port = 3000 }) => {
   return (
     <div className="h-full bg-white">
       <div className="flex items-center justify-between p-2 bg-gray-100 border-b">
@@ -25,4 +25,6 @@ export default function ReactPreview({ port = 3000 }: ReactPreviewProps) {
       />
     </div>
   );
-} 
+};
+
+export default ReactPreview; 

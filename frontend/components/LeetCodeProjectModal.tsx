@@ -17,23 +17,10 @@ interface LeetCodeProjectModalProps {
 }
 
 export default function LeetCodeProjectModal({ isOpen, onClose, onSubmit, isStartingProject = false, problems, isProblemsLoading = false }: LeetCodeProjectModalProps) {
-  const [selectedSlug, setSelectedSlug] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [problemsLoaded, setProblemsLoaded] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedSlug) {
-      setIsLoading(true);
-      const problem = problems.find(p => p.titleSlug === selectedSlug);
-      if (problem) await onSubmit(problem);
-      setIsLoading(false);
-    }
-  };
 
   const handleClose = () => {
-    setSelectedSlug('');
     setIsLoading(false);
     setProgress(0);
     onClose();
@@ -60,7 +47,6 @@ export default function LeetCodeProjectModal({ isOpen, onClose, onSubmit, isStar
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedSlug('');
       setIsLoading(false);
       setProgress(0);
     }
@@ -130,9 +116,9 @@ export default function LeetCodeProjectModal({ isOpen, onClose, onSubmit, isStar
                   <button
                     className="mt-auto px-0 py-0"
                     style={{borderRadius: '0.75rem', overflow: 'hidden'}}
-                    onClick={async () => {
+                    onClick={() => {
                       setIsLoading(true);
-                      await onSubmit(p);
+                      onSubmit(p);
                       setIsLoading(false);
                     }}
                     disabled={loading}
