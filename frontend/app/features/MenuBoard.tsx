@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import MenuItemCard from './MenuItemCard';
 import FeatureDemoModal from './FeatureDemoModal';
