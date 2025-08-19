@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X } from 'lucide-react';
+import ProjectSetupLoader from './ProjectSetupLoader';
 
 interface ProjectDescriptionModalProps {
   isOpen: boolean;
@@ -11,7 +12,6 @@ interface ProjectDescriptionModalProps {
 
 export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isStartingProject = false, error }: ProjectDescriptionModalProps) {
   const [description, setDescription] = useState('');
-  const [progress, setProgress] = useState(0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,30 +22,8 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
 
   const handleClose = () => {
     setDescription('');
-    setProgress(0);
     onClose();
   };
-
-  // Animated progress bar effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout | undefined;
-    if (isStartingProject && !error) {
-      setProgress(0);
-      interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 99) {
-            clearInterval(interval!);
-            return 99;
-          }
-          const increment = prev < 50 ? 8 : prev < 80 ? 4 : 2;
-          return Math.min(prev + increment, 99);
-        });
-      }, 150);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isStartingProject, error]);
 
   if (!isOpen) return null;
 
@@ -64,32 +42,12 @@ export default function ProjectDescriptionModal({ isOpen, onClose, onSubmit, isS
 
         {isStartingProject ? (
           <div className="text-center py-8">
-            <div className="mb-6">
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 bg-medium-coffee"
-              >
-                <Loader2 className="animate-spin h-7 w-7 text-light-cream" />
-              </div>
-              <h2 className="text-xl font-semibold mb-2 text-medium-coffee">Setting Up Your Project</h2>
-              <p className="text-deep-espresso">Creating guided steps and preparing your workspace...</p>
-              {error && (
-                <div className="mt-4 text-red-700 bg-red-100 p-3 rounded-lg font-semibold text-sm">
-                  <p className="font-bold mb-1">Could not start project</p>
-                  <p className="font-normal">{error}</p>
-                </div>
-              )}
-            </div>
-            {!error ? (
-              <>
-                <div className="w-full rounded-full h-3 bg-cream-beige">
-                  <div 
-                    className="h-3 rounded-full transition-all duration-300 ease-out bg-gradient-to-r from-medium-coffee to-deep-espresso shadow-md"
-                    style={{ width: `${progress}%` }}
-                  ></div>
-                </div>
-                <div className="mt-2 text-sm text-medium-coffee">{progress}%</div>
-              </>
-            ) : (
+            <ProjectSetupLoader 
+              isOpen={isStartingProject}
+              title="Setting Up Your Project"
+              description="Creating your guided project workspace..."
+            />
+            {error && (
               <button
                 onClick={handleClose}
                 className="mt-4 px-5 py-2 text-sm font-medium rounded-md shadow-md transition-colors bg-medium-coffee text-light-cream hover:bg-deep-espresso"

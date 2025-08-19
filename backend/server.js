@@ -64,15 +64,22 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // CORS configuration
-const allowedOrigins = [
+const defaultAllowedOrigins = [
   'http://localhost:3000',
   'https://v2-bolt-hackathon.vercel.app',
+  'https://trycafecode.xyz',
   'https://www.trycafecode.xyz',
   'https://v2-bolt-hackathon.onrender.com'
 ];
-app.use(cors({
+const envAllowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : null;
+const allowedOrigins = envAllowedOrigins || defaultAllowedOrigins;
+console.log('🌐 Allowed CORS origins:', allowedOrigins);
+
+const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
+    // Allow requests with no origin (like mobile apps, curl, SSR fetches)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -83,7 +90,10 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+};
+app.use(cors(corsOptions));
+// Explicitly handle preflight across all routes with same options
+app.options('*', cors(corsOptions));
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));

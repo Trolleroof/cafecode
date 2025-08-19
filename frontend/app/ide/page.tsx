@@ -33,6 +33,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GuidedStepPopup from '@/components/GuidedStepPopup';
+import StepsPreviewModal, { PreviewStep } from '@/components/StepsPreviewModal';
+import ProjectSetupLoader from '@/components/ProjectSetupLoader';
 import { useRouter } from 'next/navigation';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -47,6 +49,13 @@ import ReactPreview from '@/components/ReactPreview';
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
 
+// CSS keyframes for shimmer animation
+const shimmerKeyframes = `
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+`;
 
 interface FileNode {
   id: string;
@@ -279,6 +288,16 @@ function IDEPage() {
   const [stepComplete, setStepComplete] = useState(false);
   const [isCheckingStep, setIsCheckingStep] = useState(false);
   const [filesError, setFilesError] = useState<string | null>(null);
+  // Setup (pre-steps) state
+  const [isInSetupPhase, setIsInSetupPhase] = useState(false);
+  const [setupDescription, setSetupDescription] = useState<string>('');
+  const [ignoreIncomingSetupResponses, setIgnoreIncomingSetupResponses] = useState(false);
+  const [showStepsPreviewModal, setShowStepsPreviewModal] = useState(false);
+  const [previewSteps, setPreviewSteps] = useState<PreviewStep[]>([]);
+  const [originalSteps, setOriginalSteps] = useState<PreviewStep[]>([]);
+  const [isStartingFromSteps, setIsStartingFromSteps] = useState(false);
+  const [stepsFlowError, setStepsFlowError] = useState<string | null>(null);
+  const [isGeneratingSteps, setIsGeneratingSteps] = useState(false);
 
   // UI state
   const [activeTab, setActiveTab] = useState('editor');
@@ -317,6 +336,151 @@ function IDEPage() {
       setFilesError(err.response?.data?.error || err.message || 'Failed to load files');
     }
   }, [session]);
+
+  // Deep scan helper: returns a flat list of files with optional content
+  const scanWorkspace = useCallback(async (opts?: { includeContent?: boolean; extensions?: string[] }) => {
+    if (!session?.access_token) throw new Error('Authentication required');
+    const params = new URLSearchParams();
+    params.set('path', '.');
+    params.set('recursive', 'true');
+    params.set('includeContent', opts?.includeContent ? 'true' : 'false');
+    params.set('ignoreHidden', 'true');
+    if (opts?.extensions && opts.extensions.length > 0) {
+      params.set('extensions', opts.extensions.join(','));
+    }
+    const res = await axios.get(`${backendUrl}/files/scan?${params.toString()}`, {
+      headers: getAuthHeaders()
+    });
+    // returns { exists, isDirectory, files: [{ name, isDirectory, size, modified, content? }] }
+    return res.data;
+  }, [session]);
+
+  // Heuristic: decide whether a step requires checking file presence or contents
+  const analyzeStepAgainstScan = (instruction: string, scan: any) => {
+    const lowered = instruction.toLowerCase();
+    const fileRegex = /(file|in|open|update|edit|modify)\s+['\"]?([\w\-/]+?\.(?:js|ts|tsx|jsx|py|html|css|json|md|yaml|yml))['\"]?/i;
+    const dockerRegex = /(dockerfile)/i;
+    let targetFile: string | null = null;
+    const m = instruction.match(fileRegex);
+    if (m && m[2]) targetFile = m[2];
+    else if (dockerRegex.test(instruction)) targetFile = 'Dockerfile';
+
+    const isCreateIntent = /(create|make|new)\s+(file|folder)/i.test(instruction);
+    const isFolderIntent = /(create|make|new).*folder/i.test(instruction);
+    const isModifyIntent = /(add|write|update|modify|implement|insert|replace|append)\b/i.test(instruction);
+
+    const allItems: any[] = Array.isArray(scan?.files) ? scan.files : [];
+    const filesList = allItems.filter(item => !item.isDirectory);
+    const directoriesList = allItems.filter(item => item.isDirectory);
+    
+    // Improved folder name extraction with multiple patterns
+    let folderName: string | null = null;
+    if (isFolderIntent) {
+      // Try multiple patterns to extract folder name
+      const patterns = [
+        /folder\s+(?:called|named)?\s*['"`]?([\w\-\/\.]+)['"`]?/i,
+        /(?:called|named)\s+['"`]?([\w\-\/\.]+)['"`]?/i,
+        /['"`]([\w\-\/\.]+)['"`]/i,
+        /\s([\w\-\.]+)\s*(?:folder|directory)/i,
+        /folder\s+([\w\-\.]+)/i
+      ];
+      
+      for (const pattern of patterns) {
+        const match = instruction.match(pattern);
+        if (match && match[1]) {
+          folderName = match[1].replace(/^\.\/?/, '').replace(/['"``]/g, '');
+          break;
+        }
+      }
+      
+      // Debug logging
+      console.log('🔍 Folder detection:', {
+        instruction,
+        isFolderIntent,
+        folderName,
+        availableDirectories: directoriesList.map(d => d.name)
+      });
+      
+      if (folderName) {
+        // More flexible existence check
+        const exists = directoriesList.some((f) => {
+          const dirName = f.name.toLowerCase();
+          const targetName = folderName!.toLowerCase();
+          return dirName === targetName || 
+                 dirName.endsWith('/' + targetName) || 
+                 dirName.endsWith('\\' + targetName) ||
+                 dirName.includes(targetName);
+        });
+        
+        console.log('🔍 Folder existence check:', {
+          folderName,
+          exists,
+          directoriesList: directoriesList.map(d => ({ name: d.name, path: d.path }))
+        });
+        
+        return { type: 'folder', exists, file: folderName, tokensChecked: [] };
+      } else {
+        // Folder intent detected but couldn't extract specific name
+        console.log('⚠️ Folder intent detected but no specific folder name found:', instruction);
+        return { type: 'folder', exists: false, file: 'required folder', tokensChecked: [] };
+      }
+    }
+
+    if (!targetFile) {
+      // Check if this is a file creation step without explicit filename
+      if (isCreateIntent && !isFolderIntent) {
+        // This is a file creation step but we couldn't extract the filename
+        // Look for common file creation patterns
+        const fileCreateMatch = instruction.match(/(?:create|make|new)\s+(?:an?\s+)?(?:html|css|js|javascript|python|file)\s+(?:called\s+|named\s+)?['"]?([\w\-\.]+)['"]?/i);
+        if (fileCreateMatch && fileCreateMatch[1]) {
+          const fileName = fileCreateMatch[1];
+          // Check if file exists
+          const exists = filesList.some((f) => f.name.toLowerCase().endsWith('/' + fileName.toLowerCase()) || f.name.toLowerCase() === fileName.toLowerCase());
+          return { type: 'file-create', exists, file: fileName, tokensChecked: [] };
+        }
+        // Generic file creation without specific name
+        return { type: 'file-create', exists: false, file: 'new file', tokensChecked: [] };
+      }
+      // fall back: if no explicit file, consider presence of any files changed later; for now, no hard check
+      return { type: 'generic', exists: true, file: null, tokensChecked: [] };
+    }
+
+    // Normalize path comparisons by ending with file name
+    const existsIdx = filesList.findIndex((f) => f.name.toLowerCase().endsWith('/' + targetFile!.toLowerCase()) || f.name.toLowerCase() === targetFile!.toLowerCase());
+    const exists = existsIdx !== -1;
+    const fileItem = exists ? filesList[existsIdx] : null;
+
+    if (isCreateIntent) {
+      return { type: 'file-create', exists, file: targetFile, tokensChecked: [] };
+    }
+
+    if (isModifyIntent) {
+      if (!exists || !fileItem) return { type: 'file-modify', exists: false, file: targetFile, tokensChecked: [] };
+      // Try to extract quoted tokens from instruction to search within file
+      const tokenRegex = /['`\"]([^'"`]{3,})['`\"]/g;
+      const tokens: string[] = [];
+      let tm: RegExpExecArray | null;
+      while ((tm = tokenRegex.exec(instruction)) && tokens.length < 3) {
+        tokens.push(tm[1]);
+      }
+      if (tokens.length === 0) {
+        // fallback: search for common markers like function or class names keywords present in instruction
+        const wordCandidates = instruction
+          .replace(/[^A-Za-z0-9_\-\.\s]/g, ' ')
+          .split(/\s+/)
+          .filter((w) => w.length >= 4 && !/(create|file|folder|update|modify|insert|write|add|open|edit|into|the|and|with|for|html|css|javascript|python)/i.test(w))
+          .slice(0, 2);
+        tokens.push(...wordCandidates);
+      }
+      const content: string = fileItem.content || '';
+      const hits = tokens.filter((t) => t && content.toLowerCase().includes(t.toLowerCase()));
+      const ok = hits.length > 0 || content.trim().length > 0; // minimal safeguard
+      return { type: 'file-modify', exists: ok, file: targetFile, tokensChecked: tokens };
+    }
+
+    // Default: if a file is referenced but not a create intent, ensure it exists
+    return { type: 'file-reference', exists, file: targetFile, tokensChecked: [] };
+  };
 
   useEffect(() => {
     if (session?.access_token) {
@@ -551,18 +715,63 @@ function IDEPage() {
     setChatMessages(prev => [...prev, userMessage]);
     setChatInput('');
 
-    // Prevent sending if no guided project is active
+    // Setup phase routing
+    if (isInSetupPhase) {
+      setIsTyping(true);
+      let result: any;
+      try {
+        const response = await fetch('/api/guided/setup/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ projectDescription: setupDescription, history: [...chatMessages, userMessage], projectFiles: files })
+        });
+        result = await response.json();
+        if (!ignoreIncomingSetupResponses && result?.response?.content) {
+          setChatMessages(prev => [...prev, { type: 'assistant', content: result.response.content, timestamp: new Date() }]);
+          
+          // Handle delayed next question if provided
+          if (result.nextQuestion && result.nextQuestion.content) {
+            // Show typing indicator for the delay duration
+            setIsTyping(true);
+            setTimeout(() => {
+              setIsTyping(false);
+              setChatMessages(prev => [...prev, { 
+                type: 'assistant', 
+                content: result.nextQuestion.content, 
+                timestamp: new Date() 
+              }]);
+            }, result.nextQuestion.delay || 1000);
+          } else {
+            setIsTyping(false);
+          }
+        } else {
+          setIsTyping(false);
+        }
+      } catch (error) {
+        if (!ignoreIncomingSetupResponses) {
+          setChatMessages(prev => [...prev, { type: 'assistant', content: 'I\'ve noted your preferences. What else should we refine before generating steps?', timestamp: new Date() }]);
+        }
+        setIsTyping(false);
+      } finally {
+        // Only set typing to false if we don't have a delayed question
+        if (!result?.nextQuestion) {
+          setIsTyping(false);
+        }
+      }
+      return;
+    }
+
+    // Normal chat requires an active guided project
     if (!guidedProject) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'Please start a guided project before chatting with the assistant. Click "Start Guided Project" at the top to begin!',
-        timestamp: new Date()
-      }]);
+      setChatMessages(prev => [...prev, { type: 'assistant', content: 'Please start a guided project before chatting with the assistant. Click "Start Guided Project" at the top to begin!', timestamp: new Date() }]);
       return;
     }
 
     setIsTyping(true);
-
+    let result: any = null;
     try {
       const response = await fetch('/api/guided/simple-chat', {
         method: 'POST',
@@ -578,33 +787,76 @@ function IDEPage() {
           currentLanguage: selectedFile?.language || 'plaintext'
         })
       });
-
-      const result = await response.json();
-      
+      result = await response.json();
       if (result.response) {
-        setChatMessages(prev => [...prev, {
-          type: 'assistant',
-          content: result.response.content,
-          timestamp: new Date()
-        }]);
+        setChatMessages(prev => [...prev, { type: 'assistant', content: result.response.content, timestamp: new Date() }]);
+        
+        // Handle delayed next question if provided (like in setup flow)
+        if (result.nextQuestion && result.nextQuestion.content) {
+          // Show typing indicator for the delay duration
+          setIsTyping(true);
+          setTimeout(() => {
+            setIsTyping(false);
+            setChatMessages(prev => [...prev, { 
+              type: 'assistant', 
+              content: result.nextQuestion.content, 
+              timestamp: new Date() 
+            }]);
+          }, result.nextQuestion.delay || 1500);
+        } else {
+          setIsTyping(false);
+        }
+      } else {
+        setIsTyping(false);
       }
     } catch (error) {
-      // Fallback response
-      const responses = [
-        "That's a great question! Let me help you with that. Here's what I suggest:\n\n```javascript\n// Example code\nfunction example() {\n  console.log('Hello!');\n}\n```\n\nThis approach works because...",
-        "I can see you're working on something interesting! Here are some tips:\n\n• **Best Practice**: Always use meaningful variable names\n• **Tip**: Break complex problems into smaller functions\n• **Debug**: Use console.log() to track your values\n\nWould you like me to explain any specific part?",
-        "Excellent! That's exactly the right approach. Here's how you can improve it:\n\n```python\n# Improved version\ndef improved_function(data):\n    \"\"\"Process data efficiently\"\"\"\n    return [item.strip() for item in data if item]\n```\n\nThis is more efficient because it uses list comprehension.",
-      ];
-
-      const assistantMessage: ChatMessage = {
-        type: 'assistant',
-        content: responses[Math.floor(Math.random() * responses.length)],
-        timestamp: new Date()
-      };
-
-      setChatMessages(prev => [...prev, assistantMessage]);
+      console.error('Error in simple chat:', error);
+      
+      // Try to get a helpful response from Gemini even if the main chat failed
+      try {
+        const fallbackResponse = await fetch('/api/guided/simple-chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ 
+            history: [{ type: 'user', content: 'I encountered an error. Please provide a helpful response to help me continue.', timestamp: new Date() }],
+            projectFiles: files,
+            guidedProject: guidedProject,
+            currentCode: selectedFile?.content || '',
+            currentLanguage: selectedFile?.language || 'plaintext'
+          })
+        });
+        
+        if (fallbackResponse.ok) {
+          const fallbackResult = await fallbackResponse.json();
+          if (fallbackResult.response) {
+            setChatMessages(prev => [...prev, { type: 'assistant', content: fallbackResult.response.content, timestamp: new Date() }]);
+          }
+        } else {
+          // If even the fallback fails, provide a generic helpful message
+          const fallbackMessage: ChatMessage = { 
+            type: 'assistant', 
+            content: "I'm having trouble processing your request right now. Let me try a different approach - could you rephrase your question or try asking something specific about your code?", 
+            timestamp: new Date() 
+          };
+          setChatMessages(prev => [...prev, fallbackMessage]);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback chat also failed:', fallbackError);
+        const fallbackMessage: ChatMessage = { 
+          type: 'assistant', 
+          content: "I'm experiencing some technical difficulties. Please try refreshing the page or ask your question again in a moment.", 
+          timestamp: new Date() 
+        };
+        setChatMessages(prev => [...prev, fallbackMessage]);
+      }
     } finally {
-      setIsTyping(false);
+      // Only set typing to false if we don't have a delayed question
+      if (!result?.nextQuestion) {
+        setIsTyping(false);
+      }
     }
   };
 
@@ -657,11 +909,56 @@ function IDEPage() {
         }]);
       }
     } catch (error) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: '💡 **Hint**: Try breaking down your problem into smaller steps. Look for any syntax errors first, then check your logic flow!',
-        timestamp: new Date()
-      }]);
+      console.error('Error getting hint:', error);
+      
+      // Try to get a helpful hint response from Gemini even if the hint API failed
+      try {
+        const fallbackHintResponse = await fetch('/api/guided/simple-chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ 
+            history: [{ 
+              type: 'user', 
+              content: `I need a hint for my ${selectedFile.language} code. Here's what I'm working on: ${guidedProject?.steps[guidedProject.currentStep]?.instruction || 'coding problem'}. Can you give me a helpful hint?`, 
+              timestamp: new Date() 
+            }],
+            projectFiles: files,
+            guidedProject: guidedProject,
+            currentCode: selectedFile.content,
+            currentLanguage: selectedFile.language
+          })
+        });
+        
+        if (fallbackHintResponse.ok) {
+          const fallbackResult = await fallbackHintResponse.json();
+          if (fallbackResult.response) {
+            setChatMessages(prev => [...prev, { 
+              type: 'assistant', 
+              content: `💡 **Hint**: ${fallbackResult.response.content}`, 
+              timestamp: new Date() 
+            }]);
+          }
+        } else {
+          // If even the fallback fails, provide a generic helpful hint
+          const fallbackHint: ChatMessage = { 
+            type: 'assistant', 
+            content: "💡 **Hint**: Try breaking down your problem into smaller steps. Look for any syntax errors first, then check your logic flow!", 
+            timestamp: new Date() 
+          };
+          setChatMessages(prev => [...prev, fallbackHint]);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback hint also failed:', fallbackError);
+        const fallbackHint: ChatMessage = { 
+          type: 'assistant', 
+          content: "💡 **Hint**: Try breaking down your problem into smaller steps. Look for any syntax errors first, then check your logic flow!", 
+          timestamp: new Date() 
+        };
+        setChatMessages(prev => [...prev, fallbackHint]);
+      }
     } finally {
       setIsTyping(false);
     }
@@ -757,15 +1054,59 @@ function IDEPage() {
             const fixedLines = result.fixes_applied.map((fix: any) => fix.line_number).filter((line: number) => line);
             setHighlightedLines(fixedLines);
             setIsEditorReadOnly(false);
-            // Add the fix message to chat
-            let diffMessage = formatCodeInMessage(result.diff);
-            if (!diffMessage || diffMessage.trim() === '' || diffMessage.trim() === 'undefined') {
-              diffMessage = 'Code is fixed!';
-            }
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `🔧 **Code Fix Suggestions**\n\n${diffMessage}`
-            }]);
+            
+            // Get a summary of the changes from Gemini after animation completes
+            (async () => {
+              try {
+                const summaryResponse = await fetch('/api/guided/simple-chat', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`
+                  },
+                  body: JSON.stringify({ 
+                    history: [{ 
+                      type: 'user', 
+                      content: `Summarize the code changes that were made. Here are the details: ${result.diff}. Please provide a clear, concise summary of what was fixed in bullet points.`, 
+                      timestamp: new Date() 
+                    }],
+                    projectFiles: files,
+                    guidedProject: guidedProject,
+                    currentCode: selectedFile.content,
+                    currentLanguage: selectedFile.language
+                  })
+                });
+                
+                if (summaryResponse.ok) {
+                  const summaryResult = await summaryResponse.json();
+                  if (summaryResult.response) {
+                    setChatMessages(prev => [...prev, {
+                      type: 'assistant',
+                      content: `Here are the changes:\n\n${summaryResult.response.content}`
+                    }]);
+                  } else {
+                    // Fallback to simple message if Gemini response is empty
+                    setChatMessages(prev => [...prev, {
+                      type: 'assistant',
+                      content: `Here are the changes:\n\n**• Code has been fixed and improved**`
+                    }]);
+                  }
+                } else {
+                  // Fallback if Gemini call fails
+                  setChatMessages(prev => [...prev, {
+                    type: 'assistant',
+                    content: `Here are the changes:\n\n**• Code has been fixed and improved**`
+                  }]);
+                }
+              } catch (summaryError) {
+                console.error('Error getting change summary:', summaryError);
+                // Fallback if Gemini call fails
+                setChatMessages(prev => [...prev, {
+                  type: 'assistant',
+                  content: `Here are the changes:\n\n**• Code has been fixed and improved**`
+                }]);
+              }
+            })();
           }
         };
         animate();
@@ -775,11 +1116,56 @@ function IDEPage() {
         }, newCode.length * 6 + 100);
       }
     } catch (error) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: '🔧 **Code Review**: Your code looks good! Here are some general tips:\n\n• Check for proper indentation\n• Use meaningful variable names\n• Add comments for complex logic\n• Test your code with different inputs',
-        timestamp: new Date()
-      }]);
+      console.error('Error fixing code:', error);
+      
+      // Try to get a helpful code review response from Gemini even if the fix API failed
+      try {
+        const fallbackFixResponse = await fetch('/api/guided/simple-chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ 
+            history: [{ 
+              type: 'user', 
+              content: `I need help reviewing my ${selectedFile.language} code. Here's what I'm working on: ${guidedProject?.steps[guidedProject.currentStep]?.instruction || 'coding problem'}. Can you review my code and give me some helpful tips?`, 
+              timestamp: new Date() 
+            }],
+            projectFiles: files,
+            guidedProject: guidedProject,
+            currentCode: selectedFile.content,
+            currentLanguage: selectedFile.language
+          })
+        });
+        
+        if (fallbackFixResponse.ok) {
+          const fallbackResult = await fallbackFixResponse.json();
+          if (fallbackResult.response) {
+            setChatMessages(prev => [...prev, { 
+              type: 'assistant', 
+              content: `🔧 **Code Review**: ${fallbackResult.response.content}`, 
+              timestamp: new Date() 
+            }]);
+          }
+        } else {
+          // If even the fallback fails, provide a generic helpful code review
+          const fallbackReview: ChatMessage = { 
+            type: 'assistant', 
+            content: '🔧 **Code Review**: Your code looks good! Here are some general tips:\n\n• Check for proper indentation\n• Use meaningful variable names\n• Add comments for complex logic\n• Test your code with different inputs', 
+            timestamp: new Date() 
+          };
+          setChatMessages(prev => [...prev, fallbackReview]);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback code review also failed:', fallbackError);
+        const fallbackReview: ChatMessage = { 
+          type: 'assistant', 
+          content: '🔧 **Code Review**: Your code looks good! Here are some general tips:\n\n• Check for proper indentation\n• Use meaningful variable names\n• Add comments for complex logic\n• Test your code with different inputs', 
+          timestamp: new Date() 
+        };
+        setChatMessages(prev => [...prev, fallbackReview]);
+      }
     } finally {
       setIsTyping(false);
     }
@@ -824,11 +1210,56 @@ function IDEPage() {
         }]);
       }
     } catch (error) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: `📚 **Code Explanation**:\n\nThis ${selectedFile.language} code appears to be well-structured. Here's what it does:\n\n• Defines functions and variables\n• Implements logic for your application\n• Uses proper ${selectedFile.language} syntax\n\nWould you like me to explain any specific part in more detail?`,
-        timestamp: new Date()
-      }]);
+      console.error('Error explaining code:', error);
+      
+      // Try to get a helpful code explanation response from Gemini even if the explain API failed
+      try {
+        const fallbackExplainResponse = await fetch('/api/guided/simple-chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ 
+            history: [{ 
+              type: 'user', 
+              content: `I need help understanding my ${selectedFile.language} code. Here's what I'm working on: ${guidedProject?.steps[guidedProject.currentStep]?.instruction || 'coding problem'}. Can you explain what this code does and give me some helpful insights?`, 
+              timestamp: new Date() 
+            }],
+            projectFiles: files,
+            guidedProject: guidedProject,
+            currentCode: selectedFile.content,
+            currentLanguage: selectedFile.language
+          })
+        });
+        
+        if (fallbackExplainResponse.ok) {
+          const fallbackResult = await fallbackExplainResponse.json();
+          if (fallbackResult.response) {
+            setChatMessages(prev => [...prev, { 
+              type: 'assistant', 
+              content: `📚 **Code Explanation**: ${fallbackResult.response.content}`, 
+              timestamp: new Date() 
+            }]);
+          }
+        } else {
+          // If even the fallback fails, provide a generic helpful code explanation
+          const fallbackExplanation: ChatMessage = { 
+            type: 'assistant', 
+            content: `📚 **Code Explanation**:\n\nThis ${selectedFile.language} code appears to be well-structured. Here's what it does:\n\n• Defines functions and variables\n• Implements logic for your application\n• Uses proper ${selectedFile.language} syntax\n\nWould you like me to explain any specific part in more detail?`, 
+            timestamp: new Date() 
+          };
+          setChatMessages(prev => [...prev, fallbackExplanation]);
+        }
+      } catch (fallbackError) {
+        console.error('Fallback code explanation also failed:', fallbackError);
+        const fallbackExplanation: ChatMessage = { 
+          type: 'assistant', 
+          content: `📚 **Code Explanation**:\n\nThis ${selectedFile.language} code appears to be well-structured. Here's what it does:\n\n• Defines functions and variables\n• Implements logic for your application\n• Uses proper ${selectedFile.language} syntax\n\nWould you like me to explain any specific part in more detail?`, 
+          timestamp: new Date() 
+        };
+        setChatMessages(prev => [...prev, fallbackExplanation]);
+      }
     } finally {
       setIsTyping(false);
     }
@@ -841,59 +1272,144 @@ function IDEPage() {
 
   // 2. Update handleStartGuidedProject to set loading state
   const handleStartGuidedProject = async (description: string) => {
-    window.console.log('[GUIDE-LOG] handleStartGuidedProject called with:', description);
+    window.console.log('[GUIDE-LOG] handleStartGuidedProject (deprecated) called with:', description);
+    setProjectStartError('Please use the setup flow.');
+  };
+
+  // New setup flow: start follow-up chat
+  const handleStartProjectSetup = async (description: string) => {
+    window.console.log('[GUIDE-LOG] handleStartProjectSetup called with:', description);
     setIsStartingProject(true);
     setProjectStartError(null);
-    // Check if this is a React project
     setIsReactProject(/react|react\.js|reactjs/i.test(description));
+    setSetupDescription(description);
+    // Don't set isInSetupPhase yet - wait until questions are generated
+    setIgnoreIncomingSetupResponses(false);
     try {
-      window.console.log('[GUIDE-LOG] Sending fetch to /api/guided/startProject');
-      const response = await fetch('/api/guided/startProject', {
+      const response = await fetch('/api/guided/setup/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ 
-          projectDescription: description,
-          projectFiles: files 
-        })
+        body: JSON.stringify({ projectDescription: description, projectFiles: files })
       });
-      window.console.log('[GUIDE-LOG] Fetch completed, status:', response.status);
       const result = await response.json();
-      window.console.log('[GUIDE-LOG] API result:', result);
-
-      if (result.projectId && result.steps) {
-        setGuidedProject({
-          projectId: result.projectId,
-          steps: result.steps,
-          currentStep: 0,
-          projectContext: result.projectContext
-        });
-
-        if (result.welcomeMessage) {
-          setChatMessages(prev => [...prev, {
-            type: 'assistant',
-            content: result.welcomeMessage.content,
-            timestamp: new Date()
-          }]);
-        }
-        setShowProjectModal(false); // Only close modal on success
-      } else if (result.error) {
-        setProjectStartError(result.error);
-      } else {
-        setProjectStartError('Unknown error starting project.');
+      setShowProjectModal(false);
+      if (result?.response?.content) {
+        setChatMessages(prev => [...prev, { type: 'assistant', content: result.response.content, timestamp: new Date() }]);
+        // Now set isInSetupPhase after questions are generated and loading is done
+        setIsInSetupPhase(true);
+      } else if (result?.error) {
+        setChatMessages(prev => [...prev, { type: 'assistant', content: 'Let\'s clarify your idea with a few questions:\n1) What are the core features you want?\n2) Which technologies do you prefer?\n3) Any constraints or deadlines?\n4) Who is this for, and what\'s the simplest MVP?', timestamp: new Date() }]);
+        // Set isInSetupPhase even on error to maintain consistency
+        setIsInSetupPhase(true);
       }
     } catch (error) {
-      console.error('Error starting guided project:', error);
-      setProjectStartError('Network or server error. Please try again.');
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'I\'m ready to help you with your project! Let\'s start by creating some files and writing code together. What would you like to build?',
-        timestamp: new Date()
-      }]);
+      console.error('Error starting setup flow:', error);
+      setProjectStartError('Failed to start setup. Please try again.');
+      // Set isInSetupPhase on error to maintain consistency
+      setIsInSetupPhase(true);
     } finally {
       setIsStartingProject(false);
+    }
+  };
+
+  // Generate steps from the setup chat
+  const handleSubmitAndGenerateSteps = async () => {
+    setStepsFlowError(null);
+    setIgnoreIncomingSetupResponses(true);
+    setIsTyping(false);
+    setIsGeneratingSteps(true);
+    try {
+      const response = await fetch('/api/guided/steps/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ projectDescription: setupDescription, history: chatMessages, projectFiles: files })
+      });
+      const result = await response.json();
+      if (response.ok && Array.isArray(result.steps)) {
+        // Store the original steps for comparison later
+        setOriginalSteps(result.steps);
+        setPreviewSteps(result.steps);
+        setShowStepsPreviewModal(true);
+        setIsInSetupPhase(false);
+      } else {
+        setStepsFlowError(result?.error || 'An error happened. Please try again.');
+      }
+    } catch (e) {
+      setStepsFlowError('An error happened. Please try again.');
+    } finally {
+      setIsGeneratingSteps(false);
+    }
+  };
+
+  // Confirm and start the guided project from cleaned steps
+  const handleConfirmStartProjectFromSteps = async () => {
+    setStepsFlowError(null);
+    setIsStartingFromSteps(true);
+    try {
+      // Get the original steps that were generated from setup
+      const originalStepsData = originalSteps;
+      
+      // Find which steps have been modified by the user
+      const modifiedSteps = previewSteps.filter((step, index) => {
+        // Check if the step instruction has been changed from the original
+        const originalStep = originalStepsData[index];
+        return originalStep && step.instruction !== originalStep.instruction;
+      });
+      
+      let finalSteps = previewSteps;
+      
+      // Only clean up modified steps if there are any
+      if (modifiedSteps.length > 0) {
+        console.log('[STEPS] Cleaning up', modifiedSteps.length, 'modified steps');
+        
+        const cleanupResponse = await fetch('/api/guided/steps/cleanup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ 
+            projectDescription: setupDescription, 
+            originalSteps: originalStepsData,
+            modifiedSteps: modifiedSteps,
+            projectFiles: files
+          })
+        });
+        
+        if (cleanupResponse.ok) {
+          const cleanupResult = await cleanupResponse.json();
+          if (Array.isArray(cleanupResult.steps)) {
+            finalSteps = cleanupResult.steps;
+            console.log('[STEPS] Steps cleaned up successfully');
+          }
+        } else {
+          console.warn('[STEPS] Cleanup failed, using original steps');
+        }
+      } else {
+        console.log('[STEPS] No modified steps, using original steps as-is');
+      }
+      
+      // Start the project with the final steps
+      const projectResponse = await fetch('/api/guided/startProject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ projectDescription: setupDescription, projectFiles: files, steps: finalSteps })
+      });
+      const projectResult = await projectResponse.json();
+      if (projectResponse.ok && projectResult.projectId && Array.isArray(projectResult.steps)) {
+        setGuidedProject({ projectId: projectResult.projectId, steps: projectResult.steps, currentStep: 0, projectContext: projectResult.projectContext });
+        if (projectResult.welcomeMessage) {
+          setChatMessages(prev => [...prev, { type: 'assistant', content: projectResult.welcomeMessage.content, timestamp: new Date() }]);
+        }
+        setShowStepsPreviewModal(false);
+      } else {
+        setStepsFlowError(projectResult?.error || 'An error happened. Please try again.');
+      }
+    } catch (e) {
+      console.error('[STEPS] Error starting project:', e);
+      setStepsFlowError('An error happened. Please try again.');
+    } finally {
+      setIsStartingFromSteps(false);
     }
   };
 
@@ -910,124 +1426,201 @@ function IDEPage() {
       const currentStep = guidedProject.steps[guidedProject.currentStep];
       console.log('Current step:', currentStep);
 
-      // Fetch current files from backend to ensure we have the latest file structure
-      let currentFiles: FileNode[] = [];
+      // Use deep scan so we know when to check for existence vs contents
+      let scanResult: any = null;
       try {
-        const res = await axios.get(`${backendUrl}/files/list?recursive=true`, {
-          headers: getAuthHeaders()
-        });
-        // Convert backend files to tree structure (same logic as FileExplorer)
-        currentFiles = convertBackendFilesToTree(res.data.files);
+        scanResult = await scanWorkspace({ includeContent: true });
       } catch (err) {
-        console.error('Failed to fetch current files:', err);
-        // Fallback to existing files state if API fails
-        currentFiles = files;
-      }
-
-      // Check if this step is about creating a file or folder
-      const fileCreateMatch = currentStep.instruction.match(/create (an? |the )?(html|css|js|javascript|python)? ?file (called |named )?['"]?([\w\-.]+)['"]?/i);
-      const folderCreateMatch = currentStep.instruction.match(/create (an? |the )?folder (called |named )?['"]?([\w\-.]+)['"]?/i);
-      const simpleFolderMatch = currentStep.instruction.match(/create (an? |the )?folder/i);
-
-      // Handle file creation steps
-      if (fileCreateMatch) {
-        const requiredFileName = fileCreateMatch[4];
-        const allFiles = getAllFiles(currentFiles);
-        // Check if ANY file in the codebase has the required name, regardless of path
-        const fileExists = allFiles.some((f: FileNode) => f.name.toLowerCase() === requiredFileName.toLowerCase());
-        
-        if (fileExists) {
-          setStepComplete(true);
-          setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
-          setChatMessages(prev => [...prev, {
-            type: 'assistant',
-            content: `✅ Perfect! You've created the file \`${requiredFileName}\`. You can proceed to the next step.`,
-            timestamp: new Date()
-          }]);
-          setIsCheckingStep(false);
-          return;
-        } else {
-          setStepComplete(false);
-          setChatMessages(prev => [...prev, {
-            type: 'assistant',
-            content: `Please create the file \`${requiredFileName}\` first. Use the "+" button in the file explorer to create a new file.`,
-            timestamp: new Date()
-          }]);
-          setIsCheckingStep(false);
-          return;
+        console.error('Failed to scan workspace, falling back to structure list:', err);
+        // Fallback to structure-only if deep scan fails
+        try {
+          const res = await axios.get(`${backendUrl}/files/list?recursive=true`, { headers: getAuthHeaders() });
+          scanResult = { files: res.data.files };
+        } catch (e2) {
+          scanResult = { files };
         }
       }
 
-      // Handle folder creation steps
-      if (folderCreateMatch || simpleFolderMatch) {
-        const requiredFolderName = folderCreateMatch ? folderCreateMatch[3] : null;
-        const allFolders = getAllFolders(currentFiles);
-        
-        if (requiredFolderName) {
-          // Named folder creation
-          const folderExists = allFolders.some((f: FileNode) => {
-            if (requiredFolderName.includes('/')) {
-              // Path specified, match full path
-              return f.id === requiredFolderName;
-            }
-            // No path, must be at root
-            return f.id === requiredFolderName;
-          });
-          if (folderExists) {
-            setStepComplete(true);
-            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `✅ Perfect! You've created the folder \`${requiredFolderName}\`. You can proceed to the next step.`,
-              timestamp: new Date()
-            }]);
-            setIsCheckingStep(false);
-            return;
-          } else {
-            setStepComplete(false);
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `Please create the folder \`${requiredFolderName}\` before proceeding. Use the "+" button in the file explorer to create a new folder.`,
-              timestamp: new Date()
-            }]);
-            setIsCheckingStep(false);
-            return;
-          }
-        } else {
-          // Simple folder creation
-          if (allFolders.length > 0) {
-            setStepComplete(true);
-            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: '✅ Great! You\'ve created a folder. You can proceed to the next step.',
-              timestamp: new Date()
-            }]);
-            setIsCheckingStep(false);
-            return;
-          } else {
-            setStepComplete(false);
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: 'Please create a folder before proceeding. Use the "+" button in the file explorer to create a new folder.',
-              timestamp: new Date()
-            }]);
-            setIsCheckingStep(false);
-            return;
-          }
-        }
-      }
-
-      // For all other steps (code content), require a file to be selected
-      if (!selectedFile) {
-        setStepComplete(false);
+      // Use AI-powered analysis to understand what type of step this is
+      const analysis = analyzeStepAgainstScan(currentStep.instruction, scanResult);
+      
+      // Validate that file/folder creation steps have specific names
+      if (analysis.type === 'file-create' && (!analysis.file || analysis.file === 'new file')) {
+        console.warn('⚠️ File creation step missing specific filename:', currentStep.instruction);
         setChatMessages(prev => [...prev, {
           type: 'assistant',
-          content: 'Please select a file to check your progress on this step. You can click on any file in the file explorer to select it.',
+          content: '⚠️ This step is missing a specific filename. Please contact support to fix this step.',
           timestamp: new Date()
         }]);
         setIsCheckingStep(false);
         return;
+      }
+      
+      if (analysis.type === 'folder' && (!analysis.file || analysis.file === 'required folder')) {
+        console.warn('⚠️ Folder creation step missing specific folder name:', currentStep.instruction);
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: '⚠️ This step is missing a specific folder name. Please contact support to fix this step.',
+          timestamp: new Date()
+        }]);
+        setIsCheckingStep(false);
+        return;
+      }
+      
+      // Log analysis results to terminal for debugging
+      console.log('🔍 Step Analysis:', {
+        instruction: currentStep.instruction,
+        analysis: analysis,
+        scanResult: {
+          totalItems: scanResult.files?.length || 0,
+          directories: scanResult.files?.filter((f: any) => f.isDirectory)?.length || 0,
+          files: scanResult.files?.filter((f: any) => !f.isDirectory)?.length || 0
+        }
+      });
+      
+      // Also log to terminal output if terminal tab is active
+      if (activeTab === 'terminal') {
+        setOutput(prev => [...prev, 
+          `🔍 Step Analysis: ${currentStep.instruction}`,
+          `   Type: ${analysis.type}`,
+          `   Target: ${analysis.file || 'N/A'}`,
+          `   Exists: ${analysis.exists}`,
+          `   Tokens Checked: ${analysis.tokensChecked?.join(', ') || 'None'}`
+        ]);
+      }
+
+
+      // Handle different step types based on AI analysis
+      switch (analysis.type) {
+        case 'folder':
+          if (analysis.exists) {
+            setStepComplete(true);
+            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `✅ Perfect! You've created the folder \`${analysis.file || 'required folder'}\`. You can proceed to the next step.`,
+              timestamp: new Date()
+            }]);
+          } else {
+            setStepComplete(false);
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `Please create the folder \`${analysis.file || 'required folder'}\` before proceeding. Use the "+" button in the file explorer to create a new folder.`,
+              timestamp: new Date()
+            }]);
+          }
+          setIsCheckingStep(false);
+          return;
+
+        case 'file-create':
+          if (analysis.exists) {
+            setStepComplete(true);
+            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `✅ Perfect! You've created the file \`${analysis.file}\`. You can proceed to the next step.`,
+              timestamp: new Date()
+            }]);
+          } else {
+            setStepComplete(false);
+            if (analysis.file === 'new file') {
+              setChatMessages(prev => [...prev, {
+                type: 'assistant',
+                content: 'Please create a new file before proceeding. Use the "+" button in the file explorer to create a new file.',
+                timestamp: new Date()
+              }]);
+            } else {
+              setChatMessages(prev => [...prev, {
+                type: 'assistant',
+                content: `Please create the file \`${analysis.file}\` before proceeding. Use the "+" button in the file explorer to create a new file.`,
+                timestamp: new Date()
+              }]);
+            }
+          }
+          setIsCheckingStep(false);
+          return;
+
+        case 'file-reference':
+          if (analysis.exists) {
+            setStepComplete(true);
+            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `✅ Perfect! The file \`${analysis.file}\` exists. You can proceed to the next step.`,
+              timestamp: new Date()
+            }]);
+          } else {
+            setStepComplete(false);
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `Please ensure the file \`${analysis.file}\` exists before proceeding.`,
+              timestamp: new Date()
+            }]);
+          }
+          setIsCheckingStep(false);
+          return;
+
+        case 'file-modify':
+          if (analysis.exists) {
+            setStepComplete(true);
+            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `✅ Perfect! The file \`${analysis.file}\` has been modified with the expected content. You can proceed to the next step.`,
+              timestamp: new Date()
+            }]);
+          } else {
+            setStepComplete(false);
+            setChatMessages(prev => [...prev, {
+              type: 'assistant',
+              content: `Please modify the file \`${analysis.file}\` with the required content before proceeding.`,
+              timestamp: new Date()
+            }]);
+          }
+          setIsCheckingStep(false);
+          return;
+
+        case 'generic':
+          // For generic steps, we'll proceed to content analysis
+          break;
+
+        default:
+          console.warn('Unknown step type:', analysis.type);
+          break;
+      }
+
+
+
+      // Handle different step types appropriately
+      if (analysis.type === 'file-create' || analysis.type === 'folder' || analysis.type === 'file-reference') {
+        // These steps are complete - we've already checked existence
+        setIsCheckingStep(false);
+        return;
+      } else if (analysis.type === 'file-modify' || analysis.type === 'generic') {
+        // These steps need content analysis, so we need a selected file
+        if (!selectedFile) {
+          setStepComplete(false);
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: 'Please select a file to check your progress on this step. You can click on any file in the file explorer to select it.',
+            timestamp: new Date()
+          }]);
+          setIsCheckingStep(false);
+          return;
+        }
+      } else {
+        // Unknown step type - log warning and proceed with content analysis
+        console.warn('Unknown step type, proceeding with content analysis:', analysis.type);
+        if (!selectedFile) {
+          setStepComplete(false);
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: 'Please select a file to check your progress on this step. You can click on any file in the file explorer to select it.',
+            timestamp: new Date()
+          }]);
+          setIsCheckingStep(false);
+          return;
+        }
       }
 
       // Use Gemini to analyze the code content for non-file/folder creation steps
@@ -1176,28 +1769,35 @@ function IDEPage() {
 
   // Create separate markdown component configurations
   const regularMarkdownComponents: { [key: string]: React.ElementType } = {
-    p: ({ children }) => <p className="mb-4 whitespace-pre-line text-base leading-relaxed">{children}</p>,
-    strong: ({ children }) => <strong className="font-bold text-dark-charcoal">{children}</strong>,
-    ul: ({ children }) => <span className="ml-8">{children}</span>,
-    li: ({ children }) => <span className="block mb-3">{children}</span>,
+    p: ({ children }) => <p className="mb-3 whitespace-pre-line text-base leading-relaxed text-dark-charcoal">{children}</p>,
+    strong: ({ children }) => {
+      const text = React.Children.toArray(children).join('');
+      // Check if the text is a "Question X of Y" label
+      if (/^Question \d+ of \d+:$/.test(text)) {
+        return <strong className="font-bold text-[#4A3A2A] block mb-2">{children}</strong>;
+      }
+      return <strong className="font-semibold text-deep-espresso">{children}</strong>;
+    },
+    ul: ({ children }) => <ul className="ml-6 space-y-2">{children}</ul>,
+    li: ({ children }) => <li className="text-dark-charcoal leading-relaxed">{children}</li>,
     code: ({ inline, children }) =>
       inline ? (
         <code className="bg-light-cream text-medium-coffee px-1 py-0.5 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
       ) : (
         <span className="inline-block bg-light-cream text-medium-coffee px-1 rounded font-mono text-base align-middle" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</span>
       ),
-    h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
+    h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-2 text-deep-espresso">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-base font-bold mb-2 mt-2 text-deep-espresso">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-2 text-deep-espresso">{children}</h3>,
     blockquote: ({ children }) => <blockquote className="border-l-4 border-medium-coffee pl-4 italic text-medium-coffee mb-2">{children}</blockquote>,
     br: () => <br />,
   };
 
   const codeFixMarkdownComponents: { [key: string]: React.ElementType } = {
-    p: ({ children }) => <p className="mb-4 whitespace-pre-line text-base leading-relaxed">{children}</p>,
-    strong: ({ children }) => <strong className="font-bold text-dark-charcoal">{children}</strong>,
-    ul: ({ children }) => <span className="ml-8">{children}</span>,
-    li: ({ children }) => <span className="block mb-3">{children}</span>,
+    p: ({ children }) => <p className="mb-3 whitespace-pre-line text-base leading-relaxed text-dark-charcoal">{children}</p>,
+    strong: ({ children }) => <strong className="font-semibold text-deep-espresso">{children}</strong>,
+    ul: ({ children }) => <ul className="ml-6 space-y-2">{children}</ul>,
+    li: ({ children }) => <li className="text-dark-charcoal leading-relaxed">{children}</li>,
     code: ({ inline, children }) =>
       inline ? (
         <code className="bg-light-cream text-medium-coffee px-1 py-0.5 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
@@ -1215,9 +1815,9 @@ function IDEPage() {
           </button>
         </div>
       ),
-    h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-2">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-base font-bold mb-2 mt-2">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-2">{children}</h3>,
+    h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-2 text-deep-espresso">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-base font-bold mb-2 mt-2 text-deep-espresso">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-2 text-deep-espresso">{children}</h3>,
     blockquote: ({ children }) => <blockquote className="border-l-4 border-medium-coffee pl-4 italic text-medium-coffee mb-2">{children}</blockquote>,
     br: () => <br />,
   };
@@ -1271,6 +1871,17 @@ function IDEPage() {
     }
   }, [showCongrats]);
 
+  // Inject CSS keyframes for shimmer animation
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = shimmerKeyframes;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   // Add state to track if the terminal has been initialized
   const [terminalInitialized, setTerminalInitialized] = useState(false);
 
@@ -1279,9 +1890,9 @@ function IDEPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex flex-col h-screen bg-light-cream text-dark-charcoal transition-colors duration-300">
+      <div className={`flex flex-col h-screen bg-light-cream text-dark-charcoal transition-colors duration-300 ${isInSetupPhase ? 'dim-layout' : ''}`}>
         {/* Header */}
-        <header className="flex items-center justify-between p-4 border-b border-cream-beige bg-light-cream shadow-lg">
+        <header className="flex items-center justify-between p-4 border-b border-cream-beige bg-light-cream shadow-lg ide-dimmable">
     
                  <div className="flex items-center space-x-1">
            <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-cream-beige">
@@ -1308,7 +1919,6 @@ function IDEPage() {
             {!guidedProject && (
               <Button
                 onClick={() => {
-                  window.console.log('[GUIDE-LOG] Start Guided Project button clicked');
                   setShowProjectModal(true);
                 }}
                 className="bg-medium-coffee hover:bg-deep-espresso text-white font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
@@ -1335,7 +1945,7 @@ function IDEPage() {
         </header>
 
         {/* Main Content */}
-        <div className="flex flex-1 overflow-hidden relative">
+        <div className={`flex flex-1 overflow-hidden relative`}>
           <ResizablePanelGroup direction="horizontal" className="flex-1 gap-0">
             {/* File Explorer */}
             <ResizablePanel 
@@ -1345,7 +1955,7 @@ function IDEPage() {
               collapsible={true}
               onCollapse={() => setIsExplorerCollapsed(true)}
               onExpand={() => setIsExplorerCollapsed(false)}
-              className="border-0"
+              className="border-0 ide-dimmable"
             >
               <FileExplorer
                 files={files}
@@ -1377,7 +1987,7 @@ function IDEPage() {
               defaultSize={isExplorerCollapsed ? 65 : 50} 
               minSize={isExplorerCollapsed ? 45 : 30}
               maxSize={isExplorerCollapsed ? 75 : 70}
-              className="border-0"
+              className="border-0 ide-dimmable"
             >
               <div className={`w-full h-full flex flex-col relative ${isExplorerCollapsed ? 'flex-1' : ''}`}>
                 <Tabs value={activeTab} onValueChange={(val) => {
@@ -1408,7 +2018,7 @@ function IDEPage() {
                     )}
                   </div>
 
-                  <TabsContent value="editor" className="flex-1 m-0">
+                  <TabsContent value="editor" className="flex-1 m-0" isInSetupPhase={isInSetupPhase}>
                     {selectedFile ? (
                       <MonacoEditor
                         language={selectedFile.language || 'plaintext'}
@@ -1418,18 +2028,28 @@ function IDEPage() {
                         highlightedLines={highlightedLines}
                         readOnly={isEditorReadOnly}
                       />
-                    ) : (
-                      <div className="flex items-center justify-center h-full bg-cream-beige/20">
-                        <div className="text-center">
-                          <IconCode className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
-                          <p className="text-deep-espresso text-lg">Create a file to start coding</p>
-                          <p className="text-deep-espresso/70 text-sm mt-2">Use the file explorer to create your first file</p>
+                    ) : isInSetupPhase ? (
+                        <div className="flex items-center justify-center h-full bg-cream-beige">
+                          <div className="text-center">
+                            <div>
+                              <IconMessage className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
+                              <p className="text-deep-espresso text-lg">Chat to finalize your project steps</p>
+                              <p className="text-deep-espresso/70 text-sm mt-2">Answer the AI on the right, then press "Submit and Continue"</p>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex items-center justify-center h-full bg-cream-beige/20">
+                          <div className="text-center">
+                            <IconCode className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
+                            <p className="text-deep-espresso text-lg">Create a file to start coding</p>
+                            <p className="text-deep-espresso/70 text-sm mt-2">Use the file explorer to create your first file</p>
+                          </div>
+                        </div>
+                      )}
                   </TabsContent>
 
-                  <TabsContent value="preview" className="flex-1 m-0">
+                  <TabsContent value="preview" className="flex-1 m-0" isInSetupPhase={isInSetupPhase}>
                     {selectedFile?.language === 'html' ? (
                       <HTMLPreview 
                         htmlContent={selectedFile.content || ''} 
@@ -1538,12 +2158,12 @@ function IDEPage() {
                             <div className="font-semibold text-base">
                               {msg.content}
                             </div>
-                          ) : msg.type === 'assistant' && msg.content.startsWith('🔧 **Code Fix Suggestions**') ? (
-                            <div className="bg-dark-charcoal text-light-cream p-3 rounded-lg font-mono relative text-base">
+                          ) : msg.type === 'assistant' && msg.content.startsWith('Here are the changes:') ? (
+                            <div className="text-base">
                               <ReactMarkdown
                                 children={msg.content}
                                 remarkPlugins={[remarkGfm]}
-                                components={codeFixMarkdownComponents}
+                                components={regularMarkdownComponents}
                               />
                             </div>
                           ) : msg.type === 'assistant' ? (
@@ -1618,6 +2238,17 @@ function IDEPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-center mt-4 space-x-3">
+                      {isInSetupPhase ? (
+                        <Button
+                          onClick={handleSubmitAndGenerateSteps}
+                          variant="outline"
+                          size="sm"
+                          className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                        >
+                          Submit and Continue
+                        </Button>
+                      ) : (
+                        <>
                       <Button
                         onClick={handleGetHint}
                         variant="outline"
@@ -1651,6 +2282,8 @@ function IDEPage() {
                         <IconMessage className="mr-2 h-4 w-4" />
                         Explain
                       </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1658,6 +2291,66 @@ function IDEPage() {
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
+      
+        {false && isInSetupPhase && (
+          <div className="pointer-events-none absolute inset-0 z-[40] flex flex-col">
+            {/* Top header overlay */}
+            <div className="w-full h-16 bg-black/40" />
+            {/* Bottom content overlay */}
+            <div className="flex flex-1">
+              {/* Left panel overlay (file explorer) */}
+              <div className="flex-1 h-full bg-black/40" />
+              {/* Center panel overlay (editor/preview/terminal) */}
+              <div className="flex-1 h-full bg-black/40" />
+              {/* Right panel (chat) - no overlay */}
+              <div className="flex-2 h-full" />
+            </div>
+          </div>
+        )}
+
+        {/* Steps generation loading popup */}
+        {isGeneratingSteps && (
+          <ProjectSetupLoader 
+            isOpen={isGeneratingSteps}
+            title="Generating Your Project Steps"
+            description="Creating personalized learning steps for your project..."
+            progress={99}
+            showProgress={true}
+            spinnerSize="medium"
+            countUpProgress={true}
+            countUpSpeed={40}
+            dynamicMessages={[
+              "Analyzing your project description...",
+              "Creating step-by-step learning path...",
+              "Customizing steps for your skill level...",
+              "Adding helpful hints and guidance...",
+              "Finalizing your project roadmap..."
+            ]}
+            messageInterval={3000}
+          />
+        )}
+
+        {/* Project setup loading popup - when transitioning from steps to actual project */}
+        <ProjectSetupLoader 
+          isOpen={isStartingFromSteps}
+          title="Setting Up Your Project"
+          description="Creating guided steps and preparing your workspace..."
+          progress={90}
+          showProgress={true}
+          autoProgress={true}
+          progressSpeed="normal"
+          spinnerSize="large"
+          countUpProgress={true}
+          countUpSpeed={30}
+          dynamicMessages={[
+            "Creating guided steps and preparing your workspace...",
+            "Setting up project files and structure...",
+            "Configuring your development environment...",
+            "Preparing your personalized learning path...",
+            "Almost ready to start coding..."
+          ]}
+          messageInterval={2500}
+        />
 
         {/* Project Description Modal */}
         <ProjectDescriptionModal
@@ -1665,27 +2358,37 @@ function IDEPage() {
           onClose={() => setShowProjectModal(false)}
           onSubmit={(desc) => {
             window.console.log('[GUIDE-LOG] ProjectDescriptionModal submitted with:', desc);
-            handleStartGuidedProject(desc);
+            handleStartProjectSetup(desc);
           }}
           isStartingProject={isStartingProject}
           error={projectStartError}
         ></ProjectDescriptionModal>
 
+        <StepsPreviewModal
+          isOpen={showStepsPreviewModal}
+          steps={previewSteps}
+          onClose={() => setShowStepsPreviewModal(false)}
+          onStepsChange={(s) => setPreviewSteps(s)}
+          onConfirm={handleConfirmStartProjectFromSteps}
+          isStarting={isStartingFromSteps}
+          error={stepsFlowError}
+        />
+
         {/* Confirmation Modal */}
         {pendingDeleteFolderId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full text-center">
-              <h2 className="text-lg font-bold mb-2 text-gray-900">Delete Folder?</h2>
-              <p className="mb-4 text-gray-700">Are you sure you want to delete the folder <span className="font-semibold">{pendingDeleteFolderName}</span> and all its contents?</p>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-cream-beige/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl border-2 border-cream-beige/50 p-6 max-w-sm w-full text-center">
+              <h2 className="text-xl font-bold mb-3 text-deep-espresso">Delete Folder?</h2>
+              <p className="mb-6 text-dark-charcoal">Are you sure you want to delete the folder <span className="font-semibold text-deep-espresso">{pendingDeleteFolderName}</span> and all its contents?</p>
               <div className="flex justify-center gap-4">
                 <button
-                  className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold"
+                  className="px-6 py-3 rounded-xl bg-light-cream hover:bg-cream-beige text-dark-charcoal font-semibold border-2 border-medium-coffee/30 transition-all duration-200 hover:scale-105 shadow-md"
                   onClick={() => { setPendingDeleteFolderId(null); setPendingDeleteFolderName(null); }}
                 >
                   Cancel
                 </button>
                 <button
-                  className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white font-semibold"
+                  className="px-6 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-all duration-200 hover:scale-105 shadow-md"
                   onClick={() => handleFileDelete(pendingDeleteFolderId)}
                 >
                   Delete

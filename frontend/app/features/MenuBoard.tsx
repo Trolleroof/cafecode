@@ -90,14 +90,14 @@ const features = [
   },
   {
     icon: <IconBook />,
-    title: 'Guided Learning Projects',
+    title: 'Guided Learning Tasks',
     price: '📚 Master Path',
-    tags: ['Step-by-Step', 'Real Projects', 'Portfolio Ready', 'Industry Standards', 'Certification'],
+    tags: ['Step-by-Step', 'Real Applications', 'Portfolio Ready', 'Industry Standards', 'Certification'],
     description: (
       <div>
         <p className="mb-2">Build real-world applications with expert guidance and industry best practices.</p>
         <ul className="text-sm opacity-80 space-y-1">
-          <li>• 50+ curated projects</li>
+          <li>• 50+ curated coding tasks</li>
           <li>• From beginner to advanced</li>
           <li>• GitHub integration</li>
           <li>• Completion certificates</li>
@@ -106,7 +106,7 @@ const features = [
     ),
     color: '#8b4513',
     featured: true,
-    demoAction: 'Start Project',
+            demoAction: 'Start Coding Task',
   },
   {
     icon: <IconTrophy />,

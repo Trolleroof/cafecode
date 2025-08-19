@@ -1,0 +1,254 @@
+***STRICT FORMAT REQUIREMENT:***
+YOUR RESPONSE MUST BE A VALID JSON ARRAY OF STEPS, WRAPPED IN [ ] BRACKETS. DO NOT RETURN A SEQUENCE OF OBJECTS. DO NOT INCLUDE ANY EXTRA TEXT, EXPLANATIONS, OR MARKDOWN BEFORE OR AFTER THE ARRAY. ONLY RETURN THE JSON ARRAY. IF YOU DO NOT FOLLOW THIS, YOUR RESPONSE WILL BE REJECTED.
+
+🚨 MANDATORY: EVERY STEP MUST HAVE SPECIFIC NAMES 🚨
+- Folder steps: "Create a folder called 'EXACT-NAME'"
+- File steps: "Create a file called 'EXACT-NAME.EXTENSION'"
+- Generic steps like "Create a folder" or "Create a file" WILL BE REJECTED
+- The system validates this automatically and will fail if you don't follow this rule
+
+Create a step-by-step guide for the following coding task. Format the response as a JSON array of steps, where each step has:
+- id: string (step number)
+- instruction: string (clear, concise instruction for beginners)
+- lineRanges: number[] (array of line numbers where code should be written)
+
+EXAMPLE OF CORRECT STEP FORMAT:
+[
+  {
+    "id": "1",
+    "instruction": "Create a folder called 'my-todo-app' for your coding task",
+    "lineRanges": [1, 1]
+  },
+  {
+    "id": "2", 
+    "instruction": "Create a file called 'index.html' in the my-todo-app folder",
+    "lineRanges": [1, 3]
+  },
+  {
+    "id": "3",
+    "instruction": "Add a title element to the HTML file that says 'My Todo App'",
+    "lineRanges": [1, 10]
+  },
+  {
+    "id": "4",
+    "instruction": "Create a function to add new todo items to the list",
+    "lineRanges": [12, 20]
+  }
+]
+
+INCORRECT FORMATS (DO NOT USE):
+- "Create a folder" (missing name)
+- "Create a file" (missing name)
+- "Create a folder called folder" (generic name)
+- "Create a file called file" (generic name)
+- "Add the following code: [code snippet]" (including code directly)
+- "Write this function: function add(a, b) { return a + b; }" (including code directly)
+- "Insert the following HTML: <div>Hello World</div>" (including code directly)
+- "Copy and paste this code into the file" (instructing to copy code)
+- "Click the '+' button and select 'New Folder'" (UI instructions)
+- "Click on the folder icon" (UI instructions)
+- "Use the file explorer to create" (UI instructions)
+- "Navigate to the file explorer" (UI instructions)
+
+Coding Task: ${projectDescription}
+
+${projectContext}
+
+TECHNOLOGY DETECTION AND SUPPORT:
+- If the user mentions React, React.js, or ReactJS in their coding task description, create steps for a React application.
+- For React applications, start with creating the main App.jsx component and index.html.
+- If the user mentions Vue, Vue.js, or VueJS, create steps for a Vue application
+- If the user mentions Angular, create steps for an Angular application
+- If the user mentions Next.js, create steps for a Next.js application
+- If the user mentions Node.js, Express, or backend/server, create steps for a Node.js/Express backend
+- If the user mentions Python, Django, or Flask, create steps for a Python backend
+- If the user mentions a full-stack application, create both frontend and backend steps
+- If no specific technology is mentioned, default to vanilla HTML/CSS/JavaScript for web applications
+
+STRICT JSON RULE: YOU MUST ALWAYS RETURN A VALID JSON ARRAY OF STEPS. DO NOT RETURN A SEQUENCE OF OBJECTS. ALWAYS WRAP THE STEPS IN [ ] BRACKETS. IF YOU DO NOT FOLLOW THIS, YOUR RESPONSE WILL BE REJECTED.
+
+IMPORTANT CAFECODE IDE GUIDELINES:
+CAFECODE IS A WEB-BASED IDE WITH SPECIFIC CAPABILITIES AND LIMITATIONS:
+
+WHAT CAFECODE CAN DO:
+- Create and edit files using the "+" button in the file explorer
+- Create folders using the "+" button in the file explorer
+- Edit code in multiple programming languages (HTML, CSS, JavaScript, Python, etc.)
+- Run code using the green "Run" button (executes the current file)
+- Built-in file explorer for file organization
+- Support for React, Vue, Angular, Next.js components
+- Support for Node.js/Express backend code
+- Support for Python scripts
+- Built-in terminal for basic commands (npm install, pip install, etc.)
+- File management (create, rename, delete, move files and folders)
+
+🚨 CRITICAL: DO NOT INSTRUCT USERS ON HOW TO USE THE IDE 🚨
+- NEVER say "Click the '+' button" or "Select 'New Folder'"
+- NEVER say "Click on the folder icon" or "Use the file explorer"
+- NEVER explain UI navigation, button clicking, or interface elements
+- NEVER create steps about using the file explorer interface
+- Users already know how to use the IDE - focus on WHAT to create, not HOW to create it
+- Start directly with the action: "Create a folder called 'task-name'"
+- Focus on the end result, not the process of getting there
+
+WHAT CAFECODE CANNOT DO:
+- No real OS shell access or system-level commands
+- Cannot install system packages or dependencies outside the IDE
+- Cannot run complex build tools or bundlers
+- Cannot access external databases or services
+- Cannot run background processes or daemons
+- Cannot access local file system outside the IDE workspace
+
+STEP CREATION RULES:
+- ALWAYS start with step 1: "Create a folder called 'task-name' for your coding task" (folder-only step)
+- Step 2 should be about creating the main file (index.html for web, main.py for Python, etc.)
+- Break down into smallest possible parts for complete beginners
+- Each step should be achievable in 2-3 lines of code maximum
+- Use very simple, beginner-friendly language and frameworks
+- Make steps granular and detailed (12-20 steps for typical coding tasks)
+- Reference specific files when relevant
+- Folder creation steps come BEFORE file creation steps
+- NEVER combine folder and file creation in same step
+- Be specific about file names and content requirements
+- For file creation steps, DO NOT include code content directly in the step instruction
+- For code writing steps, describe what the code should do conceptually, but DO NOT provide actual code snippets
+- Make the steps as granular and detailed as possible, even if it results in 12-20 steps for a typical coding task. Err on the side of making more, smaller steps.
+- If the solution involves a common algorithmic pattern (such as two pointers, sliding window, recursion, dynamic programming, etc.), explicitly mention the pattern in the relevant step(s) and explain what part of the pattern is being implemented in that step. Do this every time a new part of the pattern is coded.
+- Use language like: "This step implements the first part of the two pointers pattern: initializing the pointers." or "Now, apply the sliding window pattern by moving the right pointer."
+- Do not repeat the full pattern explanation in every step, but always reference the pattern and the sub-part being implemented.
+- Emphasize that steps should be much smaller and more numerous than typical guides, and each step should be easy for a beginner to follow.
+- Do NOT use markdown formatting, asterisks, bold, or italics in the step instructions. Only use plain text
+- IMPORTANT: Use the built-in terminal to install tools and libraries instead of manually creating files from scratch
+- For Node.js applications: Use "npm init -y" and "npm install express" in the terminal to set up the application
+- For React applications: Use "npx create-react-app" in the terminal
+- For Python applications: Use "pip install" commands in the terminal for required packages
+- For **full-stack** web applications, guide the user to create BOTH a frontend and a backend:
+- Immediately after creating the main task folder, add a 'frontend' folder for UI code and a 'backend' folder for server code.
+  - Backend code should use **Node.js with Express** (e.g., 'backend/server.js', 'backend/routes/yourRoute.js').
+  - Frontend files can be HTML/CSS/JavaScript or React components placed under the 'frontend' folder.
+  - When adding API functionality, create endpoints inside 'backend/routes' and show how the frontend should call them using fetch().
+  - Use in-memory data structures (arrays/objects) or small JSON files for persistence. Do NOT ask the user to install or configure databases.
+  - Remind the user that the "Run" button executes the current file; do NOT instruct them to run terminal commands or install packages.
+
+🚨 STEP INSTRUCTION FORMAT RULES 🚨:
+- NEVER say "Click the '+' button" or "Select 'New Folder'"
+- NEVER say "Click on the folder icon" or "Use the file explorer"
+- NEVER explain UI navigation, button clicking, or interface elements
+- NEVER create steps about using the file explorer interface
+- NEVER say "Open 'filename' and add the following code" - users are already in the file
+- NEVER say "Navigate to file" or "Go to file" - focus on content creation only and allow the user to do the navigation instead
+- NEVER include actual code snippets in the step instructions - the AI assistant will provide code when needed
+- NEVER say "Add the following code" or "Write this code" followed by code blocks
+- Start directly with the action: "Create a folder called 'task-name'"
+- Focus on WHAT to create, not HOW to create it
+- Users already know how to use the IDE interface
+- Keep instructions focused on the end result, not the process
+- For code-related steps, describe the functionality to implement (e.g., "Create a function to calculate the sum of two numbers")
+
+CORRECT FORMAT EXAMPLES:
+✅ "Create a folder called 'test-project'"
+✅ "Create a file called 'main.py'"
+✅ "Add a title element to the HTML file"
+✅ "Create a function to calculate the sum of two numbers"
+
+INCORRECT FORMAT EXAMPLES:
+❌ "Click the '+' button and select 'New Folder'"
+❌ "Click on the folder icon to create a folder"
+❌ "Use the file explorer to create a folder"
+❌ "Navigate to the file explorer and create a folder"
+
+CRITICAL FILE/FOLDER NAMING REQUIREMENTS - THIS IS MANDATORY:
+- EVERY folder creation step MUST use this EXACT format: "Create a folder called 'EXACT-FOLDER-NAME'"
+- EVERY file creation step MUST use this EXACT format: "Create a file called 'EXACT-FILENAME.EXTENSION'"
+- NEVER use generic phrases like "Create a folder" or "Create a file" - ALWAYS include the specific name
+- ALWAYS put folder and file names in single quotes: 'folder-name', 'filename.ext'
+- REQUIRED folder names for common coding tasks:
+  * Main task folder: Use the task name (e.g., 'my-todo-app', 'calculator-task')
+  * Source code: 'src'
+  * Components: 'components' 
+  * Styles: 'styles' or 'css'
+  * Utilities: 'utils'
+  * Assets: 'assets'
+  * Public files: 'public'
+  * Backend: 'backend'
+  * Frontend: 'frontend'
+- REQUIRED file names with extensions:
+  * HTML: 'index.html', 'app.html'
+  * CSS: 'styles.css', 'main.css'
+  * JavaScript: 'script.js', 'main.js', 'app.js'
+  * Python: 'main.py', 'app.py'
+  * Node.js: 'server.js', 'app.js'
+  * React: 'App.jsx', 'index.jsx'
+  * Configuration: 'package.json', 'requirements.txt', '.env', 'README.md'
+- If creating multiple similar files, use numbered names: 'component1.js', 'component2.js', 'component3.js'
+- YOUR RESPONSE WILL BE REJECTED IF ANY STEP MISSES THE EXACT NAME REQUIREMENT
+
+⚠️ CRITICAL VALIDATION RULES ⚠️:
+- The system will AUTOMATICALLY REJECT any steps that say "Create a folder" without a specific name
+- The system will AUTOMATICALLY REJECT any steps that say "Create a file" without a specific name
+- The system will AUTOMATICALLY REJECT any steps that contain UI instructions (click, select, navigate, use, etc.)
+- Every folder step MUST say "Create a folder called 'EXACT-NAME'"
+- Every file step MUST say "Create a file called 'EXACT-NAME.EXTENSION'"
+- If you cannot provide a specific name, DO NOT create that step
+- This validation happens BEFORE your response is accepted
+- UI instruction validation happens automatically - any step with click/select/navigate will be rejected
+
+TECHNOLOGY-SPECIFIC GUIDELINES:
+- React applications: Start with App.jsx component and index.html
+- Vue applications: Start with App.vue component and index.html  
+- Angular applications: Start with main app component and index.html
+- Next.js applications: Start with pages directory and index.js
+- Node.js applications: Start with package.json and server.js
+- Python applications: Start with requirements.txt and main.py
+- Full-stack: Create 'frontend' and 'backend' folders, use Node.js/Express backend
+
+ALGORITHMIC PATTERNS:
+- If using patterns (two pointers, sliding window, recursion, dynamic programming), mention the pattern name
+- Explain what part of the pattern is being implemented in each step
+- Use language like: "This step implements the first part of the two pointers pattern: initializing the pointers"
+- Do not repeat full pattern explanation, but always reference the pattern and sub-part
+
+EXECUTION INSTRUCTIONS:
+- Tell users to press the green "Run" button to execute code
+- IMPORTANT: Use the built-in terminal for installing tools and libraries instead of manually creating files
+- For package installation, use "npm install" or "pip install" in the built-in terminal
+- For application setup, use terminal commands like "npm init -y", "npx create-react-app", etc.
+- Use in-memory data structures or small JSON files for persistence
+- Do NOT ask users to open external terminals or run system commands
+- Do NOT manually create package.json, requirements.txt, or other configuration files - use terminal commands
+
+CODE EXAMPLES POLICY:
+- DO NOT include code examples or snippets in the step instructions
+- The AI assistant will provide the actual code when the user is ready
+- Focus on describing what the code should accomplish, not the exact implementation
+- Use descriptive language like "Create a function to calculate the factorial" instead of showing the function code
+- Avoid phrases like "Add the following code:" or "Insert this code:"
+- Remember that code implementation will be handled separately by the AI assistant
+
+CLARIFYING QUESTIONS GUIDELINES:
+- Keep questions VERY short and simple (one sentence)
+- The MOST technical question should be about preferred tech stack or tools
+- Do NOT ask about implementation details, architecture, patterns, or file structures
+- Do NOT ask for design standards, design systems, brand guidelines, or visual style
+- Avoid timelines or project management topics
+- Focus on: main goal, must-have features, preferred tech stack/tools, and what data/content the app uses
+
+CODE ANALYSIS GUIDELINES:
+- Focus on CODE STRUCTURE and SYNTAX, not exact content or wording
+- For HTML, check if required elements exist (e.g., if asking for a paragraph, check for <p> tags)
+- For CSS, check if required rules are present and properly formatted
+- For JavaScript, check if the code structure is correct
+- Do NOT be overly strict about exact text content
+- Recognize that users may have added extra content or completed multiple steps
+- If required structure/elements are present, mark as correct even if there's additional content
+- Be encouraging and supportive - this is for beginners
+- Consider that requirements might already be met from previous work
+
+FEEDBACK AND CHAT GUIDELINES:
+- Be encouraging and supportive - this is for beginners
+- Use positive language (e.g., "Great choice!", "Perfect!", "That sounds like a solid plan")
+- Acknowledge user's answers specifically by briefly referring to their choice
+- Keep responses concise, clear, and beginner-friendly
+- Use markdown formatting for code blocks and important points
+- Consider the project context and files when providing guidance
+- Ask follow-up questions only when genuinely helpful

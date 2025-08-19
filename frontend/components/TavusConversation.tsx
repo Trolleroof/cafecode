@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import ProjectSetupLoader from './ProjectSetupLoader';
 import { useAuth } from '@/hooks/useAuth';
 
 interface TavusConversationProps {
@@ -193,11 +194,12 @@ ${currentCode}`);
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <Loader2 className="h-8 w-8 animate-spin text-medium-coffee mb-4" />
-        <p className="text-deep-espresso font-semibold">Connecting to Voice Assistant...</p>
-        <p className="text-medium-coffee text-sm">Please wait a moment.</p>
-      </div>
+      <ProjectSetupLoader 
+        isOpen={isLoading}
+        title="Connecting to Voice Assistant"
+        description="Please wait a moment while we establish your connection..."
+        showProgress={false}
+      />
     );
   }
 

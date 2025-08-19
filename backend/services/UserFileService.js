@@ -230,6 +230,136 @@ export class UserFileService {
     return walk(absDir, relDir === '.' ? '' : relDir);
   }
 
+
+
+  static listFilesDetailed(userId, relDir = '.', options = {}) {
+    const {
+      recursive = false,
+      includeContent = false,
+      maxBytes = 85536,
+      extensions = [],
+      ignoreHidden = true,
+    } = options;
+
+    const absDir = this.resolveUserPath(userId, relDir);
+    if (!fs.existsSync(absDir)) {
+      throw new Error(`Directory not found: ${relDir}`);
+    }
+    const stat = fs.statSync(absDir);
+    if (!stat.isDirectory()) {
+      throw new Error(`Path is not a directory: ${relDir}`);
+    }
+
+    const shouldIncludeFile = (fileName) => {
+      if (ignoreHidden && fileName.startsWith('.') && !fileName.startsWith('.env')) return false;
+      if (!extensions || extensions.length === 0) return true;
+      const ext = path.extname(fileName).replace(/^\./, '').toLowerCase();
+      // Handle files like Dockerfile with no dot
+      if (!ext) {
+        const base = path.basename(fileName).toLowerCase();
+        return extensions.includes(base);
+      }
+      return extensions.includes(ext);
+    };
+
+    const safeRead = (absPath) => {
+      try {
+        const data = fs.readFileSync(absPath);
+        if (data.length > maxBytes) {
+          return data.subarray(0, maxBytes).toString('utf8');
+        }
+        return data.toString('utf8');
+      } catch (e) {
+        return null;
+      }
+    };
+
+    const collect = (absBase, relBase = '') => {
+      let results = [];
+      const entries = fs.readdirSync(absBase);
+      for (const entry of entries) {
+        if (ignoreHidden && entry.startsWith('.') && !entry.startsWith('.env')) continue;
+        const absEntry = path.join(absBase, entry);
+        const relEntry = relBase ? path.join(relBase, entry) : entry;
+        let s;
+        try { s = fs.statSync(absEntry); } catch { continue; }
+        const isDir = s.isDirectory();
+        if (!isDir && !shouldIncludeFile(entry)) {
+          // Skip by extension filter
+          continue;
+        }
+        const item = {
+          name: relEntry,
+          isDirectory: isDir,
+          size: s.size,
+          modified: s.mtime,
+          created: s.birthtime,
+        };
+        if (!isDir && includeContent) {
+          item.content = safeRead(absEntry);
+        }
+        results.push(item);
+        if (isDir && recursive) {
+          results = results.concat(collect(absEntry, relEntry));
+        }
+      }
+      return results;
+    };
+
+    return collect(absDir, relDir === '.' ? '' : relDir);
+  }
+
+  /**
+   * Inspect a path and return type-specific info:
+   * - if file: metadata + optional content
+   * - if directory: children listing (optionally recursive)
+   */
+  static scanPath(userId, relPath = '.', options = {}) {
+    const {
+      recursive = false,
+      includeContent = false,
+      maxBytes = 65536,
+      extensions = [],
+      ignoreHidden = true,
+    } = options;
+
+    const absPath = this.resolveUserPath(userId, relPath);
+    if (!fs.existsSync(absPath)) {
+      return { exists: false, path: relPath };
+    }
+    const s = fs.statSync(absPath);
+    if (s.isDirectory()) {
+      const files = this.listFilesDetailed(userId, relPath, {
+        recursive,
+        includeContent,
+        maxBytes,
+        extensions,
+        ignoreHidden,
+      });
+      return { exists: true, isDirectory: true, path: relPath, files };
+    }
+
+    // File case
+    let content = null;
+    if (includeContent) {
+      try {
+        const data = fs.readFileSync(absPath);
+        content = data.length > maxBytes ? data.subarray(0, maxBytes).toString('utf8') : data.toString('utf8');
+      } catch {
+        content = null;
+      }
+    }
+    return {
+      exists: true,
+      isDirectory: false,
+      path: relPath,
+      size: s.size,
+      modified: s.mtime,
+      created: s.birthtime,
+      content,
+    };
+  }
+
   // Supabase-based file read
   static async readFileFromSupabase(userId, relPath) {
     const { data, error } = await supabase

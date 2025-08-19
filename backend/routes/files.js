@@ -5,6 +5,33 @@ import fs from 'fs';
 
 const router = express.Router();
 
+// Deep scan a path (file or directory) with optional content and filters
+router.get('/scan', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const relPath = req.query.path || '.';
+    const recursive = req.query.recursive === 'true';
+    const includeContent = req.query.includeContent === 'true';
+    const maxBytes = req.query.maxBytes ? parseInt(req.query.maxBytes, 10) : 65536;
+    const ignoreHidden = req.query.ignoreHidden !== 'false';
+    const extensions = req.query.extensions
+      ? String(req.query.extensions).split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    const result = await UserFileService.scanPath(userId, relPath, {
+      recursive,
+      includeContent,
+      maxBytes,
+      extensions,
+      ignoreHidden,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('File scan error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Read a file
 router.get('/read', async (req, res) => {
   try {

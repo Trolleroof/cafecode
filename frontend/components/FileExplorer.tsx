@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Trash2
 } from 'lucide-react';
+import ProjectSetupLoader from './ProjectSetupLoader';
 
 interface FileNode {
   id: string;
@@ -636,26 +637,32 @@ export default function FileExplorer({
         </div>
         <div className="flex gap-1">
           <button
-            onClick={() => handleShowCreate(null)}
-            className="p-1 hover:bg-cream-beige rounded"
+            onClick={() => {
+              const parentId = selectedFileId ? getParentId(selectedFileId, files) : null;
+              handleShowCreate(parentId, 'file');
+            }}
+            className="p-1 rounded group"
             title="New File"
           >
-            <Plus className="h-4 w-4 text-deep-espresso" />
+            <Plus className="h-4 w-4 text-deep-espresso group-hover:text-medium-coffee transition-colors duration-200" />
           </button>
           <button
-            onClick={() => handleShowCreate(null, 'folder')}
-            className="p-1 hover:bg-cream-beige rounded"
+            onClick={() => {
+              const parentId = selectedFileId ? getParentId(selectedFileId, files) : null;
+              handleShowCreate(parentId, 'folder');
+            }}
+            className="p-1 rounded group"
             title="New Folder"
           >
-            <Folder className="h-4 w-4 text-deep-espresso" />
+            <Folder className="h-4 w-4 text-deep-espresso group-hover:text-medium-coffee transition-colors duration-200" />
           </button>
           <button
             onClick={handleRefresh}
-            className="p-1 hover:bg-cream-beige rounded"
+            className="p-1 rounded group"
             title="Refresh File List"
             disabled={loading}
           >
-            <RefreshCw className={`h-4 w-4 text-deep-espresso ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 text-deep-espresso group-hover:text-medium-coffee transition-colors duration-200 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -685,10 +692,12 @@ export default function FileExplorer({
       <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-4">
         <div className="min-w-max">
           {loading ? (
-            <div className="flex flex-col items-center justify-center h-32 text-center p-4">
-              <RefreshCw className="h-8 w-8 text-deep-espresso/50 mb-2 animate-spin" />
-              <p className="text-deep-espresso/70 text-sm">Loading files...</p>
-            </div>
+            <ProjectSetupLoader 
+              isOpen={loading}
+              title="Loading Files"
+              description="Reading your project structure..."
+              showProgress={false}
+            />
           ) : files.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center p-4">
               <File className="h-8 w-8 text-deep-espresso/50 mb-2" />
@@ -708,11 +717,11 @@ export default function FileExplorer({
             <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
               {createType === 'file' ? <File className="h-5 w-5" /> : <Folder className="h-5 w-5" />} Create {createType === 'file' ? 'File' : 'Folder'}
             </h2>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-sm font-medium mb-2">
               {createType === 'file' ? 'File Name' : 'Folder Name'}
             </label>
             <input
-              className="bg-cream-beige px-3 py-2 rounded w-full mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent text-medium-coffee text-base"
+              className="bg-cream-beige px-3 py-2 rounded w-full mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent text-medium-coffee text-base font-medium"
               placeholder={createType === 'file' ? 'e.g. main.py, app.js, index.html' : 'e.g. components, src, assets'}
               value={newName}
               onChange={e => setNewName(e.target.value)}

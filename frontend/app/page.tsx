@@ -222,7 +222,7 @@ export default function Home() {
              
             {/* Main heading with coffee theme */}
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal leading-tight">
-                <span className="block mb-2">Ship Your Project,</span>
+                <span className="block mb-2">Ship Your Code,</span>
                 <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient leading-[1.2] py-1 mb-6">
                   Sip Your Coffee
                 </span>
@@ -327,7 +327,7 @@ export default function Home() {
                 {
                   icon: IconPencil,
                   title: 'Grind Your Skills',
-                  description: 'Work on projects that matter to you, and receive guidance that helps you make real progress on your programs. Like selecting the perfect coffee beans.',
+                  description: 'Work on coding tasks that matter to you, and receive guidance that helps you make real progress on your programs. Like selecting the perfect coffee beans.',
                   image: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=600',
                   color: 'from-medium-coffee to-deep-espresso'
                 },
@@ -494,6 +494,17 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Diagonal overlay for pricing */}
+            <div className="relative w-full mb-12">
+              <div className="absolute top-0 left-0 right-0 bottom-0 z-10 overflow-hidden">
+                <div className="absolute top-0 left-0 w-[200%] h-full bg-medium-coffee/20 transform -rotate-12 origin-top-left flex items-center justify-center">
+                  <p className="text-4xl md:text-6xl font-bold text-deep-espresso/90 tracking-wider rotate-12 whitespace-nowrap px-4 py-2 text-center" style={{ fontFamily: 'var(--font-heading)' }}>
+                    PRICING OPTIONS COMING SOON
+                  </p>
+                </div>
+              </div>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
               {[
                 {
@@ -504,7 +515,7 @@ export default function Home() {
                   features: [
                     'Basic code editor',
                     'AI barista (10 queries/day)',
-                    'Single file projects',
+                    'Single file applications',
                     'Community support',
                     'Basic syntax highlighting'
                   ],
@@ -521,7 +532,7 @@ export default function Home() {
                     'Everything in House Blend',
                     'Unlimited AI assistance',
                     'Advanced code fixes',
-                    'Multiple file projects',
+                    'Multiple file applications',
                     'Priority support',
                     'Code templates',
                     'Progress tracking'
