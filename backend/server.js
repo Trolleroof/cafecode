@@ -69,7 +69,8 @@ const defaultAllowedOrigins = [
   'https://v2-bolt-hackathon.vercel.app',
   'https://trycafecode.xyz',
   'https://www.trycafecode.xyz',
-  'https://v2-bolt-hackathon.onrender.com'
+  'https://v2-bolt-hackathon.onrender.com',
+  'https://cafecode-bacend.fly.dev'
 ];
 const envAllowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
