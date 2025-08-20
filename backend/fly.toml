@@ -1,13 +1,13 @@
-# fly.toml app configuration file generated for cafecode-backend on 2025-07-24T20:02:33+05:30
+# fly.toml app configuration file generated for cafecode-backend on 2025-08-19T18:58:19-07:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'cafecode-bacend'
+app = 'cafecode-backend'
 primary_region = 'sjc'
 
 [build]
-    dockerfile = "backend/Dockerfile.test"
+  dockerfile = 'backend/Dockerfile'
 
 [http_service]
   internal_port = 8000
