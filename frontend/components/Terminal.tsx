@@ -8,7 +8,7 @@ import 'xterm/css/xterm.css';
 import { supabase } from '../lib/supabase';
 
 //the fly backend url should be kept like this for prod, and the localhost backend should be kept for local version and testing
-const WS_BASE_URL = 'wss://cafecode-bacend.fly.dev/terminal';
+const WS_BASE_URL = 'wss://cafecode-backend-v2.fly.dev/terminal';
 // const WS_BASE_URL = 'ws://localhost:8000/terminal'
 
 const Terminal: React.FC = () => {

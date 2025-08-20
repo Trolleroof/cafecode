@@ -11,7 +11,7 @@ const nextConfig = {
 
 
     //use the localhost backend when testing locally, and use flyio when working with the prod
-    const backendUrl = 'https://cafecode-bacend.fly.dev/api'
+    const backendUrl = 'https://cafecode-backend-v2.fly.dev/api'
     // const backendUrl = 'http://localhost:8000/api';
 
     return [
