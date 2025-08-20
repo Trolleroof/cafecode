@@ -2,11 +2,31 @@ import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Function to read the guided project prompt from guided_project_prompt.txt
 const readGuidedProjectPrompt = () => {
-  const promptPath = path.join(__dirname, 'guided_project_prompt.txt');
-  return fs.readFileSync(promptPath, 'utf8');
+  try {
+    // Try relative to __dirname first
+    const promptPath = path.join(__dirname, 'guided_project_prompt.txt');
+    return fs.readFileSync(promptPath, 'utf8');
+  } catch (error) {
+    // Fallback: try relative to current working directory
+    try {
+      const fallbackPath = path.join(process.cwd(), 'routes', 'guided_project_prompt.txt');
+      return fs.readFileSync(fallbackPath, 'utf8');
+    } catch (fallbackError) {
+      console.error('Failed to read guided_project_prompt.txt:', error.message);
+      console.error('Fallback also failed:', fallbackError.message);
+      // Return a minimal fallback prompt
+      return 'Create a step-by-step guide for the following coding task.';
+    }
+  }
 };
 
 // Read the prompt
