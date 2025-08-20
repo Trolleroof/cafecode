@@ -49,21 +49,7 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  message: {
-    error: 'Too many requests from this IP, please try again later.',
-    error_code: 'RATE_LIMIT_EXCEEDED'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use(limiter);
-
-// CORS configuration
+// CORS configuration (must run before rate limiting)
 const defaultAllowedOrigins = [
   'http://localhost:3000',
   'https://v2-bolt-hackathon.vercel.app',
@@ -78,15 +64,48 @@ const envAllowedOrigins = process.env.ALLOWED_ORIGINS
 const allowedOrigins = envAllowedOrigins || defaultAllowedOrigins;
 console.log('🌐 Allowed CORS origins:', allowedOrigins);
 
+// Domain pattern allowances (in addition to exact list above)
+const isOriginAllowedByPattern = (origin) => {
+  try {
+    const { hostname, protocol } = new URL(origin);
+    // Enforce http/https only
+    if (protocol !== 'http:' && protocol !== 'https:') return false;
+
+    const isLocalhost = hostname === 'localhost';
+    const isTryCafeCode = hostname === 'trycafecode.xyz' || hostname.endsWith('.trycafecode.xyz');
+    const isVercel = hostname.endsWith('.vercel.app');
+    const isRender = hostname.endsWith('.onrender.com');
+    const isFlyApp = hostname.endsWith('.fly.dev') || hostname.endsWith('.fly.dev:443');
+
+    return isLocalhost || isTryCafeCode || isVercel || isRender || isFlyApp;
+  } catch (_) {
+    return false;
+  }
+};
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, SSR fetches)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+
+    const isAllowedExact = allowedOrigins.includes(origin);
+    const isAllowedPattern = isOriginAllowedByPattern(origin);
+
+    if (isAllowedExact || isAllowedPattern) {
       return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
     }
+
+    // Log denied origin to help debugging
+    try {
+      const { hostname } = new URL(origin);
+      console.warn(`🚫 CORS blocked origin: ${origin} (hostname: ${hostname})`);
+    } catch (_) {
+      console.warn(`🚫 CORS blocked origin: ${origin}`);
+    }
+    const err = new Error('Not allowed by CORS');
+    err.statusCode = 403;
+    err.code = 'CORS_NOT_ALLOWED';
+    return callback(err);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -95,6 +114,20 @@ const corsOptions = {
 app.use(cors(corsOptions));
 // Explicitly handle preflight across all routes with same options
 app.options('*', cors(corsOptions));
+
+// Rate limiting (after CORS so preflight is not limited)
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    error_code: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(limiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
