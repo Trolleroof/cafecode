@@ -286,6 +286,7 @@ function IDEPage() {
   const [guidedProject, setGuidedProject] = useState<GuidedProject | null>(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [stepComplete, setStepComplete] = useState(false);
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set()); // Track completed step IDs
   const [isCheckingStep, setIsCheckingStep] = useState(false);
   const [filesError, setFilesError] = useState<string | null>(null);
   // Setup (pre-steps) state
@@ -315,6 +316,69 @@ function IDEPage() {
       'Authorization': `Bearer ${session.access_token}`,
       'Content-Type': 'application/json'
     };
+  };
+
+  // Step completion tracking helpers
+  const isStepCompleted = (stepId: string) => {
+    return completedSteps.has(stepId);
+  };
+
+  const markStepCompleted = (stepId: string) => {
+    setCompletedSteps(prev => new Set([...prev, stepId]));
+  };
+
+  const markStepIncomplete = (stepId: string) => {
+    setCompletedSteps(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(stepId);
+      return newSet;
+    });
+  };
+
+  const getCurrentStepId = () => {
+    if (!guidedProject) return null;
+    return guidedProject.steps[guidedProject.currentStep]?.id;
+  };
+
+  const getProjectCompletionStatus = () => {
+    if (!guidedProject) return { completed: 0, total: 0, percentage: 0 };
+    
+    const total = guidedProject.steps.length;
+    const completed = guidedProject.steps.filter(step => isStepCompleted(step.id)).length;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    return { completed, total, percentage };
+  };
+
+  const canMoveToStep = (targetStepIndex: number) => {
+    if (!guidedProject || targetStepIndex < 0 || targetStepIndex >= guidedProject.steps.length) {
+      return false;
+    }
+    
+    // Can always move to previous steps
+    if (targetStepIndex < guidedProject.currentStep) {
+      return true;
+    }
+    
+    // Can only move to next step if current step is completed
+    if (targetStepIndex === guidedProject.currentStep + 1) {
+      return isStepCompleted(getCurrentStepId() || '');
+    }
+    
+    // For steps beyond next, check if all previous steps are completed
+    if (targetStepIndex > guidedProject.currentStep + 1) {
+      // Check if all steps from current to target-1 are completed
+      for (let i = guidedProject.currentStep; i < targetStepIndex; i++) {
+        const stepId = guidedProject.steps[i]?.id;
+        if (stepId && !isStepCompleted(stepId)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    
+    // Cannot skip steps
+    return false;
   };
 
   const fetchFiles = useCallback(async () => {
@@ -355,131 +419,33 @@ function IDEPage() {
     return res.data;
   }, [session]);
 
-  // Heuristic: decide whether a step requires checking file presence or contents
+  // Simplified logging-only function - backend now handles all step analysis
   const analyzeStepAgainstScan = (instruction: string, scan: any) => {
-    const lowered = instruction.toLowerCase();
-    const fileRegex = /(file|in|open|update|edit|modify)\s+['\"]?([\w\-/]+?\.(?:js|ts|tsx|jsx|py|html|css|json|md|yaml|yml))['\"]?/i;
-    const dockerRegex = /(dockerfile)/i;
-    let targetFile: string | null = null;
-    const m = instruction.match(fileRegex);
-    if (m && m[2]) targetFile = m[2];
-    else if (dockerRegex.test(instruction)) targetFile = 'Dockerfile';
-
-    const isCreateIntent = /(create|make|new)\s+(file|folder)/i.test(instruction);
-    const isFolderIntent = /(create|make|new).*folder/i.test(instruction);
-    const isModifyIntent = /(add|write|update|modify|implement|insert|replace|append)\b/i.test(instruction);
-
+    // Log to terminal for debugging
+    setOutput(prev => [...prev, 
+      `🔍 Frontend step called (logging only):`,
+      `   Instruction: ${instruction}`,
+      `   Scan files count: ${scan?.files?.length || 0}`,
+      `   Note: Backend now handles all step analysis`,
+      ``
+    ]);
+    
     const allItems: any[] = Array.isArray(scan?.files) ? scan.files : [];
     const filesList = allItems.filter(item => !item.isDirectory);
     const directoriesList = allItems.filter(item => item.isDirectory);
     
-    // Improved folder name extraction with multiple patterns
-    let folderName: string | null = null;
-    if (isFolderIntent) {
-      // Try multiple patterns to extract folder name
-      const patterns = [
-        /folder\s+(?:called|named)?\s*['"`]?([\w\-\/\.]+)['"`]?/i,
-        /(?:called|named)\s+['"`]?([\w\-\/\.]+)['"`]?/i,
-        /['"`]([\w\-\/\.]+)['"`]/i,
-        /\s([\w\-\.]+)\s*(?:folder|directory)/i,
-        /folder\s+([\w\-\.]+)/i
-      ];
-      
-      for (const pattern of patterns) {
-        const match = instruction.match(pattern);
-        if (match && match[1]) {
-          folderName = match[1].replace(/^\.\/?/, '').replace(/['"``]/g, '');
-          break;
-        }
-      }
-      
-      // Debug logging
-      console.log('🔍 Folder detection:', {
-        instruction,
-        isFolderIntent,
-        folderName,
-        availableDirectories: directoriesList.map(d => d.name)
-      });
-      
-      if (folderName) {
-        // More flexible existence check
-        const exists = directoriesList.some((f) => {
-          const dirName = f.name.toLowerCase();
-          const targetName = folderName!.toLowerCase();
-          return dirName === targetName || 
-                 dirName.endsWith('/' + targetName) || 
-                 dirName.endsWith('\\' + targetName) ||
-                 dirName.includes(targetName);
-        });
-        
-        console.log('🔍 Folder existence check:', {
-          folderName,
-          exists,
-          directoriesList: directoriesList.map(d => ({ name: d.name, path: d.path }))
-        });
-        
-        return { type: 'folder', exists, file: folderName, tokensChecked: [] };
-      } else {
-        // Folder intent detected but couldn't extract specific name
-        console.log('⚠️ Folder intent detected but no specific folder name found:', instruction);
-        return { type: 'folder', exists: false, file: 'required folder', tokensChecked: [] };
-      }
-    }
+    // Log basic workspace info
+    setOutput(prev => [...prev, 
+      `📁 Workspace info:`,
+      `   Total items: ${allItems.length}`,
+      `   Files: ${filesList.length}`,
+      `   Directories: ${directoriesList.length}`,
+      `   Backend will handle analysis...`,
+      ``
+    ]);
 
-    if (!targetFile) {
-      // Check if this is a file creation step without explicit filename
-      if (isCreateIntent && !isFolderIntent) {
-        // This is a file creation step but we couldn't extract the filename
-        // Look for common file creation patterns
-        const fileCreateMatch = instruction.match(/(?:create|make|new)\s+(?:an?\s+)?(?:html|css|js|javascript|python|file)\s+(?:called\s+|named\s+)?['"]?([\w\-\.]+)['"]?/i);
-        if (fileCreateMatch && fileCreateMatch[1]) {
-          const fileName = fileCreateMatch[1];
-          // Check if file exists
-          const exists = filesList.some((f) => f.name.toLowerCase().endsWith('/' + fileName.toLowerCase()) || f.name.toLowerCase() === fileName.toLowerCase());
-          return { type: 'file-create', exists, file: fileName, tokensChecked: [] };
-        }
-        // Generic file creation without specific name
-        return { type: 'file-create', exists: false, file: 'new file', tokensChecked: [] };
-      }
-      // fall back: if no explicit file, consider presence of any files changed later; for now, no hard check
-      return { type: 'generic', exists: true, file: null, tokensChecked: [] };
-    }
-
-    // Normalize path comparisons by ending with file name
-    const existsIdx = filesList.findIndex((f) => f.name.toLowerCase().endsWith('/' + targetFile!.toLowerCase()) || f.name.toLowerCase() === targetFile!.toLowerCase());
-    const exists = existsIdx !== -1;
-    const fileItem = exists ? filesList[existsIdx] : null;
-
-    if (isCreateIntent) {
-      return { type: 'file-create', exists, file: targetFile, tokensChecked: [] };
-    }
-
-    if (isModifyIntent) {
-      if (!exists || !fileItem) return { type: 'file-modify', exists: false, file: targetFile, tokensChecked: [] };
-      // Try to extract quoted tokens from instruction to search within file
-      const tokenRegex = /['`\"]([^'"`]{3,})['`\"]/g;
-      const tokens: string[] = [];
-      let tm: RegExpExecArray | null;
-      while ((tm = tokenRegex.exec(instruction)) && tokens.length < 3) {
-        tokens.push(tm[1]);
-      }
-      if (tokens.length === 0) {
-        // fallback: search for common markers like function or class names keywords present in instruction
-        const wordCandidates = instruction
-          .replace(/[^A-Za-z0-9_\-\.\s]/g, ' ')
-          .split(/\s+/)
-          .filter((w) => w.length >= 4 && !/(create|file|folder|update|modify|insert|write|add|open|edit|into|the|and|with|for|html|css|javascript|python)/i.test(w))
-          .slice(0, 2);
-        tokens.push(...wordCandidates);
-      }
-      const content: string = fileItem.content || '';
-      const hits = tokens.filter((t) => t && content.toLowerCase().includes(t.toLowerCase()));
-      const ok = hits.length > 0 || content.trim().length > 0; // minimal safeguard
-      return { type: 'file-modify', exists: ok, file: targetFile, tokensChecked: tokens };
-    }
-
-    // Default: if a file is referenced but not a create intent, ensure it exists
-    return { type: 'file-reference', exists, file: targetFile, tokensChecked: [] };
+    // Return simple generic result - backend handles real analysis
+    return { type: 'generic', exists: true, file: null, tokensChecked: [] };
   };
 
   useEffect(() => {
@@ -1397,6 +1363,10 @@ function IDEPage() {
       });
       const projectResult = await projectResponse.json();
       if (projectResponse.ok && projectResult.projectId && Array.isArray(projectResult.steps)) {
+        // Reset step completion tracking for new project
+        setCompletedSteps(new Set());
+        setStepComplete(false);
+        
         setGuidedProject({ projectId: projectResult.projectId, steps: projectResult.steps, currentStep: 0, projectContext: projectResult.projectContext });
         if (projectResult.welcomeMessage) {
           setChatMessages(prev => [...prev, { type: 'assistant', content: projectResult.welcomeMessage.content, timestamp: new Date() }]);
@@ -1413,218 +1383,21 @@ function IDEPage() {
     }
   };
 
-  // Add state to track completed steps
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   const handleCheckStep = async () => {
-    console.log('handleCheckStep called', { guidedProject: !!guidedProject, isCheckingStep });
-    if (!guidedProject || isCheckingStep) return;
-    console.log('Starting step check...');
+    if (!guidedProject) {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: 'Please start a guided project before checking steps.',
+        timestamp: new Date()
+      }]);
+      return;
+    }
+
     setIsCheckingStep(true);
     
     try {
-      const currentStep = guidedProject.steps[guidedProject.currentStep];
-      console.log('Current step:', currentStep);
-
-      // Use deep scan so we know when to check for existence vs contents
-      let scanResult: any = null;
-      try {
-        scanResult = await scanWorkspace({ includeContent: true });
-      } catch (err) {
-        console.error('Failed to scan workspace, falling back to structure list:', err);
-        // Fallback to structure-only if deep scan fails
-        try {
-          const res = await axios.get(`${backendUrl}/files/list?recursive=true`, { headers: getAuthHeaders() });
-          scanResult = { files: res.data.files };
-        } catch (e2) {
-          scanResult = { files };
-        }
-      }
-
-      // Use AI-powered analysis to understand what type of step this is
-      const analysis = analyzeStepAgainstScan(currentStep.instruction, scanResult);
-      
-      // Validate that file/folder creation steps have specific names
-      if (analysis.type === 'file-create' && (!analysis.file || analysis.file === 'new file')) {
-        console.warn('⚠️ File creation step missing specific filename:', currentStep.instruction);
-        setChatMessages(prev => [...prev, {
-          type: 'assistant',
-          content: '⚠️ This step is missing a specific filename. Please contact support to fix this step.',
-          timestamp: new Date()
-        }]);
-        setIsCheckingStep(false);
-        return;
-      }
-      
-      if (analysis.type === 'folder' && (!analysis.file || analysis.file === 'required folder')) {
-        console.warn('⚠️ Folder creation step missing specific folder name:', currentStep.instruction);
-        setChatMessages(prev => [...prev, {
-          type: 'assistant',
-          content: '⚠️ This step is missing a specific folder name. Please contact support to fix this step.',
-          timestamp: new Date()
-        }]);
-        setIsCheckingStep(false);
-        return;
-      }
-      
-      // Log analysis results to terminal for debugging
-      console.log('🔍 Step Analysis:', {
-        instruction: currentStep.instruction,
-        analysis: analysis,
-        scanResult: {
-          totalItems: scanResult.files?.length || 0,
-          directories: scanResult.files?.filter((f: any) => f.isDirectory)?.length || 0,
-          files: scanResult.files?.filter((f: any) => !f.isDirectory)?.length || 0
-        }
-      });
-      
-      // Also log to terminal output if terminal tab is active
-      if (activeTab === 'terminal') {
-        setOutput(prev => [...prev, 
-          `🔍 Step Analysis: ${currentStep.instruction}`,
-          `   Type: ${analysis.type}`,
-          `   Target: ${analysis.file || 'N/A'}`,
-          `   Exists: ${analysis.exists}`,
-          `   Tokens Checked: ${analysis.tokensChecked?.join(', ') || 'None'}`
-        ]);
-      }
-
-
-      // Handle different step types based on AI analysis
-      switch (analysis.type) {
-        case 'folder':
-          if (analysis.exists) {
-            setStepComplete(true);
-            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `✅ Perfect! You've created the folder \`${analysis.file || 'required folder'}\`. You can proceed to the next step.`,
-              timestamp: new Date()
-            }]);
-          } else {
-            setStepComplete(false);
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `Please create the folder \`${analysis.file || 'required folder'}\` before proceeding. Use the "+" button in the file explorer to create a new folder.`,
-              timestamp: new Date()
-            }]);
-          }
-          setIsCheckingStep(false);
-          return;
-
-        case 'file-create':
-          if (analysis.exists) {
-            setStepComplete(true);
-            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `✅ Perfect! You've created the file \`${analysis.file}\`. You can proceed to the next step.`,
-              timestamp: new Date()
-            }]);
-          } else {
-            setStepComplete(false);
-            if (analysis.file === 'new file') {
-              setChatMessages(prev => [...prev, {
-                type: 'assistant',
-                content: 'Please create a new file before proceeding. Use the "+" button in the file explorer to create a new file.',
-                timestamp: new Date()
-              }]);
-            } else {
-              setChatMessages(prev => [...prev, {
-                type: 'assistant',
-                content: `Please create the file \`${analysis.file}\` before proceeding. Use the "+" button in the file explorer to create a new file.`,
-                timestamp: new Date()
-              }]);
-            }
-          }
-          setIsCheckingStep(false);
-          return;
-
-        case 'file-reference':
-          if (analysis.exists) {
-            setStepComplete(true);
-            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `✅ Perfect! The file \`${analysis.file}\` exists. You can proceed to the next step.`,
-              timestamp: new Date()
-            }]);
-          } else {
-            setStepComplete(false);
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `Please ensure the file \`${analysis.file}\` exists before proceeding.`,
-              timestamp: new Date()
-            }]);
-          }
-          setIsCheckingStep(false);
-          return;
-
-        case 'file-modify':
-          if (analysis.exists) {
-            setStepComplete(true);
-            setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `✅ Perfect! The file \`${analysis.file}\` has been modified with the expected content. You can proceed to the next step.`,
-              timestamp: new Date()
-            }]);
-          } else {
-            setStepComplete(false);
-            setChatMessages(prev => [...prev, {
-              type: 'assistant',
-              content: `Please modify the file \`${analysis.file}\` with the required content before proceeding.`,
-              timestamp: new Date()
-            }]);
-          }
-          setIsCheckingStep(false);
-          return;
-
-        case 'generic':
-          // For generic steps, we'll proceed to content analysis
-          break;
-
-        default:
-          console.warn('Unknown step type:', analysis.type);
-          break;
-      }
-
-
-
-      // Handle different step types appropriately
-      if (analysis.type === 'file-create' || analysis.type === 'folder' || analysis.type === 'file-reference') {
-        // These steps are complete - we've already checked existence
-        setIsCheckingStep(false);
-        return;
-      } else if (analysis.type === 'file-modify' || analysis.type === 'generic') {
-        // These steps need content analysis, so we need a selected file
-        if (!selectedFile) {
-          setStepComplete(false);
-          setChatMessages(prev => [...prev, {
-            type: 'assistant',
-            content: 'Please select a file to check your progress on this step. You can click on any file in the file explorer to select it.',
-            timestamp: new Date()
-          }]);
-          setIsCheckingStep(false);
-          return;
-        }
-      } else {
-        // Unknown step type - log warning and proceed with content analysis
-        console.warn('Unknown step type, proceeding with content analysis:', analysis.type);
-        if (!selectedFile) {
-          setStepComplete(false);
-          setChatMessages(prev => [...prev, {
-            type: 'assistant',
-            content: 'Please select a file to check your progress on this step. You can click on any file in the file explorer to select it.',
-            timestamp: new Date()
-          }]);
-          setIsCheckingStep(false);
-          return;
-        }
-      }
-
-      // Use Gemini to analyze the code content for non-file/folder creation steps
-      console.log('Calling backend analyzeStep API for code analysis...');
+      // Call backend analyzeStep endpoint - backend will determine what to analyze
       const response = await fetch('/api/guided/analyzeStep', {
         method: 'POST',
         headers: {
@@ -1634,7 +1407,7 @@ function IDEPage() {
         body: JSON.stringify({
           projectId: guidedProject.projectId,
           stepId: guidedProject.steps[guidedProject.currentStep].id,
-          code: selectedFile?.content || '',
+          code: selectedFile?.content || '', // Can be empty for creation steps
           language: selectedFile?.language || 'plaintext',
           projectFiles: files
         })
@@ -1650,33 +1423,75 @@ function IDEPage() {
         throw new Error(result.error);
       }
 
-      // Validate the response structure
-      if (!result.feedback || !Array.isArray(result.feedback)) {
-        throw new Error('Invalid response format from server');
-      }
-
-      if (result.chatMessage) {
+      // Handle the backend analysis result
+      if (result.feedback && Array.isArray(result.feedback)) {
+        const allCorrect = result.feedback.every((f: any) => f.correct);
+        
+        // Update step completion status based on backend analysis
+        const currentStepId = getCurrentStepId();
+        if (currentStepId) {
+          if (allCorrect) {
+            markStepCompleted(currentStepId);
+            setStepComplete(true);
+          } else {
+            markStepIncomplete(currentStepId);
+            setStepComplete(false);
+          }
+        }
+        
+        // Show chat message from backend
+        if (result.chatMessage) {
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: result.chatMessage.content,
+            timestamp: new Date()
+          }]);
+        }
+        
+        // Log detailed analysis result to terminal
+        setOutput(prev => [...prev, 
+          `🔍 Backend Step Analysis:`,
+          `   Step: ${guidedProject.currentStep + 1}`,
+          `   Instruction: ${guidedProject.steps[guidedProject.currentStep].instruction}`,
+          `   Analysis Type: ${result.analysisType || 'unknown'}`,
+          `   Target: ${result.targetName || 'N/A'}`,
+          `   Exists: ${result.exists || 'N/A'}`,
+          `   Result: ${allCorrect ? '✅ PASSED' : '❌ NEEDS WORK'}`,
+          `   Feedback: ${result.feedback.map((f: any) => `${f.correct ? '✅' : '❌'} Line ${f.line}: ${f.suggestion}`).join('; ')}`,
+          ``
+        ]);
+      } else {
+        // Handle case where backend didn't return feedback array
+        setStepComplete(false);
         setChatMessages(prev => [...prev, {
           type: 'assistant',
-          content: result.chatMessage.content,
+          content: result.chatMessage?.content || 'Unable to analyze this step. Please review the instruction and try again.',
           timestamp: new Date()
         }]);
+        
+        // Log the issue to terminal
+        setOutput(prev => [...prev, 
+          `⚠️ Step Analysis Issue:`,
+          `   Step: ${guidedProject.currentStep + 1}`,
+          `   Backend Response: ${JSON.stringify(result, null, 2)}`,
+          ``
+        ]);
       }
-      
-      const allCorrect = result.feedback.every((f: any) => f.correct) || false;
-      setStepComplete(allCorrect);
-      if (allCorrect) {
-        setCompletedSteps(prev => new Set(prev).add(guidedProject.currentStep));
-      }
-      
-    } catch (checkError) {
-      console.error('Error checking step:', checkError);
+    } catch (error) {
+      console.error('Error checking step:', error);
+      setStepComplete(false);
       setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: `❌ Error checking step: ${checkError instanceof Error ? checkError.message : 'Unknown error'}. We are guessing our API has hit the rate limit - please wait for ~15 seconds before trying again, or contact support if the issue persists.`,
+        content: '❌ Unable to check step right now. Please try again in a moment.',
         timestamp: new Date()
       }]);
-      setStepComplete(false);
+      
+      // Log error to terminal
+      setOutput(prev => [...prev, 
+        `❌ Step Check Error:`,
+        `   Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ``
+      ]);
     } finally {
       setIsCheckingStep(false);
     }
@@ -1691,13 +1506,19 @@ function IDEPage() {
         ...guidedProject,
         currentStep: prevStepIndex
       });
-      // If the previous step is not completed, set stepComplete to false
-      setStepComplete(completedSteps.has(prevStepIndex));
+      
+      // Check if the previous step is already completed
+      const prevStepId = guidedProject.steps[prevStepIndex]?.id;
+      if (prevStepId && isStepCompleted(prevStepId)) {
+        setStepComplete(true);
+      } else {
+        setStepComplete(false);
+      }
 
       const prevStep = guidedProject.steps[prevStepIndex];
       setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: `Back to step ${prevStepIndex + 1}:\n\n${prevStep.instruction}`,
+        content: `⬅️ **Back to step ${prevStepIndex + 1}**\n\n${prevStep.instruction}`,
         timestamp: new Date()
       }]);
     }
@@ -1706,26 +1527,46 @@ function IDEPage() {
   // Only allow moving forward if the current step is complete
   const handleNextStep = () => {
     if (!guidedProject) return;
-    // DEMO MODE: Commented out to allow skipping steps
-    // if (!stepComplete) {
-    //   setChatMessages(prev => [...prev, {
-    //     type: 'assistant',
-    //     content: 'Please complete the current step before moving to the next one.',
-    //     timestamp: new Date()
-    //   }]);
-    //   return;
-    // }
+    
     const nextStepIndex = guidedProject.currentStep + 1;
+    
+    // Check if we can move to the next step
+    if (!canMoveToStep(nextStepIndex)) {
+      const currentStepId = getCurrentStepId();
+      if (currentStepId && !isStepCompleted(currentStepId)) {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: '🔒 **Step Locked!** Please complete the current step by clicking the magnifying glass button before moving to the next one.',
+          timestamp: new Date()
+        }]);
+      } else {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: '🚫 **Cannot Skip Steps!** You must complete each step in order. Please go back and complete any missing steps.',
+          timestamp: new Date()
+        }]);
+      }
+      return;
+    }
+    
     if (nextStepIndex < guidedProject.steps.length) {
       setGuidedProject({
         ...guidedProject,
         currentStep: nextStepIndex
       });
-      setStepComplete(completedSteps.has(nextStepIndex));
+      
+      // Check if the next step is already completed
+      const nextStepId = guidedProject.steps[nextStepIndex]?.id;
+      if (nextStepId && isStepCompleted(nextStepId)) {
+        setStepComplete(true);
+      } else {
+        setStepComplete(false);
+      }
+      
       const nextStep = guidedProject.steps[nextStepIndex];
       setChatMessages(prev => [...prev, {
         type: 'assistant',
-        content: `Great job! Now let's move to step ${nextStepIndex + 1}:\n\n${nextStep.instruction}`,
+        content: `✅ **Moving to step ${nextStepIndex + 1}**\n\n${nextStep.instruction}`,
         timestamp: new Date()
       }]);
     } else {
@@ -1746,10 +1587,7 @@ function IDEPage() {
     handlePreviousStep();
     setTimeout(scrollToGuidedStep, 100); 
   };
-  const handleCheckStepWithScroll = async () => {
-    await handleCheckStep();
-    setTimeout(scrollToGuidedStep, 100);
-  };
+  // Removed: handleCheckStepWithScroll - Backend now handles step checking
   const handleNextStepWithScroll = () => {
     handleNextStep();
     setTimeout(scrollToGuidedStep, 100);
@@ -1757,6 +1595,8 @@ function IDEPage() {
 
   const handleStopGuidedProject = () => {
     setGuidedProject(null);
+    setCompletedSteps(new Set());
+    setStepComplete(false);
     setChatMessages(prev => [
       ...prev,
       {
@@ -1829,6 +1669,9 @@ function IDEPage() {
   const [isRecapLoading, setIsRecapLoading] = useState(false);
 
   const handleFinishProject = async () => {
+    // Trigger celebration effects
+    console.log('🎉 Project completed! Playing celebration sequence...');
+    
     setShowCongrats(true);
     setGuidedProject(null);
     setChatMessages(prev => [...prev, {
@@ -1836,6 +1679,15 @@ function IDEPage() {
       content: '🎉 Congratulations! You\'ve completed the guided project! You\'re doing amazing!',
       timestamp: new Date()
     }]);
+    
+    // Log to terminal for user feedback
+    setOutput(prev => [...prev, 
+      `🎉 PROJECT COMPLETED! 🎉`,
+      `   Congratulations on finishing your guided project!`,
+      `   You've learned valuable coding skills and built something amazing.`,
+      `   Keep coding, sipping coffee, and learning new things!`,
+      ``
+    ]);
   };
 
   // Add useEffect to auto-fetch recap when showCongrats is set
@@ -1887,6 +1739,17 @@ function IDEPage() {
 
   // Memoize the Terminal component so it is not remounted on tab switch
   const memoizedTerminal = useMemo(() => <Terminal />, []);
+
+  // New handler for returning to the chat from the steps preview
+  const handleReturnToChat = () => {
+    setShowStepsPreviewModal(false); // Close the modal
+    setIsInSetupPhase(true); // Re-enter setup/chat phase
+    setChatMessages(prev => [...prev, {
+      type: 'assistant',
+      content: "Of course! Let's refine these steps. What changes would you like to make?",
+      timestamp: new Date()
+    }]);
+  };
 
   return (
     <ProtectedRoute>
@@ -1965,11 +1828,18 @@ function IDEPage() {
                 onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
                 onFileCreate={handleFileCreate}
                 onFileDelete={handleDeleteRequest}
-                onRefresh={fetchFiles}
+                onRefresh={() => {
+                  // First fetch files normally
+                  fetchFiles();
+                  // Then trigger a scan to show logs in terminal
+                  scanWorkspace({ includeContent: false }).catch(err => {
+                    console.error('Scan failed:', err);
+                  });
+                }}
                 stepProgression={guidedProject && (
                   <GuidedStepPopup
                     instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
-                    isComplete={stepComplete}
+                    isComplete={isStepCompleted(guidedProject.steps[guidedProject.currentStep]?.id || '')}
                     onNextStep={handleNextStep}
                     onPreviousStep={handlePreviousStep}
                     onCheckStep={handleCheckStep}
@@ -1977,6 +1847,8 @@ function IDEPage() {
                     totalSteps={guidedProject.steps.length}
                     isChecking={isCheckingStep}
                     onFinish={handleFinishProject}
+                    completedSteps={getProjectCompletionStatus().completed}
+                    totalCompleted={getProjectCompletionStatus().total}
                   />
                 )}
               />
@@ -2085,12 +1957,7 @@ function IDEPage() {
                   >
                     {memoizedTerminal}
                   </div>
-                  {output && output.length > 0 && activeTab === 'terminal' && (
-                    <div className="mt-4 bg-cream-beige rounded-lg p-4 shadow-inner border border-cream-beige">
-                      <h4 className="font-semibold mb-2 text-medium-coffee">Previous Output</h4>
-                      <pre className="text-sm text-dark-charcoal whitespace-pre-wrap break-words">{output.join('\n')}</pre>
-                    </div>
-                  )}
+
                 </Tabs>
               </div>
             </ResizablePanel>
@@ -2368,6 +2235,7 @@ function IDEPage() {
           isOpen={showStepsPreviewModal}
           steps={previewSteps}
           onClose={() => setShowStepsPreviewModal(false)}
+          onReturnToChat={handleReturnToChat}
           onStepsChange={(s) => setPreviewSteps(s)}
           onConfirm={handleConfirmStartProjectFromSteps}
           isStarting={isStartingFromSteps}
@@ -2399,24 +2267,54 @@ function IDEPage() {
         )}
 
         {showCongrats && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-[#f7ecd4] to-[#e7dbc7]">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-[#f7ecd4] to-[#e7dbc7] backdrop-blur-sm overflow-hidden">
+            {/* Floating confetti */}
+            <div className="absolute inset-0 pointer-events-none">
+              {[...Array(20)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute w-2 h-2 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full animate-celebration-float"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `${Math.random() * 100}%`,
+                    animationDelay: `${Math.random() * 2}s`,
+                    animationDuration: `${2 + Math.random() * 2}s`
+                  }}
+                />
+              ))}
+            </div>
             <div className="relative flex flex-col items-center max-w-lg w-full p-0 animate-fade-in">
-              {/* Celebration Emojis */}
+              {/* Celebration Emojis with enhanced animations */}
               <div className="flex flex-row items-center justify-center gap-4 mt-8 mb-2">
-                <span className="text-7xl drop-shadow-lg animate-bounce-slow">🎉</span>
-                <span className="text-8xl drop-shadow-lg animate-pulse">☕️</span>
-                <span className="text-7xl drop-shadow-lg animate-bounce-slow">🎊</span>
+                <span className="text-7xl drop-shadow-lg animate-bounce-slow" style={{ animationDelay: '0s' }}>🎉</span>
+                <span className="text-8xl drop-shadow-lg animate-celebration-float" style={{ animationDelay: '0.2s' }}>☕️</span>
+                <span className="text-7xl drop-shadow-lg animate-bounce-slow" style={{ animationDelay: '0.4s' }}>🎊</span>
               </div>
-              {/* Title and Subtitle */}
-              <h2 className="text-4xl font-extrabold text-deep-espresso mb-2 mt-2 text-center drop-shadow-sm">You finished the project!</h2>
-              <p className="text-xl text-medium-coffee mb-6 text-center font-medium">You finished your Cafécode guided project.<br/>Take a sip, celebrate, and keep building! <span className="inline-block">☕️</span></p>
-              {/* Congrats Card (no recap) */}
-              <div className="w-full bg-white rounded-3xl p-8 shadow-2xl border border-cream-beige flex flex-col items-center mb-6 min-h-[120px]">
-                <h3 className="font-extrabold text-2xl mb-3 text-medium-coffee text-center">Congratulations on finishing your Cafécode guided project!</h3>
+              
+              {/* Title and Subtitle with enhanced typography */}
+              <h2 className="text-4xl font-extrabold text-deep-espresso mb-3 mt-2 text-center drop-shadow-sm bg-gradient-to-r from-deep-espresso to-medium-coffee bg-clip-text text-transparent">
+                You finished the project!
+              </h2>
+              <p className="text-xl text-medium-coffee mb-6 text-center font-medium leading-relaxed">
+                You finished your Cafécode guided project.<br/>
+                Take a sip, celebrate, and keep building! <span className="inline-block animate-pulse">☕️</span>
+              </p>
+              
+              {/* Enhanced Congrats Card */}
+              <div className="w-full bg-gradient-to-br from-white to-light-cream rounded-3xl p-8 shadow-2xl border-2 border-medium-coffee/20 flex flex-col items-center mb-6 min-h-[120px] transform hover:scale-105 transition-transform duration-300">
+                <div className="text-center">
+                  <h3 className="font-extrabold text-2xl mb-3 text-medium-coffee">
+                    🎯 Mission Accomplished! 🎯
+                  </h3>
+                  <p className="text-dark-charcoal/80 text-lg font-medium">
+                    You've successfully completed all the steps and learned valuable coding skills!
+                  </p>
+                </div>
               </div>
-              {/* Close Button */}
+              
+              {/* Enhanced Close Button */}
               <button
-                className="mt-2 mb-8 px-10 py-4 rounded-2xl bg-medium-coffee text-light-cream font-bold text-xl shadow-lg hover:bg-deep-espresso transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:ring-offset-2"
+                className="mt-2 mb-8 px-12 py-4 rounded-2xl bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream font-bold text-xl shadow-xl hover:shadow-2xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-medium-coffee/30 focus:ring-offset-2 transform hover:scale-105 border-2 border-light-cream/20"
                 onClick={() => {
                   setShowCongrats(false);
                   setShowRecap(false);
@@ -2424,7 +2322,7 @@ function IDEPage() {
                   setRecapText('');
                 }}
               >
-                Close
+                🎉 Close & Celebrate! 🎉
               </button>
             </div>
           </div>

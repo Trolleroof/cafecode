@@ -18,6 +18,16 @@ router.get('/scan', async (req, res) => {
       ? String(req.query.extensions).split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
       : [];
 
+    // Log scan request to terminal
+    process.stdout.write('\n🔍 [FILE SCAN] Starting scan operation:\n');
+    process.stdout.write(`   User ID: ${userId}\n`);
+    process.stdout.write(`   Path: ${relPath}\n`);
+    process.stdout.write(`   Recursive: ${recursive}\n`);
+    process.stdout.write(`   Include Content: ${includeContent}\n`);
+    process.stdout.write(`   Max Bytes: ${maxBytes}\n`);
+    process.stdout.write(`   Ignore Hidden: ${ignoreHidden}\n`);
+    process.stdout.write(`   Extensions: ${extensions.join(', ') || 'none'}\n\n`);
+
     const result = await UserFileService.scanPath(userId, relPath, {
       recursive,
       includeContent,
@@ -25,9 +35,39 @@ router.get('/scan', async (req, res) => {
       extensions,
       ignoreHidden,
     });
+
+    // Log scan results to terminal
+    process.stdout.write('🔍 [FILE SCAN] Scan completed successfully:\n');
+    if (result.exists) {
+      if (result.isDirectory) {
+        const fileCount = result.files?.filter(f => !f.isDirectory).length || 0;
+        const folderCount = result.files?.filter(f => f.isDirectory).length || 0;
+        process.stdout.write(`   📁 Directory: ${result.path}\n`);
+        process.stdout.write(`   📄 Files found: ${fileCount}\n`);
+        process.stdout.write(`   📁 Folders found: ${folderCount}\n`);
+        if (result.files && result.files.length > 0) {
+          process.stdout.write('   📋 Contents:\n');
+          result.files.forEach(item => {
+            const icon = item.isDirectory ? '📁' : '📄';
+            const size = item.size ? ` (${item.size} bytes)` : '';
+            process.stdout.write(`      ${icon} ${item.name}${size}\n`);
+          });
+        }
+      } else {
+        process.stdout.write(`   📄 File: ${result.path}\n`);
+        process.stdout.write(`   📏 Size: ${result.size} bytes\n`);
+        if (result.content) {
+          process.stdout.write(`   📝 Content preview: ${result.content.substring(0, 100)}${result.content.length > 100 ? '...' : ''}\n`);
+        }
+      }
+    } else {
+      process.stdout.write(`   ❌ Path not found: ${result.path}\n`);
+    }
+    process.stdout.write('\n');
+
     res.json(result);
   } catch (err) {
-    console.error('File scan error:', err);
+    process.stdout.write(`\n❌ [FILE SCAN] Error: ${err.message}\n\n`);
     res.status(500).json({ error: err.message });
   }
 });

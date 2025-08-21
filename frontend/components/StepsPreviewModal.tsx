@@ -12,6 +12,7 @@ interface StepsPreviewModalProps {
   isOpen: boolean;
   steps: PreviewStep[];
   onClose: () => void;
+  onReturnToChat?: () => void; // Add this new prop
   onStepsChange: (steps: PreviewStep[]) => void;
   onConfirm: () => void;
   isCleaning?: boolean;
@@ -23,6 +24,7 @@ export default function StepsPreviewModal({
   isOpen,
   steps,
   onClose,
+  onReturnToChat,
   onStepsChange,
   onConfirm,
   isCleaning = false,
@@ -302,11 +304,15 @@ export default function StepsPreviewModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-[#FDF8F3] rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] w-full max-w-3xl px-7 py-6 relative border border-[#E5D6C5]">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-[22px] font-extrabold tracking-wide text-[#7A5A43]">Preview Steps</h2>
-          <button onClick={onClose} className="text-[#4A3A2A] hover:text-[#7A5A43] text-lg">✕</button>
-        </div>
+              <div className="bg-[#FDF8F3] rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] w-full max-w-3xl px-7 py-6 relative border border-[#E5D6C5]">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-deep-espresso">Review Your Project Steps</h2>
+            </div>
+            <button onClick={onReturnToChat || onClose} className="bg-cream-beige hover:bg-medium-coffee/20 text-medium-coffee font-semibold px-4 py-2 rounded-lg transition-colors duration-200">
+              Return to Chat
+            </button>
+          </div>
 
         {isStarting && (
           <div className="mb-4">

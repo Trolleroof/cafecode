@@ -641,28 +641,28 @@ export default function FileExplorer({
               const parentId = selectedFileId ? getParentId(selectedFileId, files) : null;
               handleShowCreate(parentId, 'file');
             }}
-            className="p-1 rounded group"
+            className="p-1 hover:bg-cream-beige rounded"
             title="New File"
           >
-            <Plus className="h-4 w-4 text-deep-espresso group-hover:text-medium-coffee transition-colors duration-200" />
+            <Plus className="h-4 w-4 text-deep-espresso" />
           </button>
           <button
             onClick={() => {
               const parentId = selectedFileId ? getParentId(selectedFileId, files) : null;
               handleShowCreate(parentId, 'folder');
             }}
-            className="p-1 rounded group"
+            className="p-1 hover:bg-cream-beige rounded"
             title="New Folder"
           >
-            <Folder className="h-4 w-4 text-deep-espresso group-hover:text-medium-coffee transition-colors duration-200" />
+            <Folder className="h-4 w-4 text-deep-espresso" />
           </button>
           <button
             onClick={handleRefresh}
-            className="p-1 rounded group"
+            className="p-1 hover:bg-cream-beige rounded"
             title="Refresh File List"
             disabled={loading}
           >
-            <RefreshCw className={`h-4 w-4 text-deep-espresso group-hover:text-medium-coffee transition-colors duration-200 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 text-deep-espresso ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -717,11 +717,11 @@ export default function FileExplorer({
             <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
               {createType === 'file' ? <File className="h-5 w-5" /> : <Folder className="h-5 w-5" />} Create {createType === 'file' ? 'File' : 'Folder'}
             </h2>
-            <label className="block text-sm font-medium mb-2">
+            <label className="block text-sm font-medium mb-1">
               {createType === 'file' ? 'File Name' : 'Folder Name'}
             </label>
             <input
-              className="bg-cream-beige px-3 py-2 rounded w-full mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent text-medium-coffee text-base font-medium"
+              className="bg-cream-beige px-3 py-2 rounded w-full mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent text-medium-coffee text-base"
               placeholder={createType === 'file' ? 'e.g. main.py, app.js, index.html' : 'e.g. components, src, assets'}
               value={newName}
               onChange={e => setNewName(e.target.value)}

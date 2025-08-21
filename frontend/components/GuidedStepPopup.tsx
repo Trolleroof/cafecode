@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
-import { CheckCircle, XCircle, Search, ArrowLeft, Loader2 } from 'lucide-react';
+import { CheckCircle, ArrowLeft, ArrowRight, Search, Loader2, Lock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -14,6 +14,8 @@ interface GuidedStepPopupProps {
   totalSteps: number;
   isChecking?: boolean;
   onFinish?: () => void;
+  completedSteps?: number;
+  totalCompleted?: number;
 }
 
 const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
@@ -26,6 +28,8 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
   totalSteps,
   isChecking = false,
   onFinish,
+  completedSteps,
+  totalCompleted,
 }) => {
   // Draggable state with default bottom-left position
   const [position, setPosition] = useState({ x: 32, y: window.innerHeight - 500 });
@@ -116,8 +120,17 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         </div>
       </div>
       {/* Progress Bar */}
-      <div className="w-full h-2 bg-[#e7dbc7] rounded-full mb-4 overflow-hidden">
+      <div className="w-full h-2 bg-[#e7dbc7] rounded-full mb-4 overflow-hidden relative">
         <div className="h-full bg-medium-coffee/70 transition-all duration-500" style={{ width: `${(stepNumber/totalSteps)*100}%` }} />
+        {stepNumber === totalSteps && (
+          <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-green-600 animate-pulse rounded-full" />
+        )}
+      </div>
+      
+      {/* Step Completion Summary */}
+      <div className="text-center mb-2 text-sm text-medium-coffee">
+    
+       
       </div>
       {/* Header */}
       <div className="flex items-center mb-3">
@@ -128,6 +141,21 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         </div>
         <h3 className="font-bold text-medium-coffee text-base tracking-wide">
           Step {stepNumber} of {totalSteps}
+          {stepNumber === totalSteps && (
+            <span className={`ml-2 flex items-center gap-1 ${isComplete ? 'text-green-600' : 'text-blue-600'}`}>
+              {isComplete ? (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  Ready to Complete! 🎉
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  Final Step
+                </>
+              )}
+            </span>
+          )}
         </h3>
       </div>
       {/* Instruction */}
@@ -153,6 +181,19 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
             br: () => <>{' '}</>,
           }}
         />
+        
+        {/* Final step completion guidance */}
+        {stepNumber === totalSteps && !isComplete && (
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-700 text-sm">
+              <CheckCircle className="h-4 w-4" />
+              <span className="font-medium">Final Step</span>
+            </div>
+            <p className="text-blue-600 text-sm mt-1">
+              Complete this step to unlock the "Complete Project" button and finish your guided project!
+            </p>
+          </div>
+        )}
       </div>
       {/* Buttons */}
       <div className="flex gap-3 mt-auto">
@@ -166,48 +207,61 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           <ArrowLeft className="h-4 w-4 mr-2" />
           Previous
         </Button>
-        <div className="flex items-center flex-1 min-w-0">
-          <Button
-            onClick={onCheckStep}
-            variant="outline"
-            size="lg"
-            className={`flex-1 min-w-0 px-2 py-1 border-medium-coffee font-bold shadow-sm flex items-center justify-center rounded-xl text-sm transition-all duration-200
-              ${isComplete && !isChecking ? 'bg-green-500 border-green-600 text-white hover:bg-green-600 hover:border-green-700' : 'bg-medium-coffee border-medium-coffee text-light-cream hover:bg-deep-espresso hover:border-deep-espresso hover:text-light-cream'}
-            `}
-            disabled={isChecking}
-          >
-            {isChecking ? (
-              <Loader2 className="animate-spin h-4 w-4 mr-2" />
-            ) : isComplete ? (
-              <CheckCircle className="mr-2 h-5 w-5" />
-            ) : (
-              <Search className="mr-2 h-4 w-4" />
-            )}
-            {isChecking ? 'Checking...' : isComplete ? 'Checked!' : 'Check'}
-          </Button>
-        </div>
+
+        {/* Check Step Button - calls backend analysis */}
+        <Button
+          onClick={onCheckStep}
+          variant="outline"
+          size="lg"
+          className={`flex-1 min-w-0 px-2 py-1 border-medium-coffee font-bold shadow-sm flex items-center justify-center rounded-xl text-sm transition-all duration-200
+            ${isComplete ? 'bg-green-500 border-green-600 text-white hover:bg-green-600 hover:border-green-700' : 'bg-medium-coffee border-medium-coffee text-light-cream hover:bg-deep-espresso hover:border-deep-espresso hover:text-light-cream'}
+          `}
+          disabled={isChecking}
+        > 
+          {isChecking ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              Checking...
+            </>
+          ) : isComplete ? (
+            <>
+              <CheckCircle className="h-5 w-5 mr-2" />
+              Complete!
+            </>
+          ) : (
+            <>
+              <Search className={`h-5 w-5 mr-2 ${!isComplete ? 'animate-pulse' : ''}`} />
+              Check
+            </>
+          )}
+        </Button>
+
         {stepNumber === totalSteps ? (
           <Button
             onClick={onFinish}
-            disabled={!isComplete}
             size="lg"
-            className="flex-1 min-w-0 px-2 py-1 bg-deep-espresso hover:bg-medium-coffee text-light-cream font-bold rounded-xl shadow-lg transition-all duration-200 text-sm"
+            className={`flex-1 min-w-0 px-2 py-1 font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-sm border-2 border-light-cream/20 ${
+              isComplete 
+                ? 'bg-gradient-to-r from-deep-espresso to-medium-coffee hover:from-medium-coffee hover:to-deep-espresso text-light-cream' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            disabled={!isComplete}
           >
             <CheckCircle className="mr-2 h-4 w-4" />
-            Finish
+            Complete Project
           </Button>
         ) : (
           <Button
             onClick={onNextStep}
-            disabled={!isComplete}
             size="lg"
-            className="flex-1 min-w-0 px-2 py-1 bg-medium-coffee hover:bg-deep-espresso text-light-cream font-bold rounded-xl shadow-lg transition-all duration-200 text-sm"
+            className={`flex-1 min-w-0 px-2 py-1 font-bold rounded-xl shadow-lg transition-all duration-200 text-sm ${
+              isComplete 
+                ? 'bg-medium-coffee hover:bg-deep-espresso text-light-cream' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            disabled={!isComplete}
           >
-            {isComplete ? (
-              <CheckCircle className="mr-2 h-4 w-4" />
-            ) : (
-              <XCircle className="mr-2 h-4 w-4" />
-            )}
+            <ArrowRight className="mr-2 h-4 w-4" />
             Next
           </Button>
         )}

@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { UserFileService } from '../services/UserFileService.js';
+import { staticCreationChecker } from '../services/StaticCreationChecker.js';
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -29,17 +31,56 @@ const readGuidedProjectPrompt = () => {
   }
 };
 
+// Function to read the AI creation intent prompt from ai_creation_intent_prompt.txt
+const readAiCreationIntentPrompt = () => {
+  try {
+    // Try relative to __dirname first
+    const promptPath = path.join(__dirname, 'ai_creation_intent_prompt.txt');
+    return fs.readFileSync(promptPath, 'utf8');
+  } catch (error) {
+    // Fallback: try relative to current working directory
+    try {
+      const fallbackPath = path.join(process.cwd(), 'routes', 'ai_creation_intent_prompt.txt');
+      return fs.readFileSync(fallbackPath, 'utf8');
+    } catch (fallbackError) {
+      console.error('Failed to read ai_creation_intent_prompt.txt:', error.message);
+      console.error('Fallback also failed:', fallbackError.message);
+      // Return a minimal fallback prompt
+      return 'Analyze if this instruction asks to create a file or folder.';
+    }
+  }
+};
+
 // Read the prompt
 const guidedProjectPrompt = readGuidedProjectPrompt();
 
 const router = express.Router();
 
-// Store active projects in memory (since we don't need persistence)
-const activeProjects = new Map();
-// Store guided setup sessions (per-user) for sequential questions
+// Test endpoint for static creation checker
+router.post('/test-static-checker', async (req, res) => {
+  try {
+    const { instructions } = req.body;
+    const userId = req.user.id;
+    
+    if (!instructions || !Array.isArray(instructions)) {
+      return res.status(400).json({ error: 'Instructions array is required' });
+    }
+    
+    const results = await staticCreationChecker.testInstructions(instructions, userId);
+    
+    res.json({
+      success: true,
+      ...results,
+      diagnostics: staticCreationChecker.getDiagnostics(userId)
+    });
+  } catch (error) {
+    console.error('Static checker test error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 const setupSessions = new Map();
-// Store chat sessions for question tracking
 const chatSessions = new Map();
+const analysisCache = new Map();
 
 // Helper function to robustly extract JSON from Gemini responses
 const extractJsonFromResponse = (responseText) => {
@@ -82,38 +123,72 @@ function robustJsonParse(jsonString) {
   }
 }
 
-// Helper function to check if a file or folder exists in projectFiles
-const checkFileExists = (projectFiles, targetName, type = 'file') => {
+// Enhanced helper function to check if a file or folder exists
+// Can use either projectFiles (legacy) or static indexer (faster)
+const checkFileExists = (projectFiles, targetName, type = 'file', userId = null) => {
+  // If we have a userId, try the static indexer first (much faster)
+  if (userId) {
+    try {
+      const result = staticCreationChecker.enhancedFileExistsCheck(userId, targetName, type);
+      console.log(`[CHECK_FILE_EXISTS] Static check for "${targetName}" (${type}): ${result}`);
+      return result;
+    } catch (error) {
+      console.warn(`[CHECK_FILE_EXISTS] Static check failed, falling back to projectFiles: ${error.message}`);
+    }
+  }
+  
+  // Fallback to original logic with projectFiles
   if (!projectFiles || !Array.isArray(projectFiles)) {
     return false;
   }
-  
-  // Recursive function to search through the file tree
-  const searchInFiles = (files, target) => {
-    for (const file of files) {
-      // Check if this is the file/folder we're looking for
-      if (file.name === target) {
-        // If we're looking for a folder, check that it's a folder
-        if (type === 'folder' && file.type === 'folder') {
-          return true;
-        }
-        // If we're looking for a file, check that it's a file
-        if (type === 'file' && file.type !== 'folder') {
-          return true;
-        }
+
+  const normalizePath = (p) => String(p || '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\/+/, '')
+    .replace(/\/+/g, '/')
+    .replace(/\/$/, '')
+    .toLowerCase();
+
+  const normalizedTarget = normalizePath(targetName);
+  const targetIsPath = normalizedTarget.includes('/');
+
+  const searchInFiles = (files, currentPath = '') => {
+    for (const node of files) {
+      const nodeName = String(node.name || '').toLowerCase();
+      const nodePathFromTree = currentPath ? `${currentPath}/${nodeName}` : nodeName;
+      const nodePathFromId = normalizePath(node.id || node.path || node.fullPath || nodeName);
+
+      const isFolder = node.type === 'folder';
+      const isFile = !isFolder;
+
+      const nodePathsToCheck = [normalizePath(nodePathFromTree)];
+      if (nodePathFromId && nodePathFromId !== nodePathsToCheck[0]) {
+        nodePathsToCheck.push(nodePathFromId);
       }
-      
-      // If this is a folder, search inside it
-      if (file.type === 'folder' && file.children) {
-        if (searchInFiles(file.children, target)) {
+
+      const matchesTarget = nodePathsToCheck.some((np) => {
+        if (targetIsPath) {
+          return np === normalizedTarget || np.endsWith('/' + normalizedTarget);
+        }
+        return np.endsWith('/' + normalizedTarget) || np === normalizedTarget || nodeName === normalizedTarget;
+      });
+
+      if (matchesTarget) {
+        if (type === 'folder' && isFolder) return true;
+        if (type === 'file' && isFile) return true;
+        // If type mismatches, continue searching
+      }
+
+      if (isFolder && Array.isArray(node.children) && node.children.length > 0) {
+        if (searchInFiles(node.children, nodePathsToCheck[0])) {
           return true;
         }
       }
     }
     return false;
   };
-  
-  return searchInFiles(projectFiles, targetName);
+
+  return searchInFiles(projectFiles);
 };
 
 // Helper function to create project context from files
@@ -140,65 +215,329 @@ const createProjectContext = (projectFiles) => {
   return `\n\nProject Structure and Files:\n${formatFiles(projectFiles)}`;
 };
 
+// Extract likely file targets from an instruction string
+function extractFileTargetsFromInstruction(instruction) {
+  const targets = new Set();
+  if (typeof instruction !== 'string' || !instruction) return [];
+  // Quoted names first
+  const quoted = instruction.match(/['"`]([\w\-\.\/\\]+)['"`]/g) || [];
+  quoted.forEach((m) => {
+    const clean = m.replace(/^['"`]|['"`]$/g, '');
+    if (clean) targets.add(clean);
+  });
+  // Common file name patterns by extension
+  const fileRegex = /([\w\-\/\\]+\.(?:js|ts|tsx|jsx|py|html|css|json|md|yaml|yml|txt|xml|php|rb|go|java|cpp|c|h))\b/gi;
+  let match;
+  while ((match = fileRegex.exec(instruction)) !== null) {
+    targets.add(match[1]);
+  }
+  // Special no-dot names
+  const special = instruction.match(/\b(dockerfile|makefile|readme)\b/gi) || [];
+  special.forEach((name) => targets.add(name));
+  return Array.from(targets).map((t) => String(t).replace(/^\.\//, ''));
+}
+
+// Comprehensive step type analysis function
+function analyzeStepType(instruction, projectFiles, userId = null) {
+  const lowered = instruction.toLowerCase();
+  
+  // Intent detection patterns
+  const isCreateIntent = /\b(create|make|new)\b/i.test(instruction);
+  const isModifyIntent = /\b(update|edit|modify|change|write|insert|replace|append|add|implement)\b/i.test(instruction);
+  const hasModificationContext = /\b(to|with|in|inside|into)\b/i.test(instruction);
+  const isExplicitFolderIntent = /(folder|directory|dir)\b/i.test(instruction);
+
+  // Extract target names using comprehensive patterns
+  const extractedNames = extractFileTargetsFromInstruction(instruction);
+  
+  // Add pattern-based extraction for better coverage
+  const quotedNamePattern = /['"`]([\w\-\./\\]+)['"`]/g;
+  let quotedMatches = [];
+  let match;
+  while ((match = quotedNamePattern.exec(instruction)) !== null) {
+    quotedMatches.push(match[1]);
+  }
+  
+  const creationPatterns = [
+    /(?:create|make|new)\s+(?:a\s+)?(?:file|folder)?\s+(?:called|named)\s+['"`]?([\w\-\./\\]+)['"`]?/i,
+    /(?:create|make|new)\s+['"`]?([\w\-\./\\]+)['"`]?/i,
+    /(?:make|create)\s+(?:a\s+)?['"`]?([\w\-\./\\]+)['"`]?\s*(?:directory|folder)/i,
+  ];
+  
+  const allExtractedNames = [...new Set([...extractedNames, ...quotedMatches])];
+  creationPatterns.forEach(pattern => {
+    const match = instruction.match(pattern);
+    if (match && match[1]) {
+      allExtractedNames.push(match[1]);
+    }
+  });
+
+  console.log(`[ANALYZE STEP TYPE] Instruction: ${instruction}`);
+  console.log(`[ANALYZE STEP TYPE] Extracted names: ${allExtractedNames.join(', ')}`);
+  console.log(`[ANALYZE STEP TYPE] Intent: Create=${isCreateIntent}, Modify=${isModifyIntent}, Folder=${isExplicitFolderIntent}`);
+
+  // Process each extracted name
+  if (allExtractedNames.length > 0) {
+    for (const name of allExtractedNames) {
+      const cleanName = name.replace(/^['"``]|['"``]$/g, '').replace(/^\.\//, '');
+      const hasFileExtension = /\.([\w]+)$/.test(cleanName);
+      const isLikelyFile = hasFileExtension || /^(dockerfile|makefile|readme)$/i.test(cleanName);
+      
+      const fileExists = checkFileExists(projectFiles, cleanName, 'file', userId);
+      const folderExists = checkFileExists(projectFiles, cleanName, 'folder', userId);
+      
+      console.log(`[ANALYZE STEP TYPE] Checking "${cleanName}": file=${fileExists}, folder=${folderExists}, isLikelyFile=${isLikelyFile}`);
+      
+      // Prioritize modification semantics
+      if (isLikelyFile && (isModifyIntent || hasModificationContext)) {
+        return {
+          type: 'file-modify',
+          exists: fileExists,
+          targetName: cleanName,
+          requiresContent: true
+        };
+      }
+      
+      // Creation intent
+      if (isCreateIntent) {
+        if (isExplicitFolderIntent && !isLikelyFile) {
+          return {
+            type: 'folder',
+            exists: folderExists,
+            targetName: cleanName,
+            requiresContent: false
+          };
+        }
+        return {
+          type: 'file-create',
+          exists: fileExists,
+          targetName: cleanName,
+          requiresContent: false
+        };
+      }
+      
+      // File reference
+      if (isLikelyFile) {
+        return {
+          type: 'file-reference',
+          exists: fileExists,
+          targetName: cleanName,
+          requiresContent: false
+        };
+      }
+    }
+  }
+  
+  // Fallback logic
+  if (isCreateIntent) {
+    if (isExplicitFolderIntent) {
+      return {
+        type: 'folder',
+        exists: false,
+        targetName: 'required folder',
+        requiresContent: false
+      };
+    } else {
+      return {
+        type: 'file-create',
+        exists: false,
+        targetName: 'new file',
+        requiresContent: false
+      };
+    }
+  }
+  
+  // Default to generic - requires content analysis
+  return {
+    type: 'generic',
+    exists: true,
+    targetName: null,
+    requiresContent: true
+  };
+}
+
+// Validate step completion based on type and requirements
+function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
+  console.log(`[VALIDATE STEP] Type: ${stepType.type}, Target: ${stepType.targetName}, Exists: ${stepType.exists}`);
+  
+  switch (stepType.type) {
+    case 'folder':
+      if (stepType.exists) {
+        return {
+          completed: true,
+          feedback: `Great job! You've created the folder '${stepType.targetName}'.`,
+          suggestion: 'You can proceed to the next step.'
+        };
+      } else {
+        return {
+          completed: false,
+          feedback: `Please create the folder '${stepType.targetName}' before proceeding.`,
+          suggestion: 'Use the "+" button in the file explorer to create a new folder.'
+        };
+      }
+    
+    case 'file-create':
+      if (stepType.exists) {
+        return {
+          completed: true,
+          feedback: `Perfect! You've created the file '${stepType.targetName}'.`,
+          suggestion: 'You can proceed to the next step.'
+        };
+      } else {
+        return {
+          completed: false,
+          feedback: `Please create the file '${stepType.targetName}' before proceeding.`,
+          suggestion: 'Use the "+" button in the file explorer to create a new file.'
+        };
+      }
+    
+    case 'file-reference':
+      if (stepType.exists) {
+        return {
+          completed: true,
+          feedback: `Good! The file '${stepType.targetName}' exists.`,
+          suggestion: 'You can proceed to the next step.'
+        };
+      } else {
+        return {
+          completed: false,
+          feedback: `Please ensure the file '${stepType.targetName}' exists before proceeding.`,
+          suggestion: 'Create the required file using the file explorer.'
+        };
+      }
+    
+    case 'file-modify':
+      if (!stepType.exists) {
+        return {
+          completed: false,
+          feedback: `The file '${stepType.targetName}' needs to be created or modified.`,
+          suggestion: 'Create the file and add the required content.'
+        };
+      }
+      // For modification steps, we need content analysis
+      if (!code || code.trim() === '') {
+        return {
+          completed: false,
+          feedback: 'Please add code to the file for this step.',
+          suggestion: 'Open the file and add the required content based on the step instruction.'
+        };
+      }
+      // This will require AI analysis for complex content validation
+      return {
+        completed: null, // Indicates need for AI analysis
+        feedback: 'Content analysis required',
+        suggestion: 'AI will analyze the code content'
+      };
+    
+    case 'generic':
+      // Generic steps always require AI content analysis
+      return {
+        completed: null, // Indicates need for AI analysis
+        feedback: 'Content analysis required',
+        suggestion: 'AI will analyze the code content'
+      };
+    
+    default:
+      return {
+        completed: false,
+        feedback: 'Unknown step type',
+        suggestion: 'Please review the step instruction'
+      };
+  }
+}
+
+// Flatten projectFiles tree to a list of file-like objects: { name, path, content? }
+function flattenProjectFilesTree(projectFiles) {
+  const out = [];
+  const walk = (nodes, base = '') => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes) {
+      const isFolder = n.type === 'folder' || n.isDirectory === true;
+      const nodeName = n.name || '';
+      const nodePath = n.id || n.path || (base ? `${base}/${nodeName}` : nodeName);
+      if (isFolder) {
+        if (n.children) walk(n.children, nodePath);
+      } else {
+        out.push({ name: nodeName, path: nodePath, content: n.content });
+      }
+    }
+  };
+  walk(projectFiles, '');
+  return out;
+}
+
+// Pick the best match for a target name from a list of files (by ending match preference)
+function pickBestFileMatch(target, files) {
+  if (!target || !Array.isArray(files) || files.length === 0) return null;
+  const loweredTarget = String(target).toLowerCase();
+  let exact = files.find(f => f.path?.toLowerCase() === loweredTarget || f.name?.toLowerCase() === loweredTarget);
+  if (exact) return exact;
+  let ending = files.find(f => f.path?.toLowerCase().endsWith('/' + loweredTarget) || f.path?.toLowerCase().endsWith('\\' + loweredTarget));
+  if (ending) return ending;
+  let contains = files.find(f => f.path?.toLowerCase().includes(loweredTarget));
+  return contains || null;
+}
+
+function languageFromFilename(filename) {
+  const name = String(filename || '').toLowerCase();
+  if (name.endsWith('.html')) return 'html';
+  if (name.endsWith('.css')) return 'css';
+  if (name.endsWith('.json')) return 'json';
+  if (name.endsWith('.md')) return 'markdown';
+  if (name.endsWith('.ts')) return 'typescript';
+  if (name.endsWith('.tsx')) return 'typescript';
+  if (name.endsWith('.js')) return 'javascript';
+  if (name.endsWith('.jsx')) return 'javascript';
+  if (name.endsWith('.py')) return 'python';
+  if (name.endsWith('.java')) return 'java';
+  if (name.endsWith('.go')) return 'go';
+  if (name.endsWith('.rb')) return 'ruby';
+  if (name.endsWith('.php')) return 'php';
+  if (name.endsWith('.xml')) return 'xml';
+  if (name.endsWith('.yml') || name.endsWith('.yaml')) return 'yaml';
+  return 'plaintext';
+}
+
 // AI-powered extraction of creation intent (file/folder) and target name
 async function aiExtractCreationIntent(geminiService, instruction, projectFiles) {
   const projectContext = createProjectContext(projectFiles);
-  const prompt = `You are validating a beginner-friendly coding step instruction.
-
-Your tasks:
-1) Decide if the instruction asks the user to CREATE a file or folder (also called directory/dir)
-2) If yes, extract:
-   - creationType: "file" or "folder" (folder = directory)
-   - targetName: exact name to create (include extension for files like index.html)
-3) If not a creation instruction, mark isCreation: false
-4) If it is creation but unclear/invalid, return an error and suggestion
-
-Instruction: "${instruction}"
-
-Project files and folders (tree):
-${projectContext}
-
-Return ONLY a JSON object with exactly these fields:
-{
-  "isCreation": true|false,
-  "isValid": true|false,
-  "creationType": "file"|"folder"|null,
-  "targetName": string|null,
-  "error": string|null,
-  "suggestion": string|null
-}
-
-Rules:
-- Treat words folder/directory/dir as the same (folder)
-- Be strict: creation steps MUST include a concrete name
-- If the instruction says something like "Name it 'test-project'", extract test-project
-- If multiple names appear, choose the most likely one to be CREATED in this step
-- If unclear, set isValid: false with a helpful suggestion like:
-  "Please use: Create a folder called 'my-app'" or "Create a file called 'index.html'"`;
+  const prompt = readAiCreationIntentPrompt().replace('${instruction}', instruction);
 
   try {
     const result = await geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
+    
+    // Log the AI response to terminal
+    process.stdout.write('\n🔍 [AI CREATION INTENT] Raw Response:\n');
+    process.stdout.write(responseText);
+    process.stdout.write('\n\n');
+    
     const clean = extractJsonFromResponse(responseText);
     const parsed = robustJsonParse(clean);
-    // Basic shape safety
+    
+    // Log the parsed result
+    process.stdout.write('🔍 [AI CREATION INTENT] Parsed Result:\n');
+    process.stdout.write(JSON.stringify(parsed, null, 2));
+    process.stdout.write('\n\n');
+    
+    // Simple validation - trust the AI's analysis
     return {
       isCreation: Boolean(parsed.isCreation),
       isValid: Boolean(parsed.isValid),
-      creationType: parsed.creationType === 'file' || parsed.creationType === 'folder' ? parsed.creationType : null,
-      targetName: typeof parsed.targetName === 'string' ? parsed.targetName : null,
-      error: typeof parsed.error === 'string' ? parsed.error : null,
-      suggestion: typeof parsed.suggestion === 'string' ? parsed.suggestion : null,
+      creationType: parsed.creationType || null,
+      targetName: parsed.targetName || null,
+      error: parsed.error || null,
+      suggestion: parsed.suggestion || null,
     };
   } catch (e) {
-    console.error('[AI Creation Intent] error:', e);
+    process.stdout.write(`\n❌ [AI CREATION INTENT] Error: ${e.message}\n\n`);
     // Conservative fallback
     return {
       isCreation: false,
       isValid: false,
       creationType: null,
       targetName: null,
-      error: 'AI validation failed. Please try again.',
+      error: 'AI validation has failed. Please try again.',
       suggestion: null,
     };
   }
@@ -310,31 +649,12 @@ router.post("/startProject", async (req, res) => {
         if (!Array.isArray(steps) || steps.length === 0) {
           throw new Error("Invalid steps format: not an array or empty array");
         }
-        // Validate each step and reject if naming requirements are not met
-        steps = steps.map((step, index) => {
-          const instruction = step.instruction || `Step ${index + 1}`;
-          
-                                  // Check for folder creation steps without specific names
-        if (/create.*folder/i.test(instruction) && !/'[^']+'/.test(instruction)) {
-          throw new Error(`Step ${index + 1} is missing specific folder name. Must use format: "Create a folder called 'EXACT-NAME'"`);
-        }
-        
-        // Check for file creation steps without specific names
-        if (/create.*file/i.test(instruction) && !/'[^']+'/.test(instruction)) {
-          throw new Error(`Step ${index + 1} is missing specific file name. Must use format: "Create a file called 'EXACT-NAME.EXTENSION'"`);
-        }
-        
-        // Check for UI instruction language (reject steps that tell users how to use the IDE)
-        if (/(click|select|press|use|navigate|open|go to|find|locate).*(button|menu|panel|explorer|interface|ui|\+|plus)/i.test(instruction)) {
-          throw new Error(`Step ${index + 1} contains UI instructions. Focus on WHAT to create, not HOW to create it. Use format: "Create a folder called 'EXACT-NAME'"`);
-        }
-          
-          return {
-            id: String(index + 1),
-            instruction,
-            lineRanges: Array.isArray(step.lineRanges) ? step.lineRanges : [1, 3],
-          };
-        });
+        // Simple step mapping without complex validation
+        steps = steps.map((step, index) => ({
+          id: String(index + 1),
+          instruction: step.instruction || `Step ${index + 1}`,
+          lineRanges: Array.isArray(step.lineRanges) ? step.lineRanges : [1, 3],
+        }));
       } catch (parseError) {
         console.error("[Gemini Parsing Error]", parseError);
         console.error("[Gemini Problematic String]", typeof cleanResponse !== "undefined" ? cleanResponse : "(no cleanResponse)");
@@ -402,8 +722,7 @@ Return ONLY the JSON array.`;
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
     
-    // Log the full Gemini response for debugging
-    console.log("[SETUP] Full Gemini response:", responseText);
+
     
     let questions;
     try {
@@ -663,26 +982,12 @@ router.post('/steps/generate', async (req, res) => {
         const clean = extractJsonFromResponse(responseText);
         cleaned = robustJsonParse(clean);
         if (!Array.isArray(cleaned)) throw new Error('Not an array');
-        // Validate each step and reject if naming requirements are not met
-        cleaned = cleaned.map((s, i) => {
-          const instruction = s.instruction || `Step ${i + 1}`;
-          
-          // Check for folder creation steps without specific names
-          if (/create.*folder/i.test(instruction) && !/'[^']+'/.test(instruction)) {
-            throw new Error(`Step ${i + 1} is missing specific folder name. Must use format: "Create a folder called 'EXACT-NAME'"`);
-          }
-          
-          // Check for file creation steps without specific names
-          if (/create.*file/i.test(instruction) && !/'[^']+'/.test(instruction)) {
-            throw new Error(`Step ${i + 1} is missing specific file name. Must use format: "Create a file called 'EXACT-NAME.EXTENSION'"`);
-          }
-          
-          return {
-            id: String(i + 1),
-            instruction,
-            lineRanges: Array.isArray(s.lineRanges) ? s.lineRanges : [1, 3],
-          };
-        });
+        // Simple step mapping without complex validation
+        cleaned = cleaned.map((s, i) => ({
+          id: String(i + 1),
+          instruction: s.instruction || `Step ${i + 1}`,
+          lineRanges: Array.isArray(s.lineRanges) ? s.lineRanges : [1, 3],
+        }));
         return res.json({ steps: cleaned });
       } catch (e) {
         console.error('Error polishing steps in steps/generate:', e);
@@ -705,26 +1010,12 @@ router.post('/steps/generate', async (req, res) => {
       }
       steps = robustJsonParse(cleanResponse);
       if (!Array.isArray(steps)) throw new Error('Not an array');
-      // Validate each step and reject if naming requirements are not met
-      steps = steps.map((s, i) => {
-        const instruction = s.instruction || `Step ${i + 1}`;
-        
-        // Check for folder creation steps without specific names
-        if (/create.*folder/i.test(instruction) && !/'[^']+'/.test(instruction)) {
-          throw new Error(`Step ${i + 1} is missing specific folder name. Must use format: "Create a folder called 'EXACT-NAME'"`);
-        }
-        
-        // Check for file creation steps without specific names
-        if (/create.*file/i.test(instruction) && !/'[^']+'/.test(instruction)) {
-          throw new Error(`Step ${i + 1} is missing specific file name. Must use format: "Create a file called 'EXACT-NAME.EXTENSION'"`);
-        }
-        
-        return {
-          id: String(i + 1),
-          instruction,
-          lineRanges: Array.isArray(s.lineRanges) ? s.lineRanges : [1, 3],
-        };
-      });
+      // Simple step mapping without complex validation
+      steps = steps.map((s, i) => ({
+        id: String(i + 1),
+        instruction: s.instruction || `Step ${i + 1}`,
+        lineRanges: Array.isArray(s.lineRanges) ? s.lineRanges : [1, 3],
+      }));
     } catch (e) {
       console.error('Error parsing steps from generate:', e, responseText);
       return res.status(500).json({ error: 'An error happened. Please try again.' });
@@ -807,6 +1098,13 @@ router.post("/analyzeStep", async (req, res) => {
   try {
     const { projectId, stepId, code, language, projectFiles } = req.body;
 
+    // OPTIMIZATION: Response Caching - check if we have a result for this exact code
+    const cacheKey = `${projectId}-${stepId}-${code}`; // Use the code itself as part of the key
+    if (analysisCache.has(cacheKey)) {
+      console.log(`[ANALYZE STEP] Returning cached result for project ${projectId}, step ${stepId}.`);
+      return res.json(analysisCache.get(cacheKey));
+    }
+
     console.log("AnalyzeStep called with:", { projectId, stepId, language, codeLength: code?.length });
 
     if (!projectId || !language) {
@@ -827,130 +1125,242 @@ router.post("/analyzeStep", async (req, res) => {
 
     console.log("Current step instruction:", currentStep.instruction);
     console.log("Current step ID:", currentStep.id);
-    console.log("Code being analyzed (first 200 chars):", code.substring(0, 200) + (code.length > 200 ? "..." : ""));
+    console.log("Code being analyzed (first 200 chars):", code?.substring(0, 200) + (code && code.length > 200 ? "..." : ""));
 
-    // Handle empty code case
-    if (!code || code.trim() === '') {
+    // Phase 1: Comprehensive step type analysis
+    const stepType = analyzeStepType(currentStep.instruction, projectFiles || project.projectFiles || [], req.user.id);
+    
+    process.stdout.write("\n\n\n================ BACKEND STEP ANALYSIS ================\n");
+    process.stdout.write(`Instruction: ${currentStep.instruction}\n`);
+    process.stdout.write(`Step Type Analysis: ${JSON.stringify(stepType, null, 2)}\n`);
+    process.stdout.write("=======================================================\n\n\n");
+    
+    // Phase 2: Validate step completion based on type
+    const validation = validateStepCompletion(stepType, stepType.targetName, projectFiles || project.projectFiles || [], code);
+    
+    console.log(`[ANALYZE STEP] Validation result:`, validation);
+    
+    // If validation provides a clear answer, return it
+    if (validation.completed !== null) {
+      return res.json({
+        feedback: [{
+          line: 1,
+          correct: validation.completed,
+          suggestion: validation.feedback
+        }],
+        chatMessage: {
+          type: 'assistant',
+          content: validation.completed ? 
+            `${validation.feedback} ${validation.suggestion}` : 
+            `${validation.feedback} ${validation.suggestion}`
+        },
+        analysisType: stepType.type,
+        targetName: stepType.targetName,
+        exists: stepType.exists
+      });
+    }
+
+    // Phase 3: AI-powered content analysis for complex cases
+    console.log(`[ANALYZE STEP] Requires AI content analysis for: ${stepType.type}`);
+
+    // Fallback to AI creation intent analysis for unclear creation steps
+    if (stepType.type === 'generic' || stepType.type === 'file-create') {
+      try {
+        // Phase 3a: Try static analysis first (faster, no AI cost)
+        console.log(`\n⚡ [ANALYZE STEP] Trying static analysis for step: "${currentStep.instruction}"`);
+        
+        const staticResult = await staticCreationChecker.analyzeCreationIntent(
+          currentStep.instruction,
+          req.user.id,
+          projectFiles || project.projectFiles || []
+        );
+        
+        process.stdout.write("\n\n\n================ STATIC ANALYSIS RESULT ================\n");
+        process.stdout.write(`Instruction: ${currentStep.instruction}\n`);
+        process.stdout.write(`Static Analysis Result: ${JSON.stringify(staticResult, null, 2)}\n`);
+        process.stdout.write("=======================================================\n\n\n");
+        
+        let intent;
+        
+        // If static analysis is confident enough, use it
+        if (!staticResult.requiresAI) {
+          console.log(`\n✅ [ANALYZE STEP] Static analysis successful, skipping AI`);
+          intent = staticResult;
+        } else {
+          // Phase 3b: Fallback to AI for complex cases
+          console.log(`\n🔍 [ANALYZE STEP] Static analysis requires AI fallback: ${staticResult.reason}`);
+          
+          intent = await aiExtractCreationIntent(
+            req.geminiService,
+            currentStep.instruction,
+            projectFiles || project.projectFiles || []
+          );
+          
+          process.stdout.write("\n\n\n================ AI FALLBACK ANALYSIS ================\n");
+          process.stdout.write(`Instruction: ${currentStep.instruction}\n`);
+          process.stdout.write(`AI Analysis Result: ${JSON.stringify(intent, null, 2)}\n`);
+          process.stdout.write("=======================================================\n\n\n");
+        }
+        
+        if (intent && intent.isCreation === true) {
+          if (!intent.isValid) {
+            return res.json({
+              feedback: [{
+                line: 1,
+                correct: false,
+                suggestion: intent.error || intent.suggestion || 'This step is unclear. Please specify the exact name to create.'
+              }],
+              chatMessage: {
+                type: 'assistant',
+                content: intent.suggestion || intent.error || 'Please specify the exact name (e.g., Create a folder called "my-app" or Create a file called "index.html").'
+              },
+              analysisType: 'invalid-creation',
+              targetName: null,
+              exists: false
+            });
+          }
+
+          // Trust the AI's classification
+          const creationType = intent.creationType;
+          const targetName = intent.targetName;
+
+          if (!targetName) {
+            return res.json({
+              feedback: [{
+                line: 1,
+                correct: false,
+                suggestion: 'Could not determine the name to create. Please specify it clearly.'
+              }],
+              chatMessage: {
+                type: 'assistant',
+                content: 'Please specify the exact name (e.g., Create a folder called "my-app" or Create a file called "index.html").'
+              },
+              analysisType: 'unclear-creation',
+              targetName: null,
+              exists: false
+            });
+          }
+
+          const exists = checkFileExists(projectFiles, targetName, creationType, req.user.id);
+          
+          if (exists) {
+            return res.json({
+              feedback: [{
+                line: 1,
+                correct: true,
+                suggestion: `Great job creating the ${creationType} '${targetName}'!`
+              }],
+              chatMessage: {
+                type: 'assistant',
+                content: `Perfect! You've successfully created the ${creationType} '${targetName}'. You can proceed to the next step.`
+              },
+              analysisType: creationType === 'file' ? 'file-create' : 'folder',
+              targetName: targetName,
+              exists: true
+            });
+          }
+
+          return res.json({
+            feedback: [{
+              line: 1,
+              correct: false,
+              suggestion: `Please create the ${creationType} '${targetName}' as instructed.`
+            }],
+            chatMessage: {
+              type: 'assistant',
+              content: `I don't see the ${creationType} '${targetName}' yet. Please create it using the file explorer.`
+            },
+            analysisType: creationType === 'file' ? 'file-create' : 'folder',
+            targetName: targetName,
+            exists: false
+          });
+        }
+      } catch (aiErr) {
+        console.error('[analyzeStep] AI validation failed, falling back to code analysis:', aiErr);
+        // continue to code analysis
+      }
+    }
+
+    // Attempt to auto-select a target file if code is empty
+    let effectiveCode = code;
+    let effectiveLanguage = language;
+    if (!effectiveCode || effectiveCode.trim() === '') {
+      try {
+        let flatFiles = [];
+        if (Array.isArray(projectFiles) && projectFiles.length > 0) {
+          flatFiles = flattenProjectFilesTree(projectFiles);
+        } else if (req.user?.id) {
+          const scan = await UserFileService.scanPath(req.user.id, '.', { recursive: true, includeContent: true, maxBytes: 65536, ignoreHidden: true });
+          if (scan && Array.isArray(scan.files)) {
+            flatFiles = scan.files
+              .filter(f => !f.isDirectory)
+              .map(f => ({ name: f.name.split('/').pop(), path: f.name, content: f.content }));
+          }
+        }
+        const targets = extractFileTargetsFromInstruction(currentStep.instruction);
+        let chosen = null;
+        for (const t of targets) {
+          chosen = pickBestFileMatch(t, flatFiles);
+          if (chosen) break;
+        }
+        if (chosen && (!chosen.content || typeof chosen.content !== 'string')) {
+          try {
+            const userId = req.user?.id;
+            if (userId) {
+              const data = await UserFileService.readFileSynced(userId, chosen.path);
+              chosen.content = data;
+            }
+          } catch {}
+        }
+        if (chosen && typeof chosen.content === 'string') {
+          effectiveCode = chosen.content;
+          effectiveLanguage = languageFromFilename(chosen.path);
+        }
+      } catch (autoErr) {
+        console.warn('[analyzeStep] Auto-select of target file failed:', autoErr.message);
+      }
+    }
+
+    // Handle empty code case (after creation intent check and auto-selection)
+    if (!effectiveCode || effectiveCode.trim() === '') {
       return res.json({
         feedback: [{
           line: 1,
           correct: false,
-          suggestion: "Please add some code to this file. The file is currently empty."
+          suggestion: "Please add some code to a relevant file for this step."
         }],
         chatMessage: {
           type: "assistant",
-          content: "The file is empty. Please add some code based on the step instruction and try checking again.",
+          content: "I couldn't find code to analyze. Please open or create the relevant file and add code based on the step instruction, then try again.",
         },
+        analysisType: 'empty-file',
+        exists: false
       });
-    }
-
-    // Use AI-powered validation to understand creation steps (file/folder) and target name
-    try {
-      const intent = await aiExtractCreationIntent(
-        req.geminiService,
-        currentStep.instruction,
-        projectFiles || project.projectFiles || []
-      );
-      if (intent && intent.isCreation === true) {
-        if (!intent.isValid) {
-          return res.json({
-            feedback: [{
-              line: 1,
-              correct: false,
-              suggestion: intent.error || intent.suggestion || 'This step is unclear. Please specify the exact name to create.'
-            }],
-            chatMessage: {
-              type: 'assistant',
-              content: intent.suggestion || intent.error || 'Please specify the exact name (e.g., Create a folder called \"my-app\" or Create a file called \"index.html\").'
-            }
-          });
-        }
-
-        const creationType = intent.creationType === 'folder' ? 'folder' : 'file';
-        const targetName = intent.targetName;
-
-        if (!targetName) {
-          return res.json({
-            feedback: [{
-              line: 1,
-              correct: false,
-              suggestion: 'Could not determine the name to create. Please specify it clearly.'
-            }],
-            chatMessage: {
-              type: 'assistant',
-              content: 'Please specify the exact name (e.g., Create a folder called \"my-app\" or Create a file called \"index.html\").'
-            }
-          });
-        }
-
-        const exists = checkFileExists(projectFiles, targetName, creationType);
-        if (exists) {
-          return res.json({
-            feedback: [{
-              line: 1,
-              correct: true,
-              suggestion: `Great job creating the ${creationType} '${targetName}'!`
-            }],
-            chatMessage: {
-              type: 'assistant',
-              content: `Perfect! You've successfully created the ${creationType} '${targetName}'. You can proceed to the next step.`
-            }
-          });
-        }
-
-        return res.json({
-          feedback: [{
-            line: 1,
-            correct: false,
-            suggestion: `Please create the ${creationType} '${targetName}' as instructed.`
-          }],
-          chatMessage: {
-            type: 'assistant',
-            content: `I don't see the ${creationType} '${targetName}' yet. Please create it using the file explorer.`
-          }
-        });
-      }
-    } catch (aiErr) {
-      console.error('[analyzeStep] AI validation failed, falling back to code analysis:', aiErr);
-      // continue to code analysis
     }
     
     // For code-related steps, use Gemini to analyze the code (NO project context)
-    // Use the code analysis guidelines from the prompt file
-    const prompt = `You are a supportive coding instructor analyzing a student's code for a specific step.
-
-Step Information:
-- Step ID: ${currentStep.id}
-- Instruction: ${currentStep.instruction}
-- Expected Line Range: ${currentStep.lineRanges.join("-")}
-- Language: ${language}
-
-Student's Code:
-\`\`\`${language}
-${code}
+    // OPTIMIZATION: Ultra-compact prompt to reduce tokens and improve speed.
+    const prompt = `Analyze this instruction: "${currentStep.instruction}"
+Analyze this code:
+\`\`\`${effectiveLanguage}
+${effectiveCode}
 \`\`\`
+Is the code correct for the instruction? Return ONLY a JSON array with one object: [{"line": 1, "correct": true/false, "suggestion": "brief, encouraging feedback"}]`;
 
-Provide your analysis as a JSON array of objects. Each object should have:
-- "line": number (the line number being analyzed, use 1 if analyzing the whole file)
-- "correct": boolean (true if the code structure/elements match the step requirements)
-- "suggestion": string (encouraging suggestion for improvement if incorrect, or "Great job!" if correct)
-
-${guidedProjectPrompt.split('CODE ANALYSIS GUIDELINES:')[1].split('FEEDBACK AND CHAT GUIDELINES:')[0]}`;
-
-    console.log("Sending prompt to Gemini for analysis...");
-    console.log("Full prompt being sent to Gemini:", prompt);
-    // --- Comment out Gemini prompt usage for new/similar problem generation (if any) ---
-    // (No explicit similar problem generation found in this file, but if any Gemini prompt for new/similar, comment it out)
+    process.stdout.write("\n\n\n================ AI ANSWER CHECKING PROMPT (COMPACT) ================\n");
+    process.stdout.write(`${prompt}\n`);
+    process.stdout.write("=========================================================\n\n\n");
+    
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
-    console.log("Gemini response received, length:", responseText.length);
+
     
     let feedback;
     try {
       // Extract JSON from response (handles both raw JSON and markdown-wrapped JSON)
       const cleanResponse = extractJsonFromResponse(responseText);
       feedback = robustJsonParse(cleanResponse);
-      console.log("Parsed feedback:", feedback);
+
     } catch (parseError) {
       console.error("Error parsing Gemini response for feedback:", parseError);
       console.error("Raw Gemini response:", responseText);
@@ -966,6 +1376,8 @@ ${guidedProjectPrompt.split('CODE ANALYSIS GUIDELINES:')[1].split('FEEDBACK AND 
           type: "assistant",
           content: "I had trouble analyzing your code. Please review the step instruction and make sure your code matches what's expected. You can try checking again or ask for a hint.",
         },
+        analysisType: 'parse-error',
+        exists: false
       });
     }
 
@@ -981,6 +1393,8 @@ ${guidedProjectPrompt.split('CODE ANALYSIS GUIDELINES:')[1].split('FEEDBACK AND 
           type: "assistant",
           content: "I couldn't properly analyze your code. Please review the step instruction and make sure your code matches what's expected.",
         },
+        analysisType: 'invalid-format',
+        exists: false
       });
     }
 
@@ -1002,6 +1416,8 @@ ${guidedProjectPrompt.split('CODE ANALYSIS GUIDELINES:')[1].split('FEEDBACK AND 
           type: "assistant",
           content: "I couldn't properly analyze your code. Please review the step instruction and make sure your code matches what's expected.",
         },
+        analysisType: 'no-valid-feedback',
+        exists: false
       });
     }
 
@@ -1021,15 +1437,23 @@ ${guidedProjectPrompt.split('CODE ANALYSIS GUIDELINES:')[1].split('FEEDBACK AND 
       feedbackMessage += "\nMake these adjustments and try again!";
     }
 
-    console.log("Sending analysis result:", { allCorrect, feedbackCount: validFeedback.length });
 
-    res.json({
+
+    const resultToCache = {
       feedback: validFeedback,
       chatMessage: {
         type: "assistant",
         content: feedbackMessage,
       },
-    });
+      analysisType: 'content-analysis',
+      exists: allCorrect
+    };
+
+    // OPTIMIZATION: Store the successful analysis result in the cache
+    analysisCache.set(cacheKey, resultToCache);
+    console.log(`[ANALYZE STEP] Caching result for project ${projectId}, step ${stepId}.`);
+
+    res.json(resultToCache);
   } catch (error) {
     console.error("Error analyzing step:", error);
     res.status(500).json({ 
@@ -1042,7 +1466,9 @@ ${guidedProjectPrompt.split('CODE ANALYSIS GUIDELINES:')[1].split('FEEDBACK AND 
       chatMessage: {
         type: "assistant",
         content: "Sorry, there was an error analyzing your code. Please try again or ask for help.",
-      }
+      },
+      analysisType: 'system-error',
+      exists: false
     });
   }
 });

@@ -176,12 +176,9 @@ const authenticateUser = (req, res, next) => {
       return res.status(401).json({ error: 'Missing or invalid authorization header' });
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    console.log('🔐 Auth Debug - Token length:', token.length);
-    
-    // Verify JWT token using Supabase secret
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix    
     const payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
-    console.log('✅ Auth Success - User ID:', payload.sub);
+   
     
     // Set user info in request
     req.user = {

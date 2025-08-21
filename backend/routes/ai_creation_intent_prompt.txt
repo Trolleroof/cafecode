@@ -1,0 +1,77 @@
+You are analyzing a coding step instruction to determine what the user needs to create.
+
+Your tasks:
+1) Decide if the instruction asks the user to CREATE a file or folder (also called directory/dir)
+2) If yes, extract:
+   - creationType: "file" or "folder" (folder = directory)
+   - targetName: exact name to create (include extension for files like index.html)
+3) If not a creation instruction, mark isCreation: false
+4) If it is creation but unclear/invalid, return an error and suggestion
+
+Instruction: "${instruction}"
+
+**SIMPLE RULES:**
+1. Prioritize MODIFICATION over creation when both are implied. If the instruction includes verbs like "update", "edit", "modify", "change", or phrasing like "add X to/with/in Y", DO NOT treat it as creation. In such cases, set isCreation: false (this will be handled as a modification elsewhere).
+2. "add" is AMBIGUOUS and MUST NOT be used as a creation signal. Only treat as creation when clear verbs like "create", "make", or "new" are used without modification context.
+3. Use context clues like "to", "with", "in", "inside", "into" to detect modification intent (e.g., "Add a title to index.html" is NOT creation).
+4. If the instruction truly asks to CREATE something, focus on WHAT is being created.
+5. Look for the specific name of what needs to be created.
+6. If the name has a file extension (like .html, .js, .css, .py), it's a FILE.
+7. If the name has no extension, it's a FOLDER.
+
+**EXAMPLES:**
+- "Create a file called 'index.html'" → FILE named 'index.html'
+- "Create a folder called 'src'" → FOLDER named 'src'
+- "Create 'styles.css'" → FILE named 'styles.css'
+- "Create 'components'" → FOLDER named 'components'
+// NOT CREATION (modification):
+// - "Add content to 'index.html'" → NOT creation (set isCreation: false)
+// - "Update index.html with a title" → NOT creation (set isCreation: false)
+// - "Edit 'styles.css' to include a body selector" → NOT creation (set isCreation: false)
+
+**RETURN THIS EXACT JSON:**
+{
+  "isCreation": true,
+  "isValid": true,
+  "creationType": "file" or "folder",
+  "targetName": "exact name to create",
+  "error": null,
+  "suggestion": null
+}
+
+🚨 CRITICAL FILE vs FOLDER IDENTIFICATION RULES 🚨:
+
+**FILES (creationType: "file"):**
+- ALWAYS have file extensions (like .html, .js, .css, .py, .jsx, .tsx, .json, .md, .txt)
+- Examples: index.html, styles.css, script.js, main.py, package.json, README.md
+- If the name ends with a dot followed by letters/numbers, it MUST be a file
+- Common extensions: .html, .css, .js, .py, .jsx, .tsx, .json, .md, .txt, .xml, .yaml, .yml
+
+**FOLDERS (creationType: "folder"):**
+- NEVER have file extensions
+- Examples: src, components, styles, utils, assets, public, backend, frontend
+- If the name has no dot or ends with a dot but no extension, it's a folder
+- Common folder names: src, components, styles, utils, assets, public, backend, frontend, pages, hooks, services
+
+**DETERMINATION LOGIC:**
+1. If the instruction indicates modification (update/edit/modify/change OR "add" with context like to/with/in), set isCreation: false.
+2. Otherwise, look for the target name in the instruction.
+3. Check if the name has a file extension (contains a dot followed by letters/numbers).
+4. If YES → creationType: "file".
+5. If NO → creationType: "folder".
+6. If unclear → set isValid: false with a specific suggestion.
+
+**EXAMPLES:**
+- "Create a file called 'index.html'" → file (has .html extension)
+- "Create a folder called 'src'" → folder (no extension)
+- "Create 'styles.css'" → file (has .css extension)
+- "Create 'components'" → folder (no extension)
+- "Create 'package.json'" → file (has .json extension)
+- "Create 'public'" → folder (no extension)
+
+**VALIDATION:**
+- Be strict: creation steps MUST include a concrete name
+- If the instruction says something like "Name it 'test-project'", extract test-project
+- If multiple names appear, choose the most likely one to be CREATED in this step
+- If unclear, set isValid: false with a helpful suggestion like:
+  "Please use: Create a folder called 'my-app'" or "Create a file called 'index.html'"

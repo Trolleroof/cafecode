@@ -325,10 +325,13 @@ export class UserFileService {
 
     const absPath = this.resolveUserPath(userId, relPath);
     if (!fs.existsSync(absPath)) {
+      process.stdout.write(`   ❌ [SCAN] Path does not exist: ${absPath}\n`);
       return { exists: false, path: relPath };
     }
+    
     const s = fs.statSync(absPath);
     if (s.isDirectory()) {
+      process.stdout.write(`   📁 [SCAN] Scanning directory: ${relPath}\n`);
       const files = this.listFilesDetailed(userId, relPath, {
         recursive,
         includeContent,
@@ -336,18 +339,24 @@ export class UserFileService {
         extensions,
         ignoreHidden,
       });
+      process.stdout.write(`   ✅ [SCAN] Directory scan completed: ${files.length} items found\n`);
       return { exists: true, isDirectory: true, path: relPath, files };
     }
 
     // File case
+    process.stdout.write(`   📄 [SCAN] Scanning file: ${relPath} (${s.size} bytes)\n`);
     let content = null;
     if (includeContent) {
       try {
         const data = fs.readFileSync(absPath);
         content = data.length > maxBytes ? data.subarray(0, maxBytes).toString('utf8') : data.toString('utf8');
-      } catch {
+        process.stdout.write(`   📝 [SCAN] File content loaded: ${data.length} bytes (truncated to ${content.length} bytes)\n`);
+      } catch (error) {
+        process.stdout.write(`   ⚠️ [SCAN] Failed to read file content: ${error.message}\n`);
         content = null;
       }
+    } else {
+      process.stdout.write(`   ℹ️ [SCAN] File content not requested\n`);
     }
     return {
       exists: true,

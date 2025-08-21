@@ -47,12 +47,9 @@ export class UserTerminalManager {
     setTimeout(() => {
       // Change to workspace directory
       ptyProcess.write(`cd "${cwd}"\n`);
-      // Set the prompt again in case bashrc overrides it
+      // Set the prompt to be clean
       ptyProcess.write('export PS1="$ "\n');
-      // Show welcome message
-      ptyProcess.write('echo "Welcome to your coding workspace!"\n');
-      ptyProcess.write('echo "Current directory: $(pwd)"\n');
-      ptyProcess.write('echo "Use ls to see your files"\n');
+      // Clear the screen once at startup
       ptyProcess.write('clear\n');
     }, 500);
     
