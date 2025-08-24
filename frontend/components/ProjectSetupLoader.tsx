@@ -163,8 +163,10 @@ export default function ProjectSetupLoader({
                 {/* Inner pulsing circle with gradient */}
                 <div className="absolute inset-3 bg-gradient-to-br from-medium-coffee/40 to-deep-espresso/40 rounded-full animate-pulse"></div>
                 
-                {/* Center dot with bounce effect */}
-                <div className="absolute inset-5 bg-deep-espresso rounded-full animate-bounce"></div>
+                {/* Center dot with bounce effect (use universal loader) */}
+                <div className="absolute inset-5 flex items-center justify-center">
+                  <span className="universal-loader-dot delay-1" />
+                </div>
                 
                 {/* Outer glow effect with multiple layers */}
                 <div className="absolute -inset-2 bg-gradient-to-r from-medium-coffee/20 via-deep-espresso/30 to-medium-coffee/20 rounded-full blur-md animate-pulse"></div>
@@ -228,7 +230,7 @@ export default function ProjectSetupLoader({
             
             {/* Progress percentage with count-up animation */}
             <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-deep-espresso font-bold text-2xl animate-bounce">
+              <span className="text-deep-espresso font-bold text-2xl">
                 {Math.round(animatedProgressWidth)}
               </span>
               <span className="text-deep-espresso font-semibold text-lg">%</span>

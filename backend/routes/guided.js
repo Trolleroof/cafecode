@@ -1474,161 +1474,133 @@ Is the code correct for the instruction? Return ONLY a JSON array with one objec
 });
 
 // Project-specific chat
-router.post("/project-chat", async (req, res) => {
-  try {
-    const { projectId, currentStep, history, projectFiles } = req.body;
+// router.post("/project-chat", async (req, res) => {
+//   try {
+//     const { projectId, currentStep, history, projectFiles } = req.body;
 
-    if (!projectId || !history) {
-      return res.status(400).json({ error: "Missing required parameters" });
-    }
+//     if (!projectId || !history) {
+//       return res.status(400).json({ error: "Missing required parameters" });
+//     }
 
-    const project = activeProjects.get(projectId);
-    if (!project) {
-      return res.status(404).json({ error: "Project not found" });
-    }
+//     const project = activeProjects.get(projectId);
+//     if (!project) {
+//       return res.status(404).json({ error: "Project not found" });
+//     }
 
-    const userId = req.user?.id || 'anonymous';
-    const projectSessionKey = `${userId}-${projectId}`;
+//     const userId = req.user?.id || 'anonymous';
+//     const projectSessionKey = `${userId}-${projectId}`;
     
-    // Get or create project chat session for question tracking
-    let projectChatSession = chatSessions.get(projectSessionKey) || {
-      questionCount: 0,
-      conversationCount: 0,
-      projectId: projectId
-    };
+//     // Get or create project chat session for question tracking
+//     let projectChatSession = chatSessions.get(projectSessionKey) || {
+//       questionCount: 0,
+//       conversationCount: 0,
+//       projectId: projectId
+//     };
     
-    // Increment conversation count for each user message
-    if (history.length > 0 && history[history.length - 1].type === 'user') {
-      projectChatSession.conversationCount++;
-    }
+//     // Increment conversation count for each user message
+//     if (history.length > 0 && history[history.length - 1].type === 'user') {
+//       projectChatSession.conversationCount++;
+//     }
 
-    // Find last user message for acknowledgment
-    const reversed = [...history].reverse();
-    const lastUser = reversed.find(m => m.type === 'user');
-    const userMessage = lastUser?.content?.trim() || '';
+//     // Find last user message for acknowledgment
+//     const reversed = [...history].reverse();
+//     const lastUser = reversed.find(m => m.type === 'user');
+//     const userMessage = lastUser?.content?.trim() || '';
 
-    // Generate acknowledgment first
-    let acknowledgment = "Great progress!";
-    try {
-      const ackPrompt = `Generate a short, encouraging acknowledgment (1-2 sentences max) for this user message in the context of a coding project: "${userMessage}"
+//     // Generate acknowledgment first
+//     let acknowledgment = "Great progress!";
+//     try {
+//       const ackPrompt = `Generate a short, encouraging acknowledgment (1-2 sentences max) for this user message in the context of a coding project: "${userMessage}"
       
-      Current step: ${project.steps[currentStep].instruction}
+//       Current step: ${project.steps[currentStep].instruction}
       
-      Make it:
-      - Positive and supportive
-      - Specific to their coding journey
-      - Brief and natural
-      - Encouraging their progress
+//       Make it:
+//       - Positive and supportive
+//       - Specific to their coding journey
+//       - Brief and natural
+//       - Encouraging their progress
       
-      Examples:
-      - "Nice work on that!"
-      - "You're getting the hang of it!"
-      - "That's exactly right!"
-      - "Great thinking!"
+//       Examples:
+//       - "Nice work on that!"
+//       - "You're getting the hang of it!"
+//       - "That's exactly right!"
+//       - "Great thinking!"
       
-      Return ONLY the acknowledgment text, no quotes or extra formatting.`;
+//       Return ONLY the acknowledgment text, no quotes or extra formatting.`;
       
-      const ackResult = await req.geminiService.model.generateContent(ackPrompt);
-      const ackResponseText = (await ackResult.response).text();
-      if (ackResponseText.trim()) {
-        acknowledgment = ackResponseText.trim();
-      }
-      console.log('[PROJECT-CHAT] Generated Acknowledgment:', acknowledgment);
-    } catch (e) {
-      console.error('[PROJECT-CHAT] Error generating acknowledgment, using fallback:', e);
-    }
+//       const ackResult = await req.geminiService.model.generateContent(ackPrompt);
+//       const ackResponseText = (await ackResult.response).text();
+//       if (ackResponseText.trim()) {
+//         acknowledgment = ackResponseText.trim();
+//       }
+//       console.log('[PROJECT-CHAT] Generated Acknowledgment:', acknowledgment);
+//     } catch (e) {
+//       console.error('[PROJECT-CHAT] Error generating acknowledgment, using fallback:', e);
+//     }
 
-    const projectContext = createProjectContext(projectFiles || project.projectFiles);
+//     const projectContext = createProjectContext(projectFiles || project.projectFiles);
 
-    // Format chat history for Gemini
-    const chatHistory = history
-      .map(
-        (msg) => `${msg.type === "user" ? "User" : "Assistant"}: ${msg.content}`
-      )
-      .join("\n");
+//     // Format chat history for Gemini
+//     const chatHistory = history
+//       .map(
+//         (msg) => `${msg.type === "user" ? "User" : "Assistant"}: ${msg.content}`
+//       )
+//       .join("\n");
 
-    const prompt = `You are a helpful coding assistant guiding a user through a project.
-    Current step: ${project.steps[currentStep].instruction}
+//     const prompt = `You are a helpful coding assistant guiding a user through a project.
+//     Current step: ${project.steps[currentStep].instruction}
     
-    Chat history:\n${chatHistory}
+//     Chat history:\n${chatHistory}
     
-    ${projectContext}
+//     ${projectContext}
     
-    IMPORTANT: Your response should be in JSON format with THREE fields:
-    {
-      "content": "Your main helpful response with guidance for the current step",
-      "hasQuestion": "true or false - whether you want to ask a follow-up question",
-      "question": "If hasQuestion is true, include a specific follow-up question here"
-    }
+//     IMPORTANT: Your response should be in JSON format with ONE field:
+//     {
+//       "content": "Your main helpful response with guidance for the current step"
+//     }
     
-    Your response should:
-    1. Address the user's question
-    2. Provide relevant guidance for the current step
-    3. Use markdown formatting for code blocks and important points
-    4. Keep the response concise and clear
-    5. Consider the project context and files when providing guidance
-    
-    Only set hasQuestion to true if:
-    - The user seems stuck and needs clarification
-    - You could provide better step-specific help with more context
-    - There's a natural follow-up about the current step
-    
-    Keep questions specific to the current step and project.`;
+//     Your response should:
+//     1. Address the user's question
+//     2. Provide relevant guidance for the current step
+//     3. Use markdown formatting for code blocks and important points
+//     4. Keep the response concise and clear
+//     5. Consider the project context and files when providing guidance`;
 
-    const result = await req.geminiService.model.generateContent(prompt);
-    const responseText = (await result.response).text();
-    let formattedResponse;
+//     const result = await req.geminiService.model.generateContent(prompt);
+//     const responseText = (await result.response).text();
+//     let formattedResponse;
     
-    try {
-      const cleanResponse = extractJsonFromResponse(responseText);
-      formattedResponse = robustJsonParse(cleanResponse);
-    } catch (parseError) {
-      console.error("Error parsing Gemini response for project chat:", parseError);
-      console.error("Raw Gemini response:", responseText);
-      // Fallback to simple response
-      formattedResponse = { 
-        content: responseText,
-        hasQuestion: false 
-      };
-    }
+//     try {
+//       const cleanResponse = extractJsonFromResponse(responseText);
+//       formattedResponse = robustJsonParse(cleanResponse);
+//     } catch (parseError) {
+//       console.error("Error parsing Gemini response for project chat:", parseError);
+//       console.error("Raw Gemini response:", responseText);
+//       // Fallback to simple response
+//       formattedResponse = { 
+//         content: responseText
+//       };
+//     }
 
-    if (typeof formattedResponse.content !== "string") {
-      console.error("Gemini returned invalid project chat content format:", formattedResponse);
-      return res.status(500).json({ error: "AI did not return valid chat content." });
-    }
+//     if (typeof formattedResponse.content !== "string") {
+//       console.error("Gemini returned invalid project chat content format:", formattedResponse);
+//       return res.status(500).json({ error: "AI did not return valid chat content." });
+//     }
 
-    // Handle follow-up question if present
-    if (formattedResponse.hasQuestion === true || formattedResponse.hasQuestion === "true") {
-      projectChatSession.questionCount++;
-      chatSessions.set(projectSessionKey, projectChatSession);
-      
-      const questionNumber = projectChatSession.questionCount;
-      const followUpQuestion = formattedResponse.question || "What would you like to clarify about this step?";
-      
-      // Return acknowledgment and delayed question
-      return res.json({
-        response: { type: "assistant", content: acknowledgment },
-        nextQuestion: {
-          content: `**Question ${questionNumber}:**\n\n${followUpQuestion}`,
-          delay: 1500 // 1.5 second delay
-        }
-      });
-    }
+//     // Return the acknowledgment and main response
+//     const fullResponse = `${acknowledgment}\n\n${formattedResponse.content}`;
 
-    // No follow-up question, just return the main response with acknowledgment prefix
-    const fullResponse = `${acknowledgment}\n\n${formattedResponse.content}`;
-
-    res.json({
-      response: {
-        type: "assistant",
-        content: fullResponse,
-      },
-    });
-  } catch (error) {
-    console.error("Error processing chat:", error);
-    res.status(500).json({ error: "Failed to process chat" });
-  }
-});
+//     res.json({
+//       response: {
+//         type: "assistant",
+//         content: fullResponse,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error processing chat:", error);
+//     res.status(500).json({ error: "Failed to process chat" });
+//   }
+// });
 
 // Simple chat for non-guided users
 router.post("/simple-chat", async (req, res) => {
@@ -1662,24 +1634,15 @@ router.post("/simple-chat", async (req, res) => {
     // Generate acknowledgment first
     let acknowledgment = "Thanks for sharing that!";
     try {
-      const ackPrompt = `Generate a short, encouraging acknowledgment (1-2 sentences max) for this user message: "${userMessage}"
-      
-      Make it:
-      - Positive and supportive
-      - Specific to what they said
-      - Brief and natural
-      - Like texting a friend
-      
-      Examples:
-      - "That's a great approach!"
-      - "Perfect! I can help with that."
-      - "Good question! Let me explain."
-      - "That makes total sense!"
-      
-      Return ONLY the acknowledgment text, no quotes or extra formatting.`;
+      const ackPrompt = `Reply with ONLY a 1-sentence encouraging acknowledgment for: "${userMessage}"
+
+Examples: "That's a great idea!" "Perfect! I can help with that." "Good thinking!"
+
+Keep it under 10 words. No explanations.`;
       
       const ackResult = await req.geminiService.model.generateContent(ackPrompt);
       const ackResponseText = (await ackResult.response).text();
+      console.log("[unsimplified ack]: ", ackResponseText)
       if (ackResponseText.trim()) {
         acknowledgment = ackResponseText.trim();
       }
@@ -1688,90 +1651,11 @@ router.post("/simple-chat", async (req, res) => {
       console.error('[SIMPLE-CHAT] Error generating acknowledgment, using fallback:', e);
     }
 
-    // Format chat history for main response
-    const chatHistory = history
-      .map(
-        (msg) => `${msg.type === "user" ? "User" : "Assistant"}: ${msg.content}`
-      )
-      .join("\n");
-
-    // Generate main response with potential follow-up question
-    const prompt = `
-    You are a helpful coding assistant designed specifically for beginners. Your responses should be:
-    - Very simple and easy to understand
-    - Encouraging and supportive
-    - Focused on practical, actionable advice
-    - Using beginner-friendly language without complex jargon
-    
-    ${guidedProject ? 'The user is currently working on a guided project. Provide context-aware help related to their current step.' : 'If the user asks for detailed help, encourage them to click the "Start Guided Project" button for a step-by-step experience.'}
-    
-    Consider the user's project files and current code when providing context-aware responses.
-    
-    Chat history:\n${chatHistory}
-    
-    ${projectContext}${guidedContext}${codeContext}
-    
-    IMPORTANT: Your response should be in JSON format with TWO fields:
-    {
-      "content": "Your main helpful response",
-      "hasQuestion": "true or false - whether you want to ask a follow-up question",
-      "question": "If hasQuestion is true, include a specific follow-up question here"
-    }
-    
-    Only set hasQuestion to true if:
-    - The user seems to need clarification
-    - You could provide better help with more context
-    - There's a natural follow-up that would be genuinely helpful
-    
-    Keep questions specific and relevant. Don't ask just to ask.`;
-
-    const result = await req.geminiService.model.generateContent(prompt);
-    const responseText = (await result.response).text();
-    let formattedResponse;
-    
-    try {
-      const cleanResponse = extractJsonFromResponse(responseText);
-      formattedResponse = robustJsonParse(cleanResponse);
-    } catch (parseError) {
-      console.error("Error parsing Gemini response for simple chat:", parseError);
-      console.error("Raw Gemini response:", responseText);
-      // Fallback to simple response
-      formattedResponse = { 
-        content: responseText,
-        hasQuestion: false 
-      };
-    }
-
-    if (typeof formattedResponse.content !== "string") {
-      console.error("Gemini returned invalid chat content format:", formattedResponse);
-      return res.status(500).json({ error: "AI did not return valid chat content." });
-    }
-
-    // Handle follow-up question if present
-    if (formattedResponse.hasQuestion === true || formattedResponse.hasQuestion === "true") {
-      chatSession.questionCount++;
-      chatSessions.set(userId, chatSession);
-      
-      const questionNumber = chatSession.questionCount;
-      const followUpQuestion = formattedResponse.question || "What would you like to explore next?";
-      
-      // Return acknowledgment and delayed question
-      return res.json({
-        response: { type: "assistant", content: acknowledgment },
-        nextQuestion: {
-          content: `**Question ${questionNumber}:**\n\n${followUpQuestion}`,
-          delay: 1500 // 1.5 second delay
-        }
-      });
-    }
-
-    // No follow-up question, just return the main response with acknowledgment prefix
-    const fullResponse = `${acknowledgment}\n\n${formattedResponse.content}`;
-    
+    // Just return the acknowledgment - no main response needed
     res.json({
       response: {
         type: "assistant",
-        content: fullResponse,
+        content: acknowledgment,
       },
     });
   } catch (error) {
@@ -1804,6 +1688,77 @@ router.post("/recap", async (req, res) => {
   } catch (error) {
     console.error("Error generating recap:", error);
     res.status(500).json({ error: "Failed to generate recap" });
+  }
+});
+
+// Follow-up suggestions route: generate AI-powered follow-up suggestions
+router.post("/followup", async (req, res) => {
+  try {
+    const { projectDescription, chatHistory, projectFiles } = req.body;
+    if (!projectDescription) {
+      return res.status(400).json({ error: 'Project description is required' });
+    }
+
+    const projectContext = createProjectContext(projectFiles);
+    const chatContext = Array.isArray(chatHistory)
+      ? chatHistory.map(msg => `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n')
+      : '';
+
+    const prompt = `You are a helpful coding mentor helping a user refine their project. Based on their project description and chat history, suggest 2-3 specific follow-up questions or improvements they could consider.
+
+Project description: ${projectDescription}
+
+Chat history: ${chatContext}
+
+Project context: ${projectContext}
+
+Generate 2-3 follow-up suggestions that would help the user:
+1. Clarify their project requirements
+2. Add useful features or functionality
+3. Improve their project structure or approach
+4. Consider edge cases or improvements
+
+Format your response as a JSON object with this structure:
+{
+  "suggestions": [
+    {
+      "type": "clarification|feature|improvement|edgecase",
+      "question": "The specific question or suggestion",
+      "explanation": "Brief explanation of why this would be helpful"
+    }
+  ],
+  "summary": "A brief summary encouraging the user to consider these suggestions"
+}
+
+Make the suggestions specific, actionable, and relevant to their project. Don't be generic.`;
+
+    const result = await req.geminiService.model.generateContent(prompt);
+    const responseText = (await result.response).text();
+    
+    let formattedResponse;
+    try {
+      const cleanResponse = extractJsonFromResponse(responseText);
+      formattedResponse = robustJsonParse(cleanResponse);
+    } catch (parseError) {
+      console.error("Error parsing Gemini response for follow-up:", parseError);
+      console.error("Raw Gemini response:", responseText);
+      // Fallback to simple response
+      formattedResponse = { 
+        suggestions: [
+          {
+            type: "improvement",
+            question: "What specific features would you like to add to your project?",
+            explanation: "This will help us create more targeted and useful steps."
+          }
+        ],
+        summary: "Consider what additional functionality would make your project more complete."
+      };
+    }
+
+    res.json(formattedResponse);
+  } catch (error) {
+    console.error("Error generating follow-up suggestions:", error);
+    res.status(500).json({ error: "Failed to generate follow-up suggestions" });
   }
 });
 

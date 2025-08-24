@@ -632,54 +632,13 @@ function LeetCodePage() {
     } catch (error) {
       console.error('Error:', error);
       
-      // Try to get a helpful response from Gemini even if the main chat failed
-      try {
-        const fallbackResponse = await fetch('/api/guided/simple-chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({ 
-            history: [{ 
-              type: 'user', 
-              content: 'I encountered an error while working on a LeetCode problem. Please provide a helpful response to help me continue.', 
-              timestamp: new Date() 
-            }],
-            projectFiles: [],
-            guidedProject: null,
-            currentCode: code,
-            currentLanguage: language
-          })
-        });
-        
-        if (fallbackResponse.ok) {
-          const fallbackResult = await fallbackResponse.json();
-          if (fallbackResult.response) {
-            setChatHistory(prev => [...prev, { 
-              type: 'assistant', 
-              content: fallbackResult.response.content, 
-              timestamp: new Date().toISOString() 
-            }]);
-          }
-        } else {
-          // If even the fallback fails, provide a generic helpful message
-          const errorMessage: ChatMessage = {
-            type: 'assistant',
-            content: 'Sorry, I encountered an error. Please try again. ' + (error instanceof Error ? error.message : ''),
-            timestamp: new Date().toISOString()
-          };
-          setChatHistory(prev => [...prev, errorMessage]);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback chat also failed:', fallbackError);
-        const errorMessage: ChatMessage = {
-          type: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again. ' + (error instanceof Error ? error.message : ''),
-          timestamp: new Date().toISOString()
-        };
-        setChatHistory(prev => [...prev, errorMessage]);
-      }
+      // Provide a helpful error message instead of making another API call
+      const errorMessage: ChatMessage = {
+        type: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again. ' + (error instanceof Error ? error.message : ''),
+        timestamp: new Date().toISOString()
+      };
+      setChatHistory(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
       setIsTyping(false);
@@ -748,54 +707,13 @@ function LeetCodePage() {
     } catch (error) {
       console.error('Error checking step:', error);
       
-      // Try to get a helpful response from Gemini even if the step check failed
-      try {
-        const fallbackResponse = await fetch('/api/guided/simple-chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({ 
-            history: [{ 
-              type: 'user', 
-              content: 'I encountered an error while checking my LeetCode step. Please provide a helpful response to help me continue.', 
-              timestamp: new Date() 
-            }],
-            projectFiles: [],
-            guidedProject: null,
-            currentCode: code,
-            currentLanguage: language
-          })
-        });
-        
-        if (fallbackResponse.ok) {
-          const fallbackResult = await fallbackResponse.json();
-          if (fallbackResult.response) {
-            setChatHistory(prev => [...prev, { 
-              type: 'assistant', 
-              content: fallbackResult.response.content, 
-              timestamp: new Date().toISOString() 
-            }]);
-          }
-        } else {
-          // If even the fallback fails, provide a generic helpful message
-          const errorMessage: ChatMessage = {
-            type: 'assistant',
-            content: 'Sorry, I couldn\'t check your step. Please try again. ' + (error instanceof Error ? error.message : ''),
-            timestamp: new Date().toISOString()
-          };
-          setChatHistory(prev => [...prev, errorMessage]);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback chat also failed:', fallbackError);
-        const errorMessage: ChatMessage = {
-          type: 'assistant',
-          content: 'Sorry, I couldn\'t check your step. Please try again. ' + (error instanceof Error ? error.message : ''),
-          timestamp: new Date().toISOString()
-        };
-        setChatHistory(prev => [...prev, errorMessage]);
-      }
+      // Provide a helpful error message instead of making another API call
+      const errorMessage: ChatMessage = {
+        type: 'assistant',
+        content: 'Sorry, I couldn\'t check your step. Please try again. ' + (error instanceof Error ? error.message : ''),
+        timestamp: new Date().toISOString()
+      };
+      setChatHistory(prev => [...prev, errorMessage]);
     } finally {
       setIsCheckingStep(false);
     }

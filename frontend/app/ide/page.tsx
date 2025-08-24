@@ -300,6 +300,13 @@ function IDEPage() {
   const [stepsFlowError, setStepsFlowError] = useState<string | null>(null);
   const [isGeneratingSteps, setIsGeneratingSteps] = useState(false);
 
+  // Follow-up flow state
+  const [isInFollowUpPhase, setIsInFollowUpPhase] = useState(false);
+  const [followUpSuggestions, setFollowUpSuggestions] = useState<any[]>([]);
+  const [followUpSummary, setFollowUpSummary] = useState('');
+  const [isGeneratingFollowUp, setIsGeneratingFollowUp] = useState(false);
+  const [showSubmitButton, setShowSubmitButton] = useState(false);
+
   // UI state
   const [activeTab, setActiveTab] = useState('editor');
   const [isVoiceMode, setIsVoiceMode] = useState(false);
@@ -324,12 +331,12 @@ function IDEPage() {
   };
 
   const markStepCompleted = (stepId: string) => {
-    setCompletedSteps(prev => new Set([...prev, stepId]));
+    setCompletedSteps(prev => new Set(Array.from(prev).concat(stepId)));
   };
 
   const markStepIncomplete = (stepId: string) => {
     setCompletedSteps(prev => {
-      const newSet = new Set(prev);
+      const newSet = new Set(Array.from(prev));
       newSet.delete(stepId);
       return newSet;
     });
@@ -681,8 +688,13 @@ function IDEPage() {
     setChatMessages(prev => [...prev, userMessage]);
     setChatInput('');
 
-    // Setup phase routing
     if (isInSetupPhase) {
+      if (isInFollowUpPhase) {
+        // Pass the current user message to handleFollowUpResponse
+        handleFollowUpResponse(userMessage.content);
+        return;
+      }
+      
       setIsTyping(true);
       let result: any;
       try {
@@ -698,21 +710,7 @@ function IDEPage() {
         if (!ignoreIncomingSetupResponses && result?.response?.content) {
           setChatMessages(prev => [...prev, { type: 'assistant', content: result.response.content, timestamp: new Date() }]);
           
-          // Handle delayed next question if provided
-          if (result.nextQuestion && result.nextQuestion.content) {
-            // Show typing indicator for the delay duration
-            setIsTyping(true);
-            setTimeout(() => {
-              setIsTyping(false);
-              setChatMessages(prev => [...prev, { 
-                type: 'assistant', 
-                content: result.nextQuestion.content, 
-                timestamp: new Date() 
-              }]);
-            }, result.nextQuestion.delay || 1000);
-          } else {
-            setIsTyping(false);
-          }
+          setIsTyping(false);
         } else {
           setIsTyping(false);
         }
@@ -722,10 +720,7 @@ function IDEPage() {
         }
         setIsTyping(false);
       } finally {
-        // Only set typing to false if we don't have a delayed question
-        if (!result?.nextQuestion) {
-          setIsTyping(false);
-        }
+        setIsTyping(false);
       }
       return;
     }
@@ -746,83 +741,29 @@ function IDEPage() {
           'Authorization': `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({ 
-          history: [...chatMessages, userMessage],
-          projectFiles: files,
-          guidedProject: guidedProject,
-          currentCode: selectedFile?.content || '',
-          currentLanguage: selectedFile?.language || 'plaintext'
+          history: [{ type: 'user', content: userMessage.content }]
         })
       });
       result = await response.json();
       if (result.response) {
         setChatMessages(prev => [...prev, { type: 'assistant', content: result.response.content, timestamp: new Date() }]);
         
-        // Handle delayed next question if provided (like in setup flow)
-        if (result.nextQuestion && result.nextQuestion.content) {
-          // Show typing indicator for the delay duration
-          setIsTyping(true);
-          setTimeout(() => {
-            setIsTyping(false);
-            setChatMessages(prev => [...prev, { 
-              type: 'assistant', 
-              content: result.nextQuestion.content, 
-              timestamp: new Date() 
-            }]);
-          }, result.nextQuestion.delay || 1500);
-        } else {
-          setIsTyping(false);
-        }
+        setIsTyping(false);
       } else {
         setIsTyping(false);
       }
     } catch (error) {
       console.error('Error in simple chat:', error);
       
-      // Try to get a helpful response from Gemini even if the main chat failed
-      try {
-        const fallbackResponse = await fetch('/api/guided/simple-chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({ 
-            history: [{ type: 'user', content: 'I encountered an error. Please provide a helpful response to help me continue.', timestamp: new Date() }],
-            projectFiles: files,
-            guidedProject: guidedProject,
-            currentCode: selectedFile?.content || '',
-            currentLanguage: selectedFile?.language || 'plaintext'
-          })
-        });
-        
-        if (fallbackResponse.ok) {
-          const fallbackResult = await fallbackResponse.json();
-          if (fallbackResult.response) {
-            setChatMessages(prev => [...prev, { type: 'assistant', content: fallbackResult.response.content, timestamp: new Date() }]);
-          }
-        } else {
-          // If even the fallback fails, provide a generic helpful message
-          const fallbackMessage: ChatMessage = { 
-            type: 'assistant', 
-            content: "I'm having trouble processing your request right now. Let me try a different approach - could you rephrase your question or try asking something specific about your code?", 
-            timestamp: new Date() 
-          };
-          setChatMessages(prev => [...prev, fallbackMessage]);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback chat also failed:', fallbackError);
-        const fallbackMessage: ChatMessage = { 
-          type: 'assistant', 
-          content: "I'm experiencing some technical difficulties. Please try refreshing the page or ask your question again in a moment.", 
-          timestamp: new Date() 
-        };
-        setChatMessages(prev => [...prev, fallbackMessage]);
-      }
+      // Provide a helpful error message instead of making another API call
+      const errorMessage: ChatMessage = { 
+        type: 'assistant', 
+        content: "I'm having trouble processing your request right now. Please try refreshing the page or ask your question again in a moment.",
+        timestamp: new Date() 
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
     } finally {
-      // Only set typing to false if we don't have a delayed question
-      if (!result?.nextQuestion) {
-        setIsTyping(false);
-      }
+      setIsTyping(false);
     }
   };
 
@@ -877,54 +818,13 @@ function IDEPage() {
     } catch (error) {
       console.error('Error getting hint:', error);
       
-      // Try to get a helpful hint response from Gemini even if the hint API failed
-      try {
-        const fallbackHintResponse = await fetch('/api/guided/simple-chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({ 
-            history: [{ 
-              type: 'user', 
-              content: `I need a hint for my ${selectedFile.language} code. Here's what I'm working on: ${guidedProject?.steps[guidedProject.currentStep]?.instruction || 'coding problem'}. Can you give me a helpful hint?`, 
-              timestamp: new Date() 
-            }],
-            projectFiles: files,
-            guidedProject: guidedProject,
-            currentCode: selectedFile.content,
-            currentLanguage: selectedFile.language
-          })
-        });
-        
-        if (fallbackHintResponse.ok) {
-          const fallbackResult = await fallbackHintResponse.json();
-          if (fallbackResult.response) {
-            setChatMessages(prev => [...prev, { 
-              type: 'assistant', 
-              content: `💡 **Hint**: ${fallbackResult.response.content}`, 
-              timestamp: new Date() 
-            }]);
-          }
-        } else {
-          // If even the fallback fails, provide a generic helpful hint
-          const fallbackHint: ChatMessage = { 
-            type: 'assistant', 
-            content: "💡 **Hint**: Try breaking down your problem into smaller steps. Look for any syntax errors first, then check your logic flow!", 
-            timestamp: new Date() 
-          };
-          setChatMessages(prev => [...prev, fallbackHint]);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback hint also failed:', fallbackError);
-        const fallbackHint: ChatMessage = { 
-          type: 'assistant', 
-          content: "💡 **Hint**: Try breaking down your problem into smaller steps. Look for any syntax errors first, then check your logic flow!", 
-          timestamp: new Date() 
-        };
-        setChatMessages(prev => [...prev, fallbackHint]);
-      }
+      // Provide a helpful hint message instead of making another API call
+      const fallbackHint: ChatMessage = { 
+        type: 'assistant', 
+        content: "💡 **Hint**: Try breaking down your problem into smaller steps. Look for any syntax errors first, then check your logic flow!", 
+        timestamp: new Date() 
+      };
+      setChatMessages(prev => [...prev, fallbackHint]);
     } finally {
       setIsTyping(false);
     }
@@ -1084,54 +984,13 @@ function IDEPage() {
     } catch (error) {
       console.error('Error fixing code:', error);
       
-      // Try to get a helpful code review response from Gemini even if the fix API failed
-      try {
-        const fallbackFixResponse = await fetch('/api/guided/simple-chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({ 
-            history: [{ 
-              type: 'user', 
-              content: `I need help reviewing my ${selectedFile.language} code. Here's what I'm working on: ${guidedProject?.steps[guidedProject.currentStep]?.instruction || 'coding problem'}. Can you review my code and give me some helpful tips?`, 
-              timestamp: new Date() 
-            }],
-            projectFiles: files,
-            guidedProject: guidedProject,
-            currentCode: selectedFile.content,
-            currentLanguage: selectedFile.language
-          })
-        });
-        
-        if (fallbackFixResponse.ok) {
-          const fallbackResult = await fallbackFixResponse.json();
-          if (fallbackResult.response) {
-            setChatMessages(prev => [...prev, { 
-              type: 'assistant', 
-              content: `🔧 **Code Review**: ${fallbackResult.response.content}`, 
-              timestamp: new Date() 
-            }]);
-          }
-        } else {
-          // If even the fallback fails, provide a generic helpful code review
-          const fallbackReview: ChatMessage = { 
-            type: 'assistant', 
-            content: '🔧 **Code Review**: Your code looks good! Here are some general tips:\n\n• Check for proper indentation\n• Use meaningful variable names\n• Add comments for complex logic\n• Test your code with different inputs', 
-            timestamp: new Date() 
-          };
-          setChatMessages(prev => [...prev, fallbackReview]);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback code review also failed:', fallbackError);
-        const fallbackReview: ChatMessage = { 
-          type: 'assistant', 
-          content: '🔧 **Code Review**: Your code looks good! Here are some general tips:\n\n• Check for proper indentation\n• Use meaningful variable names\n• Add comments for complex logic\n• Test your code with different inputs', 
-          timestamp: new Date() 
-        };
-        setChatMessages(prev => [...prev, fallbackReview]);
-      }
+      // Provide a helpful code review message instead of making another API call
+      const fallbackReview: ChatMessage = { 
+        type: 'assistant', 
+        content: '🔧 **Code Review**: Your code looks good! Here are some general tips:\n\n• Check for proper indentation\n• Use meaningful variable names\n• Add comments for complex logic\n• Test your code with different inputs', 
+        timestamp: new Date() 
+      };
+      setChatMessages(prev => [...prev, fallbackReview]);
     } finally {
       setIsTyping(false);
     }
@@ -1178,54 +1037,13 @@ function IDEPage() {
     } catch (error) {
       console.error('Error explaining code:', error);
       
-      // Try to get a helpful code explanation response from Gemini even if the explain API failed
-      try {
-        const fallbackExplainResponse = await fetch('/api/guided/simple-chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({ 
-            history: [{ 
-              type: 'user', 
-              content: `I need help understanding my ${selectedFile.language} code. Here's what I'm working on: ${guidedProject?.steps[guidedProject.currentStep]?.instruction || 'coding problem'}. Can you explain what this code does and give me some helpful insights?`, 
-              timestamp: new Date() 
-            }],
-            projectFiles: files,
-            guidedProject: guidedProject,
-            currentCode: selectedFile.content,
-            currentLanguage: selectedFile.language
-          })
-        });
-        
-        if (fallbackExplainResponse.ok) {
-          const fallbackResult = await fallbackExplainResponse.json();
-          if (fallbackResult.response) {
-            setChatMessages(prev => [...prev, { 
-              type: 'assistant', 
-              content: `📚 **Code Explanation**: ${fallbackResult.response.content}`, 
-              timestamp: new Date() 
-            }]);
-          }
-        } else {
-          // If even the fallback fails, provide a generic helpful code explanation
-          const fallbackExplanation: ChatMessage = { 
-            type: 'assistant', 
-            content: `📚 **Code Explanation**:\n\nThis ${selectedFile.language} code appears to be well-structured. Here's what it does:\n\n• Defines functions and variables\n• Implements logic for your application\n• Uses proper ${selectedFile.language} syntax\n\nWould you like me to explain any specific part in more detail?`, 
-            timestamp: new Date() 
-          };
-          setChatMessages(prev => [...prev, fallbackExplanation]);
-        }
-      } catch (fallbackError) {
-        console.error('Fallback code explanation also failed:', fallbackError);
-        const fallbackExplanation: ChatMessage = { 
-          type: 'assistant', 
-          content: `📚 **Code Explanation**:\n\nThis ${selectedFile.language} code appears to be well-structured. Here's what it does:\n\n• Defines functions and variables\n• Implements logic for your application\n• Uses proper ${selectedFile.language} syntax\n\nWould you like me to explain any specific part in more detail?`, 
-          timestamp: new Date() 
-        };
-        setChatMessages(prev => [...prev, fallbackExplanation]);
-      }
+      // Provide a helpful code explanation message instead of making another API call
+      const fallbackExplanation: ChatMessage = { 
+        type: 'assistant', 
+        content: `📚 **Code Explanation**:\n\nThis ${selectedFile.language} code appears to be well-structured. Here's what it does:\n\n• Defines functions and variables\n• Implements logic for your application\n• Uses proper ${selectedFile.language} syntax\n\nWould you like me to explain any specific part in more detail?`, 
+        timestamp: new Date() 
+      };
+      setChatMessages(prev => [...prev, fallbackExplanation]);
     } finally {
       setIsTyping(false);
     }
@@ -1287,11 +1105,37 @@ function IDEPage() {
     setIgnoreIncomingSetupResponses(true);
     setIsTyping(false);
     setIsGeneratingSteps(true);
+    
+    // Reset follow-up flow state
+    setIsInFollowUpPhase(false);
+    setFollowUpSuggestions([]);
+    setFollowUpSummary('');
+    setShowSubmitButton(false);
+    
     try {
+      // If we're in follow-up phase, we need to create an enhanced project description
+      let enhancedDescription = setupDescription;
+      if (isInFollowUpPhase) {
+        // Extract user responses from the follow-up chat to enhance the project description
+        const userResponses = chatMessages
+          .filter(msg => msg.type === 'user' && msg.content !== '')
+          .slice(-5) // Take last 5 user messages to avoid too much context
+          .map(msg => msg.content)
+          .join('. ');
+        
+        if (userResponses) {
+          enhancedDescription = `${setupDescription}\n\nAdditional requirements from user: ${userResponses}`;
+        }
+      }
+      
       const response = await fetch('/api/guided/steps/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ projectDescription: setupDescription, history: chatMessages, projectFiles: files })
+        body: JSON.stringify({ 
+          projectDescription: enhancedDescription, 
+          history: chatMessages, 
+          projectFiles: files 
+        })
       });
       const result = await response.json();
       if (response.ok && Array.isArray(result.steps)) {
@@ -1355,7 +1199,6 @@ function IDEPage() {
         console.log('[STEPS] No modified steps, using original steps as-is');
       }
       
-      // Start the project with the final steps
       const projectResponse = await fetch('/api/guided/startProject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
@@ -1516,11 +1359,7 @@ function IDEPage() {
       }
 
       const prevStep = guidedProject.steps[prevStepIndex];
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: `⬅️ **Back to step ${prevStepIndex + 1}**\n\n${prevStep.instruction}`,
-        timestamp: new Date()
-      }]);
+      // Removed chat message about going back to step
     }
   };
 
@@ -1564,11 +1403,7 @@ function IDEPage() {
       }
       
       const nextStep = guidedProject.steps[nextStepIndex];
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: `✅ **Moving to step ${nextStepIndex + 1}**\n\n${nextStep.instruction}`,
-        timestamp: new Date()
-      }]);
+      // Removed chat message about moving to next step
     } else {
       handleFinishProject();
     }
@@ -1742,13 +1577,131 @@ function IDEPage() {
 
   // New handler for returning to the chat from the steps preview
   const handleReturnToChat = () => {
+    console.log('[RETURN TO CHAT] Starting follow-up flow');
     setShowStepsPreviewModal(false); // Close the modal
     setIsInSetupPhase(true); // Re-enter setup/chat phase
+    setIsInFollowUpPhase(true); // Enter follow-up phase
+    setShowSubmitButton(false); // Hide submit button initially
+    
+    // Add initial message
     setChatMessages(prev => [...prev, {
       type: 'assistant',
-      content: "Of course! Let's refine these steps. What changes would you like to make?",
+      content: "What else would you like to add to your project?",
       timestamp: new Date()
     }]);
+    
+    // Generate AI-powered follow-up suggestions
+    generateFollowUpSuggestions();
+    
+    console.log('[RETURN TO CHAT] State set:', { 
+      isInSetupPhase: true, 
+      isInFollowUpPhase: true, 
+      showSubmitButton: false 
+    });
+  };
+
+  // Generate AI-powered follow-up suggestions
+  const generateFollowUpSuggestions = async () => {
+    if (!setupDescription) return;
+    
+    setIsGeneratingFollowUp(true);
+    try {
+      const response = await fetch(`${backendUrl}/guided/followup`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          projectDescription: setupDescription,
+          chatHistory: chatMessages,
+          projectFiles: files
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setFollowUpSuggestions(result.suggestions || []);
+        setFollowUpSummary(result.summary || '');
+        
+        // Add the suggestions to chat
+        if (result.suggestions && result.suggestions.length > 0) {
+          const suggestionsMessage = {
+            type: 'assistant' as const,
+            content: `Here are some suggestions to consider:\n\n${result.suggestions.map((s: any, i: number) => 
+              `${i + 1}. **${s.question}**\n   ${s.explanation}`
+            ).join('\n\n')}\n\n${result.summary}`,
+            timestamp: new Date()
+          };
+          setChatMessages(prev => [...prev, suggestionsMessage]);
+        }
+      } else {
+        console.error('Failed to generate follow-up suggestions');
+      }
+    } catch (error) {
+      console.error('Error generating follow-up suggestions:', error);
+    } finally {
+      setIsGeneratingFollowUp(false);
+    }
+  };
+
+  // Handle user response to follow-up suggestions
+  const handleFollowUpResponse = async (userMessageContent: string) => {
+    setIsTyping(true);
+    
+    try {
+      // Use the user message that was passed to this function
+      const currentUserMessage = userMessageContent;
+      
+      // Make a lightweight AI call with the CURRENT user message for accurate response
+      const response = await fetch('/api/guided/simple-chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          history: [{ type: 'user', content: currentUserMessage }]
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.response?.content) {
+          setChatMessages(prev => [...prev, { 
+            type: 'assistant', 
+            content: result.response.content, 
+            timestamp: new Date() 
+          }]);
+          
+        
+
+        } else {
+          // Fallback response
+          setChatMessages(prev => [...prev, { 
+            type: 'assistant', 
+            content: "Thanks for sharing that!", 
+            timestamp: new Date() 
+          }]);
+        }
+      } else {
+        // Fallback response
+        setChatMessages(prev => [...prev, { 
+          type: 'assistant', 
+          content: "Thanks for sharing that!", 
+          timestamp: new Date() 
+        }]);
+      }
+    } catch (error) {
+      console.error('Error in follow-up response:', error);
+      // Fallback response
+      setChatMessages(prev => [...prev, { 
+        type: 'assistant', 
+        content: "Thanks for sharing that!", 
+        timestamp: new Date() 
+      }]);
+    } finally {
+      setIsTyping(false);
+      // Show submit button after user responds
+      setShowSubmitButton(true);
+    }
   };
 
   return (
@@ -2054,6 +2007,16 @@ function IDEPage() {
                         </div>
                       </div>
                     )}
+                    {isGeneratingFollowUp && (
+                      <div className="flex justify-start">
+                        <div className="bg-white rounded-2xl px-6 py-4 mr-4 border-2 border-cream-beige/50 shadow-md text-base">
+                          <div className="flex items-center space-x-2">
+                            <IconLoader2 className="h-4 w-4 animate-spin text-medium-coffee" />
+                            <span className="text-dark-charcoal">Generating suggestions...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div ref={chatEndRef} />
                   </div>
                   
@@ -2105,14 +2068,18 @@ function IDEPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-center mt-4 space-x-3">
-                      {isInSetupPhase ? (
+                 
+                    
+                      
+                      {(isInSetupPhase && !isInFollowUpPhase) || isInFollowUpPhase || isGeneratingSteps ? (
                         <Button
                           onClick={handleSubmitAndGenerateSteps}
                           variant="outline"
                           size="sm"
                           className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                          disabled={isGeneratingSteps}
                         >
-                          Submit and Continue
+                          {isGeneratingSteps ? "Generating Steps..." : "Generate Steps"}
                         </Button>
                       ) : (
                         <>
@@ -2185,7 +2152,7 @@ function IDEPage() {
             showProgress={true}
             spinnerSize="medium"
             countUpProgress={true}
-            countUpSpeed={40}
+            countUpSpeed={80}
             dynamicMessages={[
               "Analyzing your project description...",
               "Creating step-by-step learning path...",
@@ -2193,7 +2160,7 @@ function IDEPage() {
               "Adding helpful hints and guidance...",
               "Finalizing your project roadmap..."
             ]}
-            messageInterval={3000}
+            messageInterval={4000}
           />
         )}
 
@@ -2205,10 +2172,10 @@ function IDEPage() {
           progress={90}
           showProgress={true}
           autoProgress={true}
-          progressSpeed="normal"
+          progressSpeed="slow"
           spinnerSize="large"
           countUpProgress={true}
-          countUpSpeed={30}
+          countUpSpeed={60}
           dynamicMessages={[
             "Creating guided steps and preparing your workspace...",
             "Setting up project files and structure...",
@@ -2216,7 +2183,7 @@ function IDEPage() {
             "Preparing your personalized learning path...",
             "Almost ready to start coding..."
           ]}
-          messageInterval={2500}
+          messageInterval={3500}
         />
 
         {/* Project Description Modal */}

@@ -181,19 +181,8 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
             br: () => <>{' '}</>,
           }}
         />
-        
-        {/* Final step completion guidance */}
-        {stepNumber === totalSteps && !isComplete && (
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-700 text-sm">
-              <CheckCircle className="h-4 w-4" />
-              <span className="font-medium">Final Step</span>
-            </div>
-            <p className="text-blue-600 text-sm mt-1">
-              Complete this step to unlock the "Complete Project" button and finish your guided project!
-            </p>
-          </div>
-        )}
+       
+     
       </div>
       {/* Buttons */}
       <div className="flex gap-3 mt-auto">
@@ -214,7 +203,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           variant="outline"
           size="lg"
           className={`flex-1 min-w-0 px-2 py-1 border-medium-coffee font-bold shadow-sm flex items-center justify-center rounded-xl text-sm transition-all duration-200
-            ${isComplete ? 'bg-green-500 border-green-600 text-white hover:bg-green-600 hover:border-green-700' : 'bg-medium-coffee border-medium-coffee text-light-cream hover:bg-deep-espresso hover:border-deep-espresso hover:text-light-cream'}
+            ${isComplete ? 'bg-green-600 border-green-700 text-white hover:bg-green-700 hover:border-green-800' : 'bg-medium-coffee border-medium-coffee text-light-cream hover:bg-deep-espresso hover:border-deep-espresso hover:text-light-cream'}
           `}
           disabled={isChecking}
         > 
@@ -225,7 +214,6 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
             </>
           ) : isComplete ? (
             <>
-              <CheckCircle className="h-5 w-5 mr-2" />
               Complete!
             </>
           ) : (

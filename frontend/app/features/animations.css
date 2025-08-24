@@ -91,6 +91,25 @@
   animation: bounce-slow 2s ease-in-out infinite;
 }
 
+/* Universal loader used across the app to keep loading animations consistent */
+@keyframes universal-bounce {
+  0%, 40%, 100% { transform: translateY(0); opacity: 0.9; }
+  20% { transform: translateY(-6px); opacity: 1; }
+}
+
+.universal-loader-dot {
+  width: 0.5rem; /* 8px */
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: rgba(74,58,42,1); /* medium-coffee fallback */
+  display: inline-block;
+  animation: universal-bounce 1.2s ease-in-out infinite;
+}
+
+.universal-loader-dot.delay-1 { animation-delay: 0ms; }
+.universal-loader-dot.delay-2 { animation-delay: 150ms; }
+.universal-loader-dot.delay-3 { animation-delay: 300ms; }
+
 .animate-celebration-float {
   animation: celebration-float 3s ease-in-out infinite;
 }

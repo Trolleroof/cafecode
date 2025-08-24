@@ -717,11 +717,11 @@ export default function FileExplorer({
             <h2 className="font-bold text-lg mb-3 flex items-center gap-2">
               {createType === 'file' ? <File className="h-5 w-5" /> : <Folder className="h-5 w-5" />} Create {createType === 'file' ? 'File' : 'Folder'}
             </h2>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-sm font-medium mb-4">
               {createType === 'file' ? 'File Name' : 'Folder Name'}
             </label>
             <input
-              className="bg-cream-beige px-3 py-2 rounded w-full mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent text-medium-coffee text-base"
+              className="bg-cream-beige px-3 py-2 rounded w-full mb-3 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent text-medium-coffee text-bas font-medium"
               placeholder={createType === 'file' ? 'e.g. main.py, app.js, index.html' : 'e.g. components, src, assets'}
               value={newName}
               onChange={e => setNewName(e.target.value)}
