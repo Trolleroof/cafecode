@@ -710,6 +710,19 @@ function IDEPage() {
         if (!ignoreIncomingSetupResponses && result?.response?.content) {
           setChatMessages(prev => [...prev, { type: 'assistant', content: result.response.content, timestamp: new Date() }]);
           
+          // Handle nextQuestion with delay if present
+          if (result.nextQuestion?.content) {
+            setTimeout(() => {
+              if (!ignoreIncomingSetupResponses) {
+                setChatMessages(prev => [...prev, { 
+                  type: 'assistant', 
+                  content: result.nextQuestion.content, 
+                  timestamp: new Date() 
+                }]);
+              }
+            }, result.nextQuestion.delay || 800);
+          }
+          
           setIsTyping(false);
         } else {
           setIsTyping(false);
