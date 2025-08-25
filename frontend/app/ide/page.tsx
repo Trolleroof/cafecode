@@ -45,6 +45,7 @@ import { useAuth } from '@/hooks/useAuth';
 import axios from 'axios';
 import { backendUrl } from '@/lib/utils';
 import ReactPreview from '@/components/ReactPreview';
+import ProjectCompletionModal from '@/components/ProjectCompletionModal';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
@@ -1603,9 +1604,6 @@ function IDEPage() {
       timestamp: new Date()
     }]);
     
-    // Generate AI-powered follow-up suggestions
-    generateFollowUpSuggestions();
-    
     console.log('[RETURN TO CHAT] State set:', { 
       isInSetupPhase: true, 
       isInFollowUpPhase: true, 
@@ -1615,44 +1613,8 @@ function IDEPage() {
 
   // Generate AI-powered follow-up suggestions
   const generateFollowUpSuggestions = async () => {
-    if (!setupDescription) return;
-    
-    setIsGeneratingFollowUp(true);
-    try {
-      const response = await fetch(`${backendUrl}/guided/followup`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          projectDescription: setupDescription,
-          chatHistory: chatMessages,
-          projectFiles: files
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setFollowUpSuggestions(result.suggestions || []);
-        setFollowUpSummary(result.summary || '');
-        
-        // Add the suggestions to chat
-        if (result.suggestions && result.suggestions.length > 0) {
-          const suggestionsMessage = {
-            type: 'assistant' as const,
-            content: `Here are some suggestions to consider:\n\n${result.suggestions.map((s: any, i: number) => 
-              `${i + 1}. **${s.question}**\n   ${s.explanation}`
-            ).join('\n\n')}\n\n${result.summary}`,
-            timestamp: new Date()
-          };
-          setChatMessages(prev => [...prev, suggestionsMessage]);
-        }
-      } else {
-        console.error('Failed to generate follow-up suggestions');
-      }
-    } catch (error) {
-      console.error('Error generating follow-up suggestions:', error);
-    } finally {
-      setIsGeneratingFollowUp(false);
-    }
+    // Removed - no longer generating suggestions automatically
+    return;
   };
 
   // Handle user response to follow-up suggestions
@@ -1714,6 +1676,15 @@ function IDEPage() {
       setIsTyping(false);
       // Show submit button after user responds
       setShowSubmitButton(true);
+      
+      // Add delayed message to prompt user to generate steps
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, { 
+          type: 'assistant', 
+          content: "Perfect! When you're ready, hit the 'Generate Steps' button to build your project roadmap", 
+          timestamp: new Date() 
+        }]);
+      }, 1300); // 1.5 second delay
     }
   };
 
@@ -2020,16 +1991,7 @@ function IDEPage() {
                         </div>
                       </div>
                     )}
-                    {isGeneratingFollowUp && (
-                      <div className="flex justify-start">
-                        <div className="bg-white rounded-2xl px-6 py-4 mr-4 border-2 border-cream-beige/50 shadow-md text-base">
-                          <div className="flex items-center space-x-2">
-                            <IconLoader2 className="h-4 w-4 animate-spin text-medium-coffee" />
-                            <span className="text-dark-charcoal">Generating suggestions...</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+
                     <div ref={chatEndRef} />
                   </div>
                   
@@ -2246,67 +2208,15 @@ function IDEPage() {
           </div>
         )}
 
-        {showCongrats && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-[#f7ecd4] to-[#e7dbc7] backdrop-blur-sm overflow-hidden">
-            {/* Floating confetti */}
-            <div className="absolute inset-0 pointer-events-none">
-              {[...Array(20)].map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute w-2 h-2 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full animate-celebration-float"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `${Math.random() * 100}%`,
-                    animationDelay: `${Math.random() * 2}s`,
-                    animationDuration: `${2 + Math.random() * 2}s`
-                  }}
-                />
-              ))}
-            </div>
-            <div className="relative flex flex-col items-center max-w-lg w-full p-0 animate-fade-in">
-              {/* Celebration Emojis with enhanced animations */}
-              <div className="flex flex-row items-center justify-center gap-4 mt-8 mb-2">
-                <span className="text-7xl drop-shadow-lg animate-bounce-slow" style={{ animationDelay: '0s' }}>🎉</span>
-                <span className="text-8xl drop-shadow-lg animate-celebration-float" style={{ animationDelay: '0.2s' }}>☕️</span>
-                <span className="text-7xl drop-shadow-lg animate-bounce-slow" style={{ animationDelay: '0.4s' }}>🎊</span>
-              </div>
-              
-              {/* Title and Subtitle with enhanced typography */}
-              <h2 className="text-4xl font-extrabold text-deep-espresso mb-3 mt-2 text-center drop-shadow-sm bg-gradient-to-r from-deep-espresso to-medium-coffee bg-clip-text text-transparent">
-                You finished the project!
-              </h2>
-              <p className="text-xl text-medium-coffee mb-6 text-center font-medium leading-relaxed">
-                You finished your Cafécode guided project.<br/>
-                Take a sip, celebrate, and keep building! <span className="inline-block animate-pulse">☕️</span>
-              </p>
-              
-              {/* Enhanced Congrats Card */}
-              <div className="w-full bg-gradient-to-br from-white to-light-cream rounded-3xl p-8 shadow-2xl border-2 border-medium-coffee/20 flex flex-col items-center mb-6 min-h-[120px] transform hover:scale-105 transition-transform duration-300">
-                <div className="text-center">
-                  <h3 className="font-extrabold text-2xl mb-3 text-medium-coffee">
-                    🎯 Mission Accomplished! 🎯
-                  </h3>
-                  <p className="text-dark-charcoal/80 text-lg font-medium">
-                    You've successfully completed all the steps and learned valuable coding skills!
-                  </p>
-                </div>
-              </div>
-              
-              {/* Enhanced Close Button */}
-              <button
-                className="mt-2 mb-8 px-12 py-4 rounded-2xl bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream font-bold text-xl shadow-xl hover:shadow-2xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-medium-coffee/30 focus:ring-offset-2 transform hover:scale-105 border-2 border-light-cream/20"
-                onClick={() => {
-                  setShowCongrats(false);
-                  setShowRecap(false);
-                  setIsRecapLoading(false);
-                  setRecapText('');
-                }}
-              >
-                🎉 Close & Celebrate! 🎉
-              </button>
-            </div>
-          </div>
-        )}
+        <ProjectCompletionModal 
+          isOpen={showCongrats} 
+          onClose={() => {
+            setShowCongrats(false);
+            setShowRecap(false);
+            setIsRecapLoading(false);
+            setRecapText('');
+          }} 
+        />
       </div>
     </ProtectedRoute>
   );

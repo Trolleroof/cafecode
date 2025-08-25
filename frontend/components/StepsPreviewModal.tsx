@@ -334,12 +334,7 @@ export default function StepsPreviewModal({
 
         {isSubmitting && (
           <div className="mb-6 text-center">
-            <div className="flex items-center justify-center gap-1 mb-3">
-              <span className="universal-loader-dot delay-1" />
-              <span className="universal-loader-dot delay-2" />
-              <span className="universal-loader-dot delay-3" />
-            </div>
-            <p className="text-sm text-dark-charcoal/70">Processing your steps...</p>
+            <ProjectSetupLoader />
           </div>
         )}
 

@@ -94,13 +94,13 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         top: position.y,
         width: 370,
         maxWidth: '95vw',
-        minHeight: 180,
+        minHeight: 220,
         zIndex: 1050,
         background: 'rgba(247, 236, 220, 0.95)',
         borderRadius: '1rem',
         boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
         border: '1px solid #bfa074',
-        padding: 24,
+        padding: 20,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -122,9 +122,6 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
       {/* Progress Bar */}
       <div className="w-full h-2 bg-[#e7dbc7] rounded-full mb-4 overflow-hidden relative">
         <div className="h-full bg-medium-coffee/70 transition-all duration-500" style={{ width: `${(stepNumber/totalSteps)*100}%` }} />
-        {stepNumber === totalSteps && (
-          <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-green-600 animate-pulse rounded-full" />
-        )}
       </div>
       
       {/* Step Completion Summary */}
@@ -133,92 +130,69 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
        
       </div>
       {/* Header */}
-      <div className="flex items-center mb-3">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-medium-coffee to-deep-espresso flex items-center justify-center text-light-cream font-bold text-lg shadow-lg mr-3 border-2 border-light-cream/30">
-         <span className='pb-1'>
-          {stepNumber}
-          </span>
+      <div className="flex items-center mb-3 gap-2">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-medium-coffee to-deep-espresso flex items-center justify-center text-light-cream font-bold text-lg shadow-lg border-2 border-light-cream/30">
+          <span className='pb-1'>{stepNumber}</span>
         </div>
         <h3 className="font-bold text-medium-coffee text-base tracking-wide">
           Step {stepNumber} of {totalSteps}
-          {stepNumber === totalSteps && (
-            <span className={`ml-2 flex items-center gap-1 ${isComplete ? 'text-green-600' : 'text-blue-600'}`}>
-              {isComplete ? (
-                <>
-                  <CheckCircle className="h-4 w-4" />
-                  Ready to Complete! 🎉
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4" />
-                  Final Step
-                </>
-              )}
-            </span>
-          )}
         </h3>
       </div>
       {/* Instruction */}
-      <div className="mb-6">
+      <div className="mb-6 max-h-32 overflow-y-auto text-base text-dark-charcoal leading-relaxed font-medium">
         <ReactMarkdown
           children={instruction}
           remarkPlugins={[remarkGfm]}
           components={{
-            p: ({ children }: { children?: React.ReactNode }) => <p className="text-lg font-semibold text-dark-charcoal leading-relaxed mb-2">{children}</p>,
+            p: ({ children }: { children?: React.ReactNode }) => <p className="mb-1">{children}</p>,
             code: ({ inline, children }: { inline?: boolean; children?: React.ReactNode }) =>
               inline ? (
-                <code className="bg-light-cream text-medium-coffee px-1 rounded font-mono text-base align-middle inline-block" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</code>
+                <code className="bg-light-cream text-medium-coffee px-1 rounded font-mono text-sm">{children}</code>
               ) : (
-                <span className="inline-block bg-light-cream text-medium-coffee px-1 rounded font-mono text-base align-middle" style={{ margin: '0 2px', padding: '1px 4px' }}>{children}</span>
+                <pre className="bg-light-cream p-2 rounded-lg overflow-x-auto text-sm font-mono text-medium-coffee my-1">{children}</pre>
               ),
             strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-bold text-deep-espresso">{children}</strong>,
-            ul: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
-            li: ({ children }: { children?: React.ReactNode }) => <span>{children}, </span>,
-            h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-lg font-bold mb-2 mt-2 text-medium-coffee">{children}</h1>,
-            h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-base font-bold mb-2 mt-2 text-medium-coffee">{children}</h2>,
-            h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-base font-semibold mb-2 mt-2 text-medium-coffee">{children}</h3>,
-            blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-medium-coffee pl-4 italic text-medium-coffee mb-2">{children}</blockquote>,
-            br: () => <>{' '}</>,
+            ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
+            li: ({ children }: { children?: React.ReactNode }) => <li className="leading-tight">{children}</li>,
+            h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-lg font-bold mb-1 mt-2 text-medium-coffee">{children}</h1>,
+            h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-base font-bold mb-1 mt-1 text-medium-coffee">{children}</h2>,
+            h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-sm font-semibold mb-1 mt-1 text-medium-coffee">{children}</h3>,
+            blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-medium-coffee pl-3 italic text-medium-coffee mb-1 my-1 text-sm">{children}</blockquote>,
+            br: () => <br />,
           }}
         />
-       
-     
       </div>
       {/* Buttons */}
-      <div className="flex gap-3 mt-auto">
+      <div className="flex gap-1 mt-auto">
         <Button
           onClick={onPreviousStep}
           variant="outline"
           size="lg"
-          className="flex-1 min-w-0 px-2 py-1 border-medium-coffee text-medium-coffee bg-light-cream hover:bg-medium-coffee hover:text-light-cream transition-all duration-200 font-bold rounded-xl shadow-sm text-sm"
+          className="flex-1 border-2 border-medium-coffee/50 text-medium-coffee bg-transparent hover:bg-medium-coffee/10 transition-all duration-200 rounded-xl text-sm font-semibold py-1 px-2"
           disabled={stepNumber === 1}
         >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Previous
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Prev
         </Button>
 
-        {/* Check Step Button - calls backend analysis */}
+        {/* Check Step Button */}
         <Button
           onClick={onCheckStep}
-          variant="outline"
+          variant={isComplete ? "default" : "default"}
           size="lg"
-          className={`flex-1 min-w-0 px-2 py-1 border-medium-coffee font-bold shadow-sm flex items-center justify-center rounded-xl text-sm transition-all duration-200
-            ${isComplete ? 'bg-green-600 border-green-700 text-white hover:bg-green-700 hover:border-green-800' : 'bg-medium-coffee border-medium-coffee text-light-cream hover:bg-deep-espresso hover:border-deep-espresso hover:text-light-cream'}
-          `}
+          className={`flex-1 ${isComplete ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-medium-coffee hover:bg-deep-espresso text-light-cream'} transition-all duration-200 rounded-xl text-sm font-bold py-2 px-4 flex items-center justify-center shadow-md hover:shadow-lg`}
           disabled={isChecking}
         > 
           {isChecking ? (
             <>
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
               Checking...
             </>
           ) : isComplete ? (
-            <>
-              Complete!
-            </>
+            <CheckCircle className="h-5 w-5" />
           ) : (
             <>
-              <Search className={`h-5 w-5 mr-2 ${!isComplete ? 'animate-pulse' : ''}`} />
+              <Search className={`h-4 w-4 mr-1 ${!isComplete ? 'animate-pulse' : ''}`} />
               Check
             </>
           )}
@@ -228,28 +202,20 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           <Button
             onClick={onFinish}
             size="lg"
-            className={`flex-1 min-w-0 px-2 py-1 font-bold rounded-xl shadow-lg transition-all duration-300 transform hover:scale-105 text-sm border-2 border-light-cream/20 ${
-              isComplete 
-                ? 'bg-gradient-to-r from-deep-espresso to-medium-coffee hover:from-medium-coffee hover:to-deep-espresso text-light-cream' 
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
+            className={`flex-1 bg-gradient-to-r ${isComplete ? 'from-medium-coffee to-deep-espresso hover:from-deep-espresso hover:to-medium-coffee' : 'from-gray-400 to-gray-500'} text-light-cream transition-all duration-300 rounded-xl text-sm font-semibold py-1 px-2 ${!isComplete && 'cursor-not-allowed'}`}
             disabled={!isComplete}
           >
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Complete Project
+            <CheckCircle className="h-4 w-4 mr-1" />
+            Finish
           </Button>
         ) : (
           <Button
             onClick={onNextStep}
             size="lg"
-            className={`flex-1 min-w-0 px-2 py-1 font-bold rounded-xl shadow-lg transition-all duration-200 text-sm ${
-              isComplete 
-                ? 'bg-medium-coffee hover:bg-deep-espresso text-light-cream' 
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
+            className={`flex-1 ${isComplete ? 'bg-medium-coffee hover:bg-deep-espresso text-light-cream' : 'bg-gray-300 text-gray-500 cursor-not-allowed'} transition-all duration-200 rounded-xl text-sm font-semibold py-1 px-2`}
             disabled={!isComplete}
           >
-            <ArrowRight className="mr-2 h-4 w-4" />
+            <ArrowRight className="h-4 w-4 mr-1" />
             Next
           </Button>
         )}

@@ -81,6 +81,7 @@ router.post('/test-static-checker', async (req, res) => {
 const setupSessions = new Map();
 const chatSessions = new Map();
 const analysisCache = new Map();
+const activeProjects = new Map(); 
 
 // Helper function to robustly extract JSON from Gemini responses
 const extractJsonFromResponse = (responseText) => {
@@ -118,13 +119,10 @@ function robustJsonParse(jsonString) {
         // fall through
       }
     }
-    // If still fails, throw with more context
     throw new Error('Invalid JSON from Gemini. Raw response: ' + jsonString);
   }
 }
 
-// Enhanced helper function to check if a file or folder exists
-// Can use either projectFiles (legacy) or static indexer (faster)
 const checkFileExists = (projectFiles, targetName, type = 'file', userId = null) => {
   // If we have a userId, try the static indexer first (much faster)
   if (userId) {
@@ -288,17 +286,7 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
       
       console.log(`[ANALYZE STEP TYPE] Checking "${cleanName}": file=${fileExists}, folder=${folderExists}, isLikelyFile=${isLikelyFile}`);
       
-      // Prioritize modification semantics
-      if (isLikelyFile && (isModifyIntent || hasModificationContext)) {
-        return {
-          type: 'file-modify',
-          exists: fileExists,
-          targetName: cleanName,
-          requiresContent: true
-        };
-      }
-      
-      // Creation intent
+      // Prioritize creation semantics first
       if (isCreateIntent) {
         if (isExplicitFolderIntent && !isLikelyFile) {
           return {
@@ -313,6 +301,16 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
           exists: fileExists,
           targetName: cleanName,
           requiresContent: false
+        };
+      }
+      
+      // Then check for modification
+      if (isLikelyFile && (isModifyIntent || hasModificationContext)) {
+        return {
+          type: 'file-modify',
+          exists: fileExists,
+          targetName: cleanName,
+          requiresContent: true
         };
       }
       
@@ -676,7 +674,7 @@ router.post("/startProject", async (req, res) => {
     // Send initial chat message
     const welcomeMessage = {
       type: "assistant",
-      content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nUse the "+" button in the file explorer to create folders and files as needed. Once you've completed a step, click "Check Step" to continue to the next step.`,
+      content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nUse the "+" button in the file explorer to create folders and files as needed. Once you've completed a step, click "Check" to continue to the next step.`,
     };
 
     res.json({ projectId, steps, welcomeMessage, projectContext: tavusProjectContext });
@@ -1181,12 +1179,7 @@ router.post("/analyzeStep", async (req, res) => {
           req.user.id,
           projectFiles || project.projectFiles || []
         );
-        
-        process.stdout.write("\n\n\n================ STATIC ANALYSIS RESULT ================\n");
-        process.stdout.write(`Instruction: ${currentStep.instruction}\n`);
-        process.stdout.write(`Static Analysis Result: ${JSON.stringify(staticResult, null, 2)}\n`);
-        process.stdout.write("=======================================================\n\n\n");
-        
+
         let intent;
         
         // If static analysis is confident enough, use it
@@ -1202,11 +1195,7 @@ router.post("/analyzeStep", async (req, res) => {
             currentStep.instruction,
             projectFiles || project.projectFiles || []
           );
-          
-          process.stdout.write("\n\n\n================ AI FALLBACK ANALYSIS ================\n");
-          process.stdout.write(`Instruction: ${currentStep.instruction}\n`);
-          process.stdout.write(`AI Analysis Result: ${JSON.stringify(intent, null, 2)}\n`);
-          process.stdout.write("=======================================================\n\n\n");
+
         }
         
         if (intent && intent.isCreation === true) {
@@ -1641,15 +1630,31 @@ router.post("/simple-chat", async (req, res) => {
     // Generate acknowledgment first
     let acknowledgment = "Thanks for sharing that!";
     try {
-      const ackPrompt = `Reply with ONLY a 1-sentence encouraging acknowledgment for: "${userMessage}"
+      const ackPrompt = `Generate a warm, encouraging 1-sentence acknowledgment for this user message: "${userMessage}"
 
-Examples: "That's a great idea!" "Perfect! I can help with that." "Good thinking!"
+The acknowledgment should:
+- Be genuinely enthusiastic and supportive
+- Acknowledge their input specifically
+- Use varied, engaging language
+- Feel personal and conversational
+- Be under 12 words maximum
 
-Keep it under 10 words. No explanations.`;
+Examples of good acknowledgments:
+- "That's brilliant thinking!"
+- "Love that idea!"
+- "Excellent point!"
+- "That makes perfect sense!"
+- "Great insight!"
+- "Smart approach!"
+- "Perfect! I'm excited about this!"
+- "That's exactly what we need!"
+
+IMPORTANT: Do NOT use emojis in your response. Keep it text-only.
+
+Avoid generic responses like "Thanks" or "Good idea". Make it feel like you're genuinely excited about their input.`;
       
       const ackResult = await req.geminiService.model.generateContent(ackPrompt);
       const ackResponseText = (await ackResult.response).text();
-      console.log("[unsimplified ack]: ", ackResponseText)
       if (ackResponseText.trim()) {
         acknowledgment = ackResponseText.trim();
       }
@@ -1684,7 +1689,35 @@ router.post("/recap", async (req, res) => {
       : '';
     const capabilities = ideCapabilities || 'The IDE is web-based. It supports a built-in terminal, code editing, file management, and code execution for supported languages.';
 
-    const prompt = `You are a helpful coding mentor. Summarize what the user learned in this guided project as a concise list of bullet points in markdown (use - or * for each point).\n\nProject context:\n${projectContext}\n\nGuided steps:\n${stepsContext}\n\nChat history:\n${chatContext}\n\nIMPORTANT: ${capabilities}\n\nIf the project involved using the terminal, include points about how to use the terminal, run commands, install packages, and best practices for beginners. Mention how the terminal can be used for running scripts, installing packages (such as with npm, pip, etc.), or checking output, if relevant.\n\nAlso include points such as:\n- How to use the file explorer to create, rename, and delete files and folders.\n- How to use the terminal to run code, install packages, or check for errors.\n- The importance of saving files before running code.\n- How to read error messages and use them to debug code.\n- How to use the \"Run\" button and when to use the terminal instead.\n- How to switch between files and organize code in folders.\n- How to use code comments for documentation and clarity.\n- How to ask for help or use the chat/assistant features.\n- Best practices for writing clean, readable code.\n\nFormat your response as a markdown bullet list. Be specific, positive, and beginner-friendly.`;
+    const prompt = `You are a helpful coding mentor. Summarize what the user learned in this guided project as a concise list of bullet points in markdown (use - or * for each point).
+
+IMPORTANT: Do NOT use emojis in your response. Keep it text-only.
+
+Project context:
+${projectContext}
+
+Guided steps:
+${stepsContext}
+
+Chat history:
+${chatContext}
+
+IMPORTANT: ${capabilities}
+
+If the project involved using the terminal, include points about how to use the terminal, run commands, install packages, and best practices for beginners. Mention how the terminal can be used for running scripts, installing packages (such as with npm, pip, etc.), or checking output, if relevant.
+
+Also include points such as:
+- How to use the file explorer to create, rename, and delete files and folders.
+- How to use the terminal to run code, install packages, or check for errors.
+- The importance of saving files before running code.
+- How to read error messages and use them to debug code.
+- How to use the "Run" button and when to use the terminal instead.
+- How to switch between files and organize code in folders.
+- How to use code comments for documentation and clarity.
+- How to ask for help or use the chat/assistant features.
+- Best practices for writing clean, readable code.
+
+Format your response as a markdown bullet list. Be specific, positive, and beginner-friendly.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
