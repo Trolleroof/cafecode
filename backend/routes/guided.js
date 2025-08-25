@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { UserFileService } from '../services/UserFileService.js';
 import { staticCreationChecker } from '../services/StaticCreationChecker.js';
+import { timeStamp } from "console";
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -860,13 +861,10 @@ Now, generate a response for the user's answer provided in the context.`;
     
     console.log(`[SETUP] All questions completed. User answers:`, session.answers);
     
-    const content = `Perfect! I've collected all the information I need. When you're ready, click "Generate Steps" to generate your project steps!`;
+    const content = `Great, I've collected all the information I need. When you're ready, click "Generate Steps" to generate your project steps!`;
     return res.json({ 
-      response: { type: 'assistant', content }, 
-      nextQuestion: {
-        content: content,
-        delay: 1400 // 0.8 second delay for final message
-      },
+      response: { type: 'assistant', content, timeStamp: new Date().toISOString() }, 
+      delay: 3000, 
       setupActive: false 
     });
   } catch (error) {

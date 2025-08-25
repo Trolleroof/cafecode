@@ -31,9 +31,9 @@ export default function ProjectSetupLoader({
   spinnerSize = 'medium',
   customSpinner,
   dynamicMessages = [],
-  messageInterval = 5000, // Slower message interval
+  messageInterval = 1500, // Slower message interval for 3-second load
   countUpProgress = true,
-  countUpSpeed = 200, // Slower count up speed
+  countUpSpeed = 30, // Slower count up speed for 3-second load
   stepCount = 0, // Number of steps to calculate loading time
   isGeneratingSteps = false // New prop to control visibility during step generation
 }: ProjectSetupLoaderProps) {
@@ -51,32 +51,14 @@ export default function ProjectSetupLoader({
       setCurrentProgress(0);
       setDisplayedProgress(0);
       
-      // Calculate speed based on step count - more steps = slower loading
+      // Calculate speed based on progress speed setting
       let baseSpeed: number;
-      if (stepCount > 0) {
-        // More steps = slower progress
-        // 1-3 steps: fast (50ms), 4-6 steps: normal (100ms), 7+ steps: slow (200ms)
-        if (stepCount <= 3) {
-          baseSpeed = 50;
-        } else if (stepCount <= 6) {
-          baseSpeed = 100;
-        } else {
-          baseSpeed = 200;
-        }
-        
-        // Additional slowdown for very complex projects (10+ steps)
-        if (stepCount >= 10) {
-          baseSpeed = Math.max(300, stepCount * 25); // 300ms minimum, +25ms per step over 10
-        }
-      } else {
-        // Fallback to original speed mapping
-        const speedMap = {
-          slow: 200,
-          normal: 100,
-          fast: 50
-        };
-        baseSpeed = speedMap[progressSpeed];
-      }
+      const speedMap = {
+        slow: 90,
+        normal: 60,
+        fast: 30
+      };
+      baseSpeed = speedMap[progressSpeed];
       
       const interval = setInterval(() => {
         setCurrentProgress(prev => {
@@ -86,7 +68,7 @@ export default function ProjectSetupLoader({
             return progress;
           }
           // Always increment by 1 for smoother animation
-          return prev + 1;
+          return prev + 3;
         });
       }, baseSpeed);
       
@@ -95,7 +77,7 @@ export default function ProjectSetupLoader({
       setCurrentProgress(progress);
       setDisplayedProgress(0);
     }
-  }, [isOpen, autoProgress, progress, progressSpeed, stepCount]);
+  }, [isOpen, autoProgress, progress, progressSpeed]);
 
   // Count-up progress animation
   useEffect(() => {
@@ -103,9 +85,9 @@ export default function ProjectSetupLoader({
       const targetProgress = autoProgress ? currentProgress : progress;
       
       if (displayedProgress < targetProgress) {
-        // Always increment by 1 for smoother animation
+        // Increment by more for faster animation
         const timer = setTimeout(() => {
-          setDisplayedProgress(prev => Math.min(prev + 1, targetProgress));
+          setDisplayedProgress(prev => Math.min(prev + 5, targetProgress));
         }, countUpSpeed);
         
         return () => clearTimeout(timer);
