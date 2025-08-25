@@ -862,11 +862,14 @@ Now, generate a response for the user's answer provided in the context.`;
     console.log(`[SETUP] All questions completed. User answers:`, session.answers);
     
     const content = `Great, I've collected all the information I need. When you're ready, click "Generate Steps" to generate your project steps!`;
-    return res.json({ 
-      response: { type: 'assistant', content, timeStamp: new Date().toISOString() }, 
-      delay: 3000, 
-      setupActive: false 
-    });
+    
+
+    setTimeout(() => {
+      return res.json({ 
+        response: { type: 'assistant', content, timeStamp: new Date().toISOString() }, 
+        setupActive: false 
+      });
+    }, 4000);
   } catch (error) {
     console.error('Error in setup/chat:', error);
     return res.status(500).json({ error: 'Failed to process setup chat' });
