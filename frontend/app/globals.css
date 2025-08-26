@@ -87,6 +87,10 @@
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Quicksand', var(--font-comfortaa), sans-serif;
+    line-height: 1.3;
+  }
+  p, div, span {
+    line-height: 1.5;
   }
 }
 
@@ -539,14 +543,62 @@
   animation: float-3 4.5s ease-in-out infinite;
 }
 
-.animate-float-4 {
-  animation: float-4 3s ease-in-out infinite;
-}
+  .animate-float-4 {
+    animation: float-4 3s ease-in-out infinite;
+  }
 
-/* Animation delays */
-.animation-delay-200 {
-  animation-delay: 200ms;
-}
+  /* Custom Scrollbar Styles */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--medium-coffee)) rgb(var(--cream-beige));
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: rgb(var(--cream-beige));
+    border-radius: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgb(var(--medium-coffee));
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--deep-espresso));
+  }
+
+  /* Always show scrollbar */
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgb(var(--medium-coffee));
+    min-height: 20px;
+  }
+
+  /* Show scrollbar even when no overflow */
+  .scrollbar-thin {
+    overflow-y: scroll;
+  }
+
+  .scrollbar-track-cream-beige::-webkit-scrollbar-track {
+    background: rgb(var(--cream-beige));
+  }
+
+  .scrollbar-thumb-medium-coffee::-webkit-scrollbar-thumb {
+    background: rgb(var(--medium-coffee));
+  }
+
+  .scrollbar-thumb-deep-espresso::-webkit-scrollbar-thumb {
+    background: rgb(var(--deep-espresso));
+  }
+
+  /* Animation delays */
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
 
 .animation-delay-300 {
   animation-delay: 300ms;

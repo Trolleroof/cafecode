@@ -1343,18 +1343,11 @@ Analyze this code:
 ${effectiveCode}
 \`\`\`
 Is the code correct for the instruction? Return ONLY a JSON array with one object: [{"line": 1, "correct": true/false, "suggestion": "brief, encouraging feedback"}]`;
-
-    process.stdout.write("\n\n\n================ AI ANSWER CHECKING PROMPT (COMPACT) ================\n");
-    process.stdout.write(`${prompt}\n`);
-    process.stdout.write("=========================================================\n\n\n");
-    
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
 
-    
     let feedback;
     try {
-      // Extract JSON from response (handles both raw JSON and markdown-wrapped JSON)
       const cleanResponse = extractJsonFromResponse(responseText);
       feedback = robustJsonParse(cleanResponse);
 
@@ -1674,61 +1667,6 @@ Avoid generic responses like "Thanks" or "Good idea". Make it feel like you're g
   } catch (error) {
     console.error("Error processing simple chat:", error);
     res.status(500).json({ error: "Failed to process chat" });
-  }
-});
-
-// Recap route: summarize what the user learned as bullet points
-router.post("/recap", async (req, res) => {
-  try {
-    const { projectFiles, chatHistory, guidedProject, ideCapabilities } = req.body;
-    const projectContext = createProjectContext(projectFiles);
-    const chatContext = Array.isArray(chatHistory)
-      ? chatHistory.map(msg => `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n')
-      : '';
-    const stepsContext = guidedProject && guidedProject.steps
-      ? guidedProject.steps.map((s, i) => `Step ${i + 1}: ${s.instruction}`).join('\n')
-      : '';
-    const capabilities = ideCapabilities || 'The IDE is web-based. It supports a built-in terminal, code editing, file management, and code execution for supported languages.';
-
-    const prompt = `You are a helpful coding mentor. Summarize what the user learned in this guided project as a concise list of bullet points in markdown (use - or * for each point).
-
-IMPORTANT: Do NOT use emojis in your response. Keep it text-only.
-
-Project context:
-${projectContext}
-
-Guided steps:
-${stepsContext}
-
-Chat history:
-${chatContext}
-
-IMPORTANT: ${capabilities}
-
-If the project involved using the terminal, include points about how to use the terminal, run commands, install packages, and best practices for beginners. Mention how the terminal can be used for running scripts, installing packages (such as with npm, pip, etc.), or checking output, if relevant.
-
-Also include points such as:
-- How to use the file explorer to create, rename, and delete files and folders.
-- How to use the terminal to run code, install packages, or check for errors.
-- The importance of saving files before running code.
-- How to read error messages and use them to debug code.
-- How to use the "Run" button and when to use the terminal instead.
-- How to switch between files and organize code in folders.
-- How to use code comments for documentation and clarity.
-- How to ask for help or use the chat/assistant features.
-- Best practices for writing clean, readable code.
-
-Format your response as a markdown bullet list. Be specific, positive, and beginner-friendly.`;
-
-    const result = await req.geminiService.model.generateContent(prompt);
-    const responseText = (await result.response).text();
-    // Try to extract just the bullet list from markdown
-    const bulletListMatch = responseText.match(/([-*] .+\n?)+/g);
-    const recap = bulletListMatch ? bulletListMatch[0].trim() : responseText.trim();
-    res.json({ recap });
-  } catch (error) {
-    console.error("Error generating recap:", error);
-    res.status(500).json({ error: "Failed to generate recap" });
   }
 });
 

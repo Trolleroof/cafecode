@@ -41,6 +41,15 @@ export class UserFileService {
     fs.writeFileSync(absPath, data, { encoding });
   }
 
+  static writeBinaryFile(userId, relPath, dataBuffer) {
+    const absPath = this.resolveUserPath(userId, relPath);
+    const parentDir = path.dirname(absPath);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+    fs.writeFileSync(absPath, dataBuffer);
+  }
+
   static deleteFile(userId, relPath) {
     const absPath = this.resolveUserPath(userId, relPath);
     if (!fs.existsSync(absPath)) {

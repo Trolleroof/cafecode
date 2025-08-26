@@ -23,6 +23,8 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "leetcode-query": "^2.0.0",
+    "mime-types": "^3.0.1",
+    "multer": "^2.0.2",
     "node-pty": "^1.0.0",
     "uuid": "^11.1.0",
     "ws": "^8.18.3",

@@ -334,7 +334,7 @@ export default function StepsPreviewModal({
 
         {isSubmitting && (
           <div className="mb-6 text-center">
-            <ProjectSetupLoader />
+            <ProjectSetupLoader isOpen={false} />
           </div>
         )}
 

@@ -656,6 +656,7 @@ export default function FileExplorer({
           >
             <Folder className="h-4 w-4 text-deep-espresso" />
           </button>
+
           <button
             onClick={handleRefresh}
             className="p-1 hover:bg-cream-beige rounded"
@@ -664,6 +665,7 @@ export default function FileExplorer({
           >
             <RefreshCw className={`h-4 w-4 text-deep-espresso ${loading ? 'animate-spin' : ''}`} />
           </button>
+
         </div>
       </div>
 

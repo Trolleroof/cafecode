@@ -2,8 +2,11 @@ import express from 'express';
 import { UserFileService } from '../services/UserFileService.js';
 import path from 'path';
 import fs from 'fs';
+import mime from 'mime-types';
+import multer from 'multer';
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Deep scan a path (file or directory) with optional content and filters
 router.get('/scan', async (req, res) => {
@@ -231,6 +234,78 @@ router.get('/exists', async (req, res) => {
     res.json({ exists });
   } catch (err) {
     console.error('File exists check error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upload files (images and text only)
+router.post('/upload', upload.array('files'), async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const targetDir = (req.body.dir || '').toString();
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    const allowedMimePrefixes = ['image/', 'text/'];
+    const allowedExtraMimes = new Set([
+      'application/json',
+      'application/javascript',
+      'text/javascript',
+      'text/css',
+      'application/xml',
+      'application/x-sh',
+      'application/x-shellscript',
+    ]);
+    const disallowedMimes = new Set(['application/pdf']);
+
+    const saved = [];
+    for (const file of req.files) {
+      const { originalname, mimetype, buffer } = file;
+      if (disallowedMimes.has(mimetype)) {
+        return res.status(400).json({ error: `Unsupported file type: ${originalname}` });
+      }
+      const isAllowed = allowedMimePrefixes.some(prefix => mimetype.startsWith(prefix)) || allowedExtraMimes.has(mimetype);
+      if (!isAllowed) {
+        return res.status(400).json({ error: `Unsupported file type: ${originalname}` });
+      }
+
+      const relPath = targetDir && targetDir !== '.' ? path.posix.join(targetDir, originalname) : originalname;
+      await UserFileService.writeBinaryFile(userId, relPath, buffer);
+      saved.push({ path: relPath });
+    }
+
+    res.json({ success: true, files: saved });
+  } catch (err) {
+    console.error('File upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stream raw file contents (for image preview)
+router.get('/raw', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const relPath = req.query.path;
+    if (!relPath) {
+      return res.status(400).json({ error: 'Path parameter is required' });
+    }
+    const absPath = UserFileService.resolveUserPath(userId, relPath);
+    if (!fs.existsSync(absPath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    const stat = fs.statSync(absPath);
+    if (stat.isDirectory()) {
+      return res.status(400).json({ error: 'Path is a directory' });
+    }
+    const contentType = mime.lookup(absPath) || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Length', stat.size);
+    const stream = fs.createReadStream(absPath);
+    stream.pipe(res);
+  } catch (err) {
+    console.error('Raw file stream error:', err);
     res.status(500).json({ error: err.message });
   }
 });

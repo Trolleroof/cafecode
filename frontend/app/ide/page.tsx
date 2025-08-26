@@ -315,13 +315,22 @@ function IDEPage() {
   const router = useRouter();
   const { session } = useAuth();
 
-  // Helper to get auth headers (inline from FileExplorer)
+  // Image preview blob URL (to pass auth while fetching)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+
+  // Helper to get auth headers with proper Supabase token
   const getAuthHeaders = () => {
-    if (!session?.access_token) {
+    const token = session?.access_token;
+    if (!token) {
+      console.error('Auth check failed:', { 
+        hasSession: !!session, 
+        hasAccessToken: !!session?.access_token,
+        sessionKeys: session ? Object.keys(session) : null 
+      });
       throw new Error('No authentication token available');
     }
     return {
-      'Authorization': `Bearer ${session.access_token}`,
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     };
   };
@@ -482,6 +491,58 @@ function IDEPage() {
     setHighlightedLines([]);
   }, [selectedFile?.id]);
 
+  // Load image preview as blob with auth when an image file is selected
+  useEffect(() => {
+    let revoked = false;
+    const isImage = !!selectedFile?.name && /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(selectedFile.name);
+    if (!isImage) {
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+      setImagePreviewUrl(null);
+      return;
+    }
+    (async () => {
+      try {
+        console.log('🖼️ Loading image preview for:', selectedFile!.id);
+        const headers = getAuthHeaders();
+        console.log('🔑 Auth headers:', headers);
+        const fullUrl = `${backendUrl}/files/raw?path=${encodeURIComponent(selectedFile!.id)}`;
+        console.log('🌐 Full URL:', fullUrl);
+        console.log('📡 Making request...');
+        const res = await axios.get(`${backendUrl}/files/raw`, {
+          params: { path: selectedFile!.id },
+          headers: headers,
+          responseType: 'blob'
+        });
+        console.log('✅ Image loaded successfully, status:', res.status);
+        const url = URL.createObjectURL(res.data);
+        if (!revoked) setImagePreviewUrl(url);
+      } catch (e: any) {
+        console.error('❌ Failed to load image preview:', e);
+        console.error('📋 Error details:', {
+          status: e.response?.status,
+          statusText: e.response?.statusText,
+          data: e.response?.data,
+          message: e.message,
+          url: e.config?.url,
+          headers: e.config?.headers
+        });
+        console.error('📋 Request details:', {
+          url: `${backendUrl}/files/raw`,
+          path: selectedFile!.id,
+          hasSession: !!session,
+          hasToken: !!session?.access_token
+        });
+        if (!revoked) setImagePreviewUrl(null);
+      }
+    })();
+    return () => {
+      revoked = true;
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [selectedFile?.id]);
+
   // File operations
   const handleFileSelect = async (file: FileNode) => {
     if (file.type === 'file') {
@@ -521,6 +582,8 @@ function IDEPage() {
       // Optionally, set an error state to show in the UI
     }
   };
+
+
 
   // Add state for folder delete confirmation
   const [pendingDeleteFolderId, setPendingDeleteFolderId] = useState<string | null>(null);
@@ -1514,8 +1577,7 @@ function IDEPage() {
   // Add state for congratulations modal
   const [showCongrats, setShowCongrats] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
-  const [recapText, setRecapText] = useState('');
-  const [isRecapLoading, setIsRecapLoading] = useState(false);
+
 
   const handleFinishProject = async () => {
     // Trigger celebration effects
@@ -1539,38 +1601,7 @@ function IDEPage() {
     ]);
   };
 
-  // Add useEffect to auto-fetch recap when showCongrats is set
-  useEffect(() => {
-    if (showCongrats) {
-      setIsRecapLoading(true);
-      setShowRecap(false);
-      (async () => {
-        try {
-          const response = await fetch('/api/guided/recap', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`
-            },
-            body: JSON.stringify({
-              projectFiles: files,
-              chatHistory: chatMessages,
-              guidedProject: guidedProject,
-              ideCapabilities: 'The IDE is web-based (Cafécode). It supports code editing, file management, and code execution for supported languages (Python, JavaScript, HTML, CSS, etc). It does NOT support running terminal or shell commands, installing packages, or accessing a real OS shell.'
-            })
-          });
-          const result = await response.json();
-          setRecapText(result.recap || 'Here is a summary of what you learned!');
-          setShowRecap(true);
-        } catch (e) {
-          setRecapText('Could not fetch recap. Please try again later.');
-          setShowRecap(true);
-        } finally {
-          setIsRecapLoading(false);
-        }
-      })();
-    }
-  }, [showCongrats]);
+
 
   // Inject CSS keyframes for shimmer animation
   useEffect(() => {
@@ -1741,6 +1772,8 @@ function IDEPage() {
                 <span className="sm:hidden">Stop</span>
               </Button>
             )}
+
+         
           </div>
         </header>
 
@@ -1859,7 +1892,19 @@ function IDEPage() {
                   </TabsContent>
 
                   <TabsContent value="preview" className="flex-1 m-0" isInSetupPhase={isInSetupPhase}>
-                    {selectedFile?.language === 'html' ? (
+                    {selectedFile && selectedFile.name.match(/\.(png|jpe?g|gif|bmp|webp|svg)$/i) ? (
+                      <div className="w-full h-full flex items-center justify-center bg-white">
+                        {imagePreviewUrl ? (
+                          <img
+                            src={imagePreviewUrl}
+                            alt={selectedFile.name}
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        ) : (
+                          <div className="text-deep-espresso/70 text-sm">Loading image...</div>
+                        )}
+                      </div>
+                    ) : selectedFile?.language === 'html' ? (
                       <HTMLPreview 
                         htmlContent={selectedFile.content || ''} 
                         cssContent={getAllFiles(files).find(f => f.language === 'css')?.content}
@@ -1948,6 +1993,8 @@ function IDEPage() {
                     Please start a project before accessing the video assistant.
                   </div>
                 )}
+                
+          
                 <div className="flex-1 overflow-hidden transition-all duration-300 relative">
                   {/* Chat messages area */}
                   <div className="flex-1 overflow-y-auto px-6 pt-6 pb-0 space-y-4 bg-cream-beige" style={{paddingTop: '2rem', height: 'calc(100% - 160px)'}}>
@@ -2213,9 +2260,11 @@ function IDEPage() {
           onClose={() => {
             setShowCongrats(false);
             setShowRecap(false);
-            setIsRecapLoading(false);
-            setRecapText('');
-          }} 
+          }}
+          projectFiles={files}
+          chatHistory={chatMessages}
+          guidedProject={guidedProject}
+          session={session}
         />
       </div>
     </ProtectedRoute>

@@ -357,7 +357,7 @@ function LeetCodePage() {
   const [testCaseHeight, setTestCaseHeight] = useState(120);
   const [testCases, setTestCases] = useState<any[]>([]);
   const [outputHeight, setOutputHeight] = useState(100);
-  const [descSectionHeight, setDescSectionHeight] = useState(220); // px, initial height for top section
+  const [descSectionHeight, setDescSectionHeight] = useState(180); // px, initial height for top section
   const leftPanelRef = useRef<HTMLDivElement>(null);
   const leftResizerRef = useRef<HTMLDivElement>(null);
   const leftDragging = useRef(false);
@@ -374,7 +374,7 @@ function LeetCodePage() {
   const [isStructuredLoading, setIsStructuredLoading] = useState(false);
 
   // Add state for code editor height percentage
-  const [editorHeightPercent, setEditorHeightPercent] = useState(70); // default to 70% for more code space
+  const [editorHeightPercent, setEditorHeightPercent] = useState(75); // default to 75% for more code space
   const resizerBarRef = useRef<HTMLDivElement>(null);
   const isResizingEditor = useRef(false);
 
@@ -1007,7 +1007,7 @@ function LeetCodePage() {
         </div>
       )}
       {/* Header */}
-      <div className="bg-light-cream border-b border-cream-beige px-6 py-4 flex items-center justify-between">
+      <div className="bg-light-cream border-b border-cream-beige px-4 py-2 flex items-center justify-between">
         <div className="flex items-center space-x-1">
            <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-cream-beige">
             <IconArrowLeft className="h-5 w-5 text-deep-espresso" />
@@ -1017,7 +1017,7 @@ function LeetCodePage() {
           </div>
           <div className="flex items-center space-x-3">
             <div>
-              <h1 className="text-xl font-bold text-deep-espresso"> 
+              <h1 className="text-lg font-bold text-deep-espresso"> 
                 LeetCode Practice
               </h1>
             </div>
@@ -1068,7 +1068,7 @@ function LeetCodePage() {
 
       <div className="flex-1 min-h-0 flex overflow-hidden">
         {/* Left Panel - Problem Description & Steps */}
-        <div ref={leftPanelRef} className="w-1/4 bg-light-cream border-r border-cream-beige flex flex-col relative">
+        <div ref={leftPanelRef} className="w-1/5 bg-light-cream border-r border-cream-beige flex flex-col relative">
           {currentProblem ? (
             <>
               {/* --- Top Section: Problem Header, Description, Examples, Output --- */}
@@ -1076,12 +1076,12 @@ function LeetCodePage() {
                 style={{ height: descSectionHeight, minHeight: 120, maxHeight: '60%' }}
                 className="overflow-y-auto transition-all duration-100 border-b border-cream-beige"
               >
-                <div className="p-6 pb-2 bg-cream-beige rounded-b-xl">
+                <div className="p-4 pb-2 bg-cream-beige rounded-b-xl">
                   {/* Robust fallback: show title/description from any available field */}
-                  <h2 className="text-2xl font-bold mb-3 text-deep-espresso">
+                  <h2 className="text-lg font-bold mb-2 text-deep-espresso leading-6">
                     {getSafeField(structuredProblem?.meta || currentProblem, ['title', 'problemTitle', 'name'], 'Untitled Problem')}
                   </h2>
-                  <div className="prose max-w-none mb-6 text-deep-espresso">
+                  <div className="prose max-w-none mb-3 text-deep-espresso text-sm leading-5">
                     {getSafeField(structuredProblem?.meta || currentProblem, ['description', 'problemDescription', 'desc'], 'No description available.')}
                   </div>
                 </div>
@@ -1095,11 +1095,11 @@ function LeetCodePage() {
               />
               {/* --- Bottom Section: Steps --- */}
               <div
-                className="flex-1 p-6 overflow-y-auto"
+                className="flex-1 p-4 overflow-y-auto"
                 style={{ minHeight: 120 }}
               >
-                <h3 className="text-lg font-semibold text-medium-coffee mb-4 flex items-center">
-                  <IconTrophy className="h-5 w-5 mr-2" />
+                <h3 className="text-base font-semibold text-medium-coffee mb-3 flex items-center">
+                  <IconTrophy className="h-4 w-4 mr-2" />
                   Solution Steps
                 </h3>
                 <div className="space-y-3">
@@ -1107,7 +1107,7 @@ function LeetCodePage() {
                     currentProblem.steps.map((step, index) => (
                       <div
                         key={step.id || index}
-                        className={`p-4 rounded-xl border transition-all duration-200 shadow-sm mb-2
+                        className={`p-3 rounded-lg border transition-all duration-200 shadow-sm mb-2
                           ${index === currentStepIndex
                             ? 'border-medium-coffee bg-[#f7e7d6] shadow-lg'
                             : completedSteps.has(step.id)
@@ -1116,34 +1116,34 @@ function LeetCodePage() {
                         `}
                         style={{ opacity: index === currentStepIndex ? 1 : 0.98 }}
                       >
-                        <div className="flex items-start space-x-3">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        <div className="flex items-start space-x-2">
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                             completedSteps.has(step.id)
                               ? 'bg-green-400 text-white'
                               : index === currentStepIndex
                               ? 'bg-medium-coffee text-light-cream'
                               : 'bg-cream-beige text-dark-charcoal border border-medium-coffee/30'
                           }`}>
-                            {completedSteps.has(step.id) ? <IconCircleCheck className="h-4 w-4" /> : index + 1}
+                            {completedSteps.has(step.id) ? <IconCircleCheck className="h-3 w-3" /> : index + 1}
                           </div>
                           <div className="flex-1">
-                            <p className={`text-sm leading-relaxed ${
+                            <p className={`text-sm leading-5 ${
                               index === currentStepIndex ? 'text-[#9B6C46]' : completedSteps.has(step.id) ? 'text-green-700' : 'text-dark-charcoal/90'
                             }`}>
                               {step.instruction || JSON.stringify(step)}
                             </p>
                             {index === currentStepIndex && (
-                              <div className="mt-3">
+                              <div className="mt-2">
                                 <Button
                                   onClick={handleCheckStep}
                                   disabled={isCheckingStep || isAutoProgressing}
                                   size="sm"
-                                  className="btn-coffee-primary"
+                                  className="btn-coffee-primary text-xs px-2 py-1"
                                 >
                                   {isCheckingStep ? (
-                                    <IconRefresh className="h-4 w-4 mr-2 animate-spin" />
+                                    <IconRefresh className="h-3 w-3 mr-1 animate-spin" />
                                   ) : (
-                                    <IconCircleCheck className="h-4 w-4 mr-2" />
+                                    <IconCircleCheck className="h-3 w-3 mr-1" />
                                   )}
                                   {isCheckingStep ? 'Checking...' : isAutoProgressing ? 'Progressing...' : 'Check Step'}
                                 </Button>
@@ -1183,7 +1183,7 @@ function LeetCodePage() {
         {/* Middle Panel - Code Editor */}
         <div className="flex-1 flex flex-col">
           {/* Editor Header */}
-          <div className="bg-light-cream border-b border-cream-beige px-4 py-3 flex items-center justify-between">
+          <div className="bg-light-cream border-b border-cream-beige px-4 py-2 flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <h3 className="text-sm font-semibold text-deep-espresso">Code Editor</h3>
               <select
@@ -1213,7 +1213,7 @@ function LeetCodePage() {
           </div>
 
           {/* Monaco Editor + Test Cases Ratio Container */}
-          <div style={{ height: 800, display: 'flex', flexDirection: 'column' }}>
+          <div className="flex-1 flex flex-col min-h-0">
             <div style={{ flex: `0 0 ${editorHeightPercent}%`, minHeight: 0 }} className="bg-[#1E1E1E] pt-2">
               <MonacoEditor
                 language={language}
@@ -1232,14 +1232,14 @@ function LeetCodePage() {
               <div className="w-16 h-1.5 bg-medium-coffee rounded-full opacity-70" />
             </div>
             {/* Test Cases Panel - always visible, even if empty */}
-            <div style={{ flex: `0 0 ${100 - editorHeightPercent}%`, minHeight: 0, overflow: 'auto', paddingTop: 6, paddingBottom: 6 }}>
+            <div style={{ flex: `0 0 ${100 - editorHeightPercent}%`, minHeight: 0, overflow: 'auto', paddingTop: 4, paddingBottom: 4 }}>
               {testCases && testCases.length > 0 ? (
-                <div className="w-full max-w-xl mx-auto mb-4 bg-gradient-to-br from-cream-beige via-[#f5e6d3] to-[#f3e0c7] border-2 border-medium-coffee rounded-3xl shadow-2xl h-full flex flex-col p-4" style={{ borderBottom: '2px solid #9B6C46' }}>
-                  <div className="flex mb-2 gap-2">
+                <div className="w-full max-w-2xl mx-auto mb-2 bg-gradient-to-br from-cream-beige via-[#f5e6d3] to-[#f3e0c7] border-2 border-medium-coffee rounded-2xl shadow-lg h-full flex flex-col p-3" style={{ borderBottom: '2px solid #9B6C46' }}>
+                  <div className="flex mb-2 gap-1">
                     {testCases.map((_, i) => (
                       <button
                         key={i}
-                        className={`px-4 py-1 rounded-t-2xl font-mono text-lg transition-colors duration-150 shadow-sm border-b-2 ${
+                        className={`px-3 py-1 rounded-t-lg font-mono text-sm transition-colors duration-150 shadow-sm border-b-2 ${
                           activeTestCase === i
                             ? 'bg-medium-coffee text-light-cream border-medium-coffee'
                             : 'bg-cream-beige text-dark-charcoal border-transparent hover:bg-[#e7d3b8]'
@@ -1250,11 +1250,11 @@ function LeetCodePage() {
                       </button>
                     ))}
                   </div>
-                  <div className="bg-white rounded-2xl h-full overflow-auto flex-1 p-3 mt-1">
+                  <div className="bg-white rounded-lg h-full overflow-auto flex-1 p-2 mt-1">
                     {Object.entries(testCases[activeTestCase]).map(([key, value]) => (
-                      <div key={key} className="mb-2">
-                        <div className="text-medium-coffee text-base mb-1 font-semibold">{key} =</div>
-                        <div className="bg-cream-beige rounded px-3 py-2 text-base text-dark-charcoal font-mono border border-medium-coffee/20">
+                      <div key={key} className="mb-2 last:mb-0">
+                        <div className="text-medium-coffee text-sm mb-1 font-semibold">{key} =</div>
+                        <div className="bg-cream-beige rounded px-2 py-1 text-sm text-dark-charcoal font-mono border border-medium-coffee/20">
                           {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                         </div>
                       </div>
@@ -1262,12 +1262,12 @@ function LeetCodePage() {
                   </div>
                 </div>
               ) : (
-                <div className="w-full max-w-xl mx-auto mb-4 bg-gradient-to-br from-cream-beige via-[#f5e6d3] to-[#f3e0c7] border-2 border-medium-coffee rounded-3xl shadow-2xl h-full flex flex-col p-4" style={{ borderBottom: '2px solid #9B6C46' }}>
-                  <div className="flex items-center justify-center h-full text-medium-coffee/60 font-mono text-lg">
+                <div className="w-full max-w-2xl mx-auto mb-2 bg-gradient-to-br from-cream-beige via-[#f5e6d3] to-[#f3e0c7] border-2 border-medium-coffee rounded-2xl shadow-lg h-full flex flex-col p-3" style={{ borderBottom: '2px solid #9B6C46' }}>
+                  <div className="flex items-center justify-center h-full text-medium-coffee/60 font-mono text-sm">
                     <div className="text-center">
-                      <div className="text-2xl mb-2">🧪</div>
-                      <div>No test cases available</div>
-                      <div className="text-sm mt-1">Please select a problem to recieve test cases </div>
+                      <div className="text-lg mb-1">🧪</div>
+                      <div className="text-sm">No test cases available</div>
+                      <div className="text-xs mt-1">Select a problem to receive test cases</div>
                     </div>
                   </div>
                 </div>
@@ -1277,35 +1277,35 @@ function LeetCodePage() {
         </div>
 
         {/* Right Panel - Chat */}
-        <div className="w-1/3 bg-light-cream border-l border-cream-beige flex flex-col h-full min-h-0">
+        <div className="w-80 bg-light-cream border-l border-cream-beige flex flex-col h-full min-h-0">
           {/* Chat Header */}
-          <div className="bg-light-cream border-b border-cream-beige px-4 py-3">
-            <div className="flex items-center space-x-3">
-               <div className="w-8 h-8 bg-medium-coffee rounded-lg flex items-center justify-center">
-                 <IconMessage className="h-5 w-5 text-light-cream" />
+          <div className="bg-light-cream border-b border-cream-beige px-4 py-2">
+            <div className="flex items-center space-x-2">
+               <div className="w-7 h-7 bg-medium-coffee rounded-lg flex items-center justify-center">
+                 <IconMessage className="h-4 w-4 text-light-cream" />
                </div>
               <div>
                 <h3 className="text-sm font-semibold text-deep-espresso">Brewster</h3>
-                <p className="text-xs text-dark-charcoal/70">Get hints, guidance, and chat with the problem</p>
+                <p className="text-xs text-dark-charcoal/70">Get hints and guidance</p>
               </div>
             </div>
           </div>
 
           {/* Chat Messages */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
             {chatHistory.map((message, index) => (
               <div
                 key={`${message.timestamp}-${index}`}
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] p-3 rounded-lg ${
+                  className={`max-w-[85%] p-2 rounded-lg ${
                     message.type === 'user'
                       ? 'bg-medium-coffee text-light-cream'
                       : 'bg-white text-dark-charcoal shadow'
                   }`}
                 >
-                  <div className="text-base leading-relaxed whitespace-pre-wrap">
+                  <div className="text-sm leading-5 whitespace-pre-wrap">
                     {message.content}
                   </div>
                 </div>
@@ -1314,7 +1314,7 @@ function LeetCodePage() {
             
             {isTyping && (
               <div className="flex justify-start">
-                <div className="bg-white text-dark-charcoal p-3 rounded-lg shadow">
+                <div className="bg-white text-dark-charcoal p-2 rounded-lg shadow">
                   <TypingIndicator />
                 </div>
               </div>
@@ -1323,7 +1323,7 @@ function LeetCodePage() {
           </div>
 
           {/* Chat Input */}
-          <div className="border-t border-cream-beige p-4 bg-light-cream">
+          <div className="border-t border-cream-beige p-3 bg-light-cream">
             <div className="flex space-x-2">
               <input
                 ref={inputRef}
@@ -1332,7 +1332,7 @@ function LeetCodePage() {
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder={currentProblem ? "Ask for help or hints..." : "Describe a coding problem..."}
-                className="flex-1 bg-white text-dark-charcoal placeholder-dark-charcoal/50 border border-cream-beige rounded-lg px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-medium-coffee"
+                className="flex-1 bg-white text-dark-charcoal placeholder-dark-charcoal/50 border border-cream-beige rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-medium-coffee"
                 disabled={isLoading || !currentProblem}
               />
               <Button

@@ -92,15 +92,15 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         position: 'absolute',
         left: position.x,
         top: position.y,
-        width: 370,
+        width: 340,
         maxWidth: '95vw',
-        minHeight: 220,
+        minHeight: 200,
         zIndex: 1050,
         background: 'rgba(247, 236, 220, 0.95)',
-        borderRadius: '1rem',
+        borderRadius: '0.75rem',
         boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
         border: '1px solid #bfa074',
-        padding: 20,
+        padding: 16,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -120,7 +120,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         </div>
       </div>
       {/* Progress Bar */}
-      <div className="w-full h-2 bg-[#e7dbc7] rounded-full mb-4 overflow-hidden relative">
+      <div className="w-full h-1.5 bg-[#e7dbc7] rounded-full mb-3 overflow-hidden relative">
         <div className="h-full bg-medium-coffee/70 transition-all duration-500" style={{ width: `${(stepNumber/totalSteps)*100}%` }} />
       </div>
       
@@ -130,16 +130,16 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
        
       </div>
       {/* Header */}
-      <div className="flex items-center mb-3 gap-2">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-medium-coffee to-deep-espresso flex items-center justify-center text-light-cream font-bold text-lg shadow-lg border-2 border-light-cream/30">
-          <span className='pb-1'>{stepNumber}</span>
+      <div className="flex items-center mb-2 gap-2">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-medium-coffee to-deep-espresso flex items-center justify-center text-light-cream font-bold text-sm shadow-lg border-2 border-light-cream/30">
+          <span className='pb-0.5'>{stepNumber}</span>
         </div>
-        <h3 className="font-bold text-medium-coffee text-base tracking-wide">
+        <h3 className="font-bold text-medium-coffee text-sm tracking-wide">
           Step {stepNumber} of {totalSteps}
         </h3>
       </div>
       {/* Instruction */}
-      <div className="mb-6 max-h-32 overflow-y-auto text-base text-dark-charcoal leading-relaxed font-medium">
+      <div className="mb-4 max-h-28 overflow-y-auto text-sm text-dark-charcoal leading-5 font-medium">
         <ReactMarkdown
           children={instruction}
           remarkPlugins={[remarkGfm]}
@@ -167,11 +167,11 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         <Button
           onClick={onPreviousStep}
           variant="outline"
-          size="lg"
-          className="flex-1 border-2 border-medium-coffee/50 text-medium-coffee bg-transparent hover:bg-medium-coffee/10 transition-all duration-200 rounded-xl text-sm font-semibold py-1 px-2"
+          size="sm"
+          className="flex-1 border-2 border-medium-coffee/50 text-medium-coffee bg-transparent hover:bg-medium-coffee/10 transition-all duration-200 rounded-lg text-xs font-semibold py-1 px-2"
           disabled={stepNumber === 1}
         >
-          <ArrowLeft className="h-4 w-4 mr-1" />
+          <ArrowLeft className="h-3 w-3 mr-1" />
           Prev
         </Button>
 
@@ -179,20 +179,20 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         <Button
           onClick={onCheckStep}
           variant={isComplete ? "default" : "default"}
-          size="lg"
-          className={`flex-1 ${isComplete ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-medium-coffee hover:bg-deep-espresso text-light-cream'} transition-all duration-200 rounded-xl text-sm font-bold py-2 px-4 flex items-center justify-center shadow-md hover:shadow-lg`}
+          size="sm"
+          className={`flex-1 ${isComplete ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-medium-coffee hover:bg-deep-espresso text-light-cream'} transition-all duration-200 rounded-lg text-xs font-bold py-1 px-2 flex items-center justify-center shadow-md hover:shadow-lg`}
           disabled={isChecking}
         > 
           {isChecking ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
               Checking...
             </>
           ) : isComplete ? (
-            <CheckCircle className="h-5 w-5" />
+            <CheckCircle className="h-4 w-4" />
           ) : (
             <>
-              <Search className={`h-4 w-4 mr-1 ${!isComplete ? 'animate-pulse' : ''}`} />
+              <Search className={`h-3 w-3 mr-1 ${!isComplete ? 'animate-pulse' : ''}`} />
               Check
             </>
           )}
@@ -201,21 +201,21 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         {stepNumber === totalSteps ? (
           <Button
             onClick={onFinish}
-            size="lg"
-            className={`flex-1 bg-gradient-to-r ${isComplete ? 'from-medium-coffee to-deep-espresso hover:from-deep-espresso hover:to-medium-coffee' : 'from-gray-400 to-gray-500'} text-light-cream transition-all duration-300 rounded-xl text-sm font-semibold py-1 px-2 ${!isComplete && 'cursor-not-allowed'}`}
+            size="sm"
+            className={`flex-1 bg-gradient-to-r ${isComplete ? 'from-medium-coffee to-deep-espresso hover:from-deep-espresso hover:to-medium-coffee' : 'from-gray-400 to-gray-500'} text-light-cream transition-all duration-300 rounded-lg text-xs font-semibold py-1 px-2 ${!isComplete && 'cursor-not-allowed'}`}
             disabled={!isComplete}
           >
-            <CheckCircle className="h-4 w-4 mr-1" />
+            <CheckCircle className="h-3 w-3 mr-1" />
             Finish
           </Button>
         ) : (
           <Button
             onClick={onNextStep}
-            size="lg"
-            className={`flex-1 ${isComplete ? 'bg-medium-coffee hover:bg-deep-espresso text-light-cream' : 'bg-gray-300 text-gray-500 cursor-not-allowed'} transition-all duration-200 rounded-xl text-sm font-semibold py-1 px-2`}
+            size="sm"
+            className={`flex-1 ${isComplete ? 'bg-medium-coffee hover:bg-deep-espresso text-light-cream' : 'bg-gray-300 text-gray-500 cursor-not-allowed'} transition-all duration-200 rounded-lg text-xs font-semibold py-1 px-2`}
             disabled={!isComplete}
           >
-            <ArrowRight className="h-4 w-4 mr-1" />
+            <ArrowRight className="h-3 w-3 mr-1" />
             Next
           </Button>
         )}
