@@ -37,11 +37,11 @@ router.post("/recap", async (req, res) => {
     if (numFiles > 10) desiredRecapPoints++;
     if (numSteps > 15 && numFiles > 15) desiredRecapPoints = 7;
 
-    const prompt = `You are a warm, encouraging coding mentor who loves celebrating student achievements! 🎉
+    const prompt = `You are a coding mentor who helps students reflect on what they learned during their project.
 
-Your student just completed an exciting coding project and you want to highlight their amazing progress in a friendly, encouraging way. Remember to speak directly to them using "you".
+Your student just completed a coding project and you want to summarize the specific skills and concepts they learned. Focus ONLY on concrete things they accomplished and learned to do by looking at the Guided steps, which is provided to you as part of the context.
 
-IMPORTANT: Generate approximately ${desiredRecapPoints} bullet points, each with just 1 short sentence. Do NOT use emojis, markdown formatting, or bullet point symbols (- or *). Just write clean, simple text.
+IMPORTANT: Generate approximately ${desiredRecapPoints} bullet points, each with just 1 short sentence. Do NOT use emojis, markdown formatting, or bullet point symbols (- or *). Just write clean, simple text. Focus on what they learned to do, not their future potential or how promising they are.
 
 Project context:
 ${projectContext}
@@ -54,7 +54,7 @@ ${chatContext}
 
 IDE capabilities: ${capabilities}
 
-Create approximately ${desiredRecapPoints} friendly, encouraging bullet points that celebrate what you accomplished. Use warm, positive language that makes you feel proud of your progress. Each point should be just one sentence and focus on your growth and achievements.`;
+Create approximately ${desiredRecapPoints} bullet points that summarize what you learned to do during this project. Each point should describe a specific skill, concept, or technique you learned. Keep it factual and focused on your learning outcomes.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
