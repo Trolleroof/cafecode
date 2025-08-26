@@ -20,6 +20,7 @@ import pythonRoutes from './routes/python.js';
 import translateRoutes from './routes/translate.js';
 import hintRoutes from './routes/hint.js';
 import guidedRecapRoutes from './routes/guided_recap.js';
+import guidedRoutes from './routes/guided.js';
 import leetcodeRoutes from './routes/leetcode.js';
 import tavusRoutes from './routes/tavus.js';
 import nodejsRoutes from './routes/nodejs.js';
@@ -215,6 +216,7 @@ app.use('/api/code', authenticateUser, codeRoutes);
 app.use('/api/python', authenticateUser, pythonRoutes);
 app.use('/api/nodejs', authenticateUser, nodejsRoutes);
 app.use('/api/leetcode', authenticateUser, leetcodeRoutes);
+app.use('/api/guided', authenticateUser, guidedRoutes);
 app.use('/api/recap', authenticateUser, guidedRecapRoutes);
 app.use('/api/hint', authenticateUser, hintRoutes);
 app.use('/api/translate', authenticateUser, translateRoutes);
@@ -236,6 +238,14 @@ app.get('/', (req, res) => {
       fix: '/api/code/fix',
       docs: '/api/code/docs',
       guided: '/api/guided',
+      guided_setup: '/api/guided/setup/start',
+      guided_setup_chat: '/api/guided/setup/chat',
+      guided_steps_generate: '/api/guided/steps/generate',
+      guided_steps_cleanup: '/api/guided/steps/cleanup',
+      guided_analyze_step: '/api/guided/analyzeStep',
+      guided_start_project: '/api/guided/startProject',
+      guided_simple_chat: '/api/guided/simple-chat',
+      guided_followup: '/api/guided/followup',
       leetcode: '/api/leetcode',
       tavus: '/api/tavus'
     }
