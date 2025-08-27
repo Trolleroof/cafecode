@@ -4,14 +4,21 @@ import fs from 'fs';
 import path from 'path';
 
 export class UserTerminalManager {
-  // Map userId to PTY process
-  static terminals = new Map();
+  // Map of userId -> Map of terminalId -> PTY process
+  static userIdToTerminals = new Map();
 
-  static startTerminal(userId, shell = 'bash', cols = 80, rows = 34) {
-    // kills terminal if it already exists for the user
-    if (UserTerminalManager.terminals.has(userId)) {
-      UserTerminalManager.terminals.get(userId).kill();
+  static startTerminal(userId, shell = 'bash', cols = 80, rows = 34, terminalId = null) {
+    // Ensure map for user exists
+    if (!UserTerminalManager.userIdToTerminals.has(userId)) {
+      UserTerminalManager.userIdToTerminals.set(userId, new Map());
     }
+    const terminalsForUser = UserTerminalManager.userIdToTerminals.get(userId);
+
+    // Generate terminalId if not provided
+    if (!terminalId) {
+      terminalId = `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+
     const cwd = UserWorkspaceManager.getTerminalRoot(userId);
     
     // Ensure the workspace directory exists
@@ -53,38 +60,57 @@ export class UserTerminalManager {
       ptyProcess.write('clear\n');
     }, 500);
     
-    UserTerminalManager.terminals.set(userId, ptyProcess);
-    return ptyProcess;
+    terminalsForUser.set(terminalId, ptyProcess);
+    return { id: terminalId, pty: ptyProcess };
   }
 
-  static getTerminal(userId) {
-    return UserTerminalManager.terminals.get(userId);
+  static getTerminal(userId, terminalId) {
+    const terminalsForUser = UserTerminalManager.userIdToTerminals.get(userId);
+    if (!terminalsForUser) return null;
+    if (!terminalId) {
+      // Return first terminal if exists
+      const first = terminalsForUser.values().next();
+      return first && !first.done ? { id: [...terminalsForUser.keys()][0], pty: first.value } : null;
+    }
+    const ptyProcess = terminalsForUser.get(terminalId);
+    return ptyProcess ? { id: terminalId, pty: ptyProcess } : null;
   }
 
-  static killTerminal(userId) {
-    const term = UserTerminalManager.terminals.get(userId);
+  static listTerminals(userId) {
+    const terminalsForUser = UserTerminalManager.userIdToTerminals.get(userId);
+    if (!terminalsForUser) return [];
+    return [...terminalsForUser.keys()];
+  }
+
+  static killTerminal(userId, terminalId) {
+    const terminalsForUser = UserTerminalManager.userIdToTerminals.get(userId);
+    if (!terminalsForUser) return false;
+    const term = terminalsForUser.get(terminalId);
     if (term) {
       term.kill();
-      UserTerminalManager.terminals.delete(userId);
+      terminalsForUser.delete(terminalId);
+      if (terminalsForUser.size === 0) {
+        UserTerminalManager.userIdToTerminals.delete(userId);
+      }
+      return true;
     }
+    return false;
   }
 
-  // Get current working directory for a user's terminal
-  static getTerminalCwd(userId) {
-    const term = UserTerminalManager.terminals.get(userId);
-    if (term) {
-      // Note: This is a simplified approach. In a real implementation,
-      // you might need to track the current directory more accurately
-      return UserWorkspaceManager.getTerminalRoot(userId);
+  static killAllTerminals(userId) {
+    const terminalsForUser = UserTerminalManager.userIdToTerminals.get(userId);
+    if (!terminalsForUser) return;
+    for (const term of terminalsForUser.values()) {
+      try { term.kill(); } catch (_) {}
     }
-    return null;
+    UserTerminalManager.userIdToTerminals.delete(userId);
   }
 
-  // Execute a command in the user's terminal
-  static executeCommand(userId, command) {
-    const term = UserTerminalManager.terminals.get(userId);
-    if (term) {
-      term.write(command + '\n');
+  // Execute a command in a specific terminal
+  static executeCommand(userId, terminalId, command) {
+    const terminal = UserTerminalManager.getTerminal(userId, terminalId);
+    if (terminal) {
+      terminal.pty.write(command + '\n');
       return true;
     }
     return false;

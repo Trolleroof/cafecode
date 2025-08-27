@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -26,6 +27,7 @@ import tavusRoutes from './routes/tavus.js';
 import nodejsRoutes from './routes/nodejs.js';
 import javaRoutes from './routes/java.js';
 import filesRoutes from './routes/files.js';
+import stripeRoutes from './routes/stripe.js';
 import { UserWorkspaceManager } from './services/UserWorkspaceManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -48,6 +50,12 @@ app.set('trust proxy', 1);
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false
+}));
+
+// Response compression for large JSON payloads (e.g., directory scans)
+app.use(compression({
+  level: 6,
+  threshold: parseInt(process.env.COMPRESSION_THRESHOLD || '1024', 10),
 }));
 
 // CORS configuration (must run before rate limiting)
@@ -221,6 +229,7 @@ app.use('/api/recap', authenticateUser, guidedRecapRoutes);
 app.use('/api/hint', authenticateUser, hintRoutes);
 app.use('/api/translate', authenticateUser, translateRoutes);
 app.use('/api/tavus', authenticateUser, tavusRoutes);
+app.use('/api/stripe', stripeRoutes); // Stripe routes (no auth required for webhooks)
 // --- End authentication enforcement ---
 
 // Root endpoint
@@ -256,6 +265,9 @@ app.get('/', (req, res) => {
 app.get('/health', async (req, res) => {
   try {
     const geminiStatus = geminiService ? await geminiService.checkHealth() : false;
+    // Lazy import to avoid circular dependency
+    const { Cache } = await import('./services/Cache.js');
+    const cacheStats = Cache.getStats();
     
     res.json({
       status: geminiStatus ? 'healthy' : 'degraded',
@@ -264,12 +276,13 @@ app.get('/health', async (req, res) => {
       services: {
         gemini_ai: geminiStatus ? 'connected' : 'disconnected',
         database: 'not_applicable',
-        cache: 'not_applicable'
+        cache: 'enabled'
       },
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       environment: process.env.NODE_ENV || 'development',
-      api_key_status: process.env.GEMINI_API_KEY ? 'configured' : 'missing'
+      api_key_status: process.env.GEMINI_API_KEY ? 'configured' : 'missing',
+      cache: cacheStats,
     });
   } catch (error) {
     console.error('Health check failed:', error);
@@ -346,13 +359,14 @@ async function startServer() {
     // Store server reference for graceful shutdown
     global.server = server;
 
-    // --- WebSocket Terminal Integration (browser-terminal style) ---
+    // --- WebSocket Terminal Integration (multiple terminals per user) ---
     const wss = new WebSocketServer({ server, path: '/terminal' });
 
     wss.on('connection', (ws, req) => {
-      // 1. Get access_token from query string
+      // 1. Get access_token and terminal_id from query string
       const url = new URL(req.url, `http://${req.headers.host}`);
       const token = url.searchParams.get('access_token');
+      const requestedTerminalId = url.searchParams.get('terminal_id') || undefined;
       if (!token) {
         ws.close(4001, 'Missing access token');
         return;
@@ -368,15 +382,21 @@ async function startServer() {
         return;
       }
 
-      // 3. Start terminal for this user
+      // 3. Start or attach to terminal for this user
       const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
-      const ptyProcess = UserTerminalManager.startTerminal(userId, shell);
+      const { id: terminalId, pty: ptyProcess } = UserTerminalManager.startTerminal(userId, shell, 80, 34, requestedTerminalId);
+
+      // Store metadata on websocket
+      ws.userId = userId;
+      ws.terminalId = terminalId;
 
       // 4. Wire up PTY <-> WebSocket
-      ptyProcess.on('data', (data) => ws.send(data));
+      ptyProcess.on('data', (data) => {
+        try { ws.send(data); } catch (_) {}
+      });
       ws.on('message', (msg) => {
         try {
-          // Try to parse as JSON for resize events
+          // Try to parse as JSON for resize events or other commands
           const parsed = JSON.parse(msg);
           if (parsed && parsed.type === 'resize' && parsed.cols && parsed.rows) {
             ptyProcess.resize(parsed.cols, parsed.rows);
@@ -392,13 +412,21 @@ async function startServer() {
           const target = cdMatch[1].trim();
           // Disallow cd to absolute paths or ..
           if (target.startsWith('/') || target.startsWith('..') || target.includes('..')) {
-            ws.send('cd: Permission denied\r\n');
+            try { ws.send('cd: Permission denied\r\n'); } catch (_) {}
             return;
           }
         }
-        ptyProcess.write(msg);
+        try { ptyProcess.write(msg); } catch (_) {}
       });
-      ws.on('close', () => UserTerminalManager.killTerminal(userId));
+      ws.on('close', () => {
+        // Only kill terminal if no other client is attached to the same terminal
+        const stillAttached = Array.from(wss.clients).some((client) => {
+          return client !== ws && client.readyState === 1 && client.userId === userId && client.terminalId === terminalId;
+        });
+        if (!stillAttached) {
+          UserTerminalManager.killTerminal(userId, terminalId);
+        }
+      });
     });
     // --- End WebSocket Terminal Integration ---
     

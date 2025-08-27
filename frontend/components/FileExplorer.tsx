@@ -40,6 +40,7 @@ interface FileExplorerProps {
   stepProgression?: React.ReactNode;
   onRefresh?: () => void;
   onFileSelect?: (file: FileNode) => void;
+  isLoading?: boolean;
 }
 
 type SearchFilter = 'all' | 'name';
@@ -530,8 +531,8 @@ export default function FileExplorer({
   onFileCreate,
   onFileDelete,
   onFileMove,
+  isLoading = false,
 }: FileExplorerProps) {
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // UI: Create file/folder dialog
@@ -661,9 +662,9 @@ export default function FileExplorer({
             onClick={handleRefresh}
             className="p-1 hover:bg-cream-beige rounded"
             title="Refresh File List"
-            disabled={loading}
+            disabled={isLoading}
           >
-            <RefreshCw className={`h-4 w-4 text-deep-espresso ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 text-deep-espresso ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
         </div>
@@ -681,6 +682,16 @@ export default function FileExplorer({
             className="w-full pl-8 pr-3 py-1 bg-cream-beige text-dark-charcoal text-sm border border-medium-coffee/30 rounded focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent"
           />
         </div>
+        
+        {/* Refresh Progress Indicator */}
+        {isLoading && (
+          <div className="mt-2 p-2 bg-medium-coffee/10 border border-medium-coffee/20 rounded text-xs text-medium-coffee">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-medium-coffee rounded-full animate-pulse"></div>
+              <span>Refreshing...</span>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Error Display */}
@@ -693,9 +704,9 @@ export default function FileExplorer({
       {/* File Tree */}
       <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-4">
         <div className="min-w-max">
-          {loading ? (
+          {isLoading ? (
             <ProjectSetupLoader 
-              isOpen={loading}
+              isOpen={isLoading}
               title="Loading Files"
               description="Reading your project structure..."
               showProgress={false}

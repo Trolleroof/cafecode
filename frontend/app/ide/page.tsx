@@ -19,7 +19,8 @@ import {
   IconLoader2,
   IconArrowLeft,
   IconMicrophone,
-  IconVideo
+  IconVideo,
+  IconRefresh
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -265,6 +266,13 @@ function convertBackendFilesToTree(backendFiles: any[]): FileNode[] {
 function IDEPage() {
   // File management state - Start with empty files array
   const [files, setFiles] = useState<FileNode[]>([]);
+
+  // Folder deletion confirmation state
+  const [pendingDeleteFolderId, setPendingDeleteFolderId] = useState<string | null>(null);
+  const [pendingDeleteFolderName, setPendingDeleteFolderName] = useState<string | null>(null);
+
+  // Chat scroll reference
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string[]>([]);
@@ -317,6 +325,93 @@ function IDEPage() {
 
   // Image preview blob URL (to pass auth while fetching)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+
+  // Simple file loading state
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
+
+  // Helper function to find a node by its ID in the file tree
+  const findNodeById = (id: string, nodes: FileNode[]): FileNode | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children) {
+        const found = findNodeById(id, node.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Helper function to recursively remove a node by its ID
+  const removeNodeById = (id: string, nodes: FileNode[]): FileNode[] => {
+    return nodes.filter(node => {
+      if (node.id === id) return false;
+      if (node.children) {
+        node.children = removeNodeById(id, node.children);
+      }
+      return true;
+    });
+  };
+  
+  // Helper function to get parent ID from a file's full path ID
+  const getParentIdFromFileId = (id: string): string | null => {
+    const parts = id.split('/');
+    if (parts.length <= 1) return null; // Root file
+    return parts.slice(0, -1).join('/');
+  };
+
+  // Helper function to build file path from parent ID and name
+  const buildPathFromId = (parentId: string | null, name: string): string => {
+    if (!parentId || parentId === '.') return name;
+    return parentId + '/' + name;
+  };
+
+  // File selection handler
+  const handleFileSelect = (file: FileNode) => {
+    setSelectedFile(file);
+    setActiveTab('editor');
+  };
+
+  // File deletion request handler (with confirmation for folders)
+  const handleDeleteRequest = (fileId: string) => {
+    const nodeToDelete = findNodeById(fileId, files);
+    if (nodeToDelete && nodeToDelete.type === 'folder') {
+      setPendingDeleteFolderId(fileId);
+      setPendingDeleteFolderName(nodeToDelete.name);
+      return;
+    }
+    // If not a folder, delete immediately
+    handleFileDelete(fileId);
+  };
+
+  // Simple file loading function
+  const loadFiles = useCallback(async () => {
+    if (!session?.access_token) {
+      setFilesError('Authentication required');
+      return;
+    }
+      
+    setFilesError(null);
+    setIsLoadingFiles(true);
+    
+    try {
+      const res = await axios.get(`${backendUrl}/files/list?recursive=true`, {
+        headers: getAuthHeaders()
+      });
+      
+      const nodes = convertBackendFilesToTree(res.data.files);
+      setFiles(nodes);
+    } catch (err: any) {
+      console.error('Failed to fetch files:', err);
+      setFilesError(err.response?.data?.error || err.message || 'Failed to load files');
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  }, [session]);
+
+  // Simple refresh function
+  const handleRefresh = useCallback(() => {
+    loadFiles();
+  }, [loadFiles]);
 
   // Helper to get auth headers with proper Supabase token
   const getAuthHeaders = () => {
@@ -398,234 +493,72 @@ function IDEPage() {
     return false;
   };
 
-  const fetchFiles = useCallback(async () => {
-    if (!session?.access_token) {
-      setFilesError('Authentication required');
-      return;
-    }
-      
-    setFilesError(null);
-    try {
-      const res = await axios.get(`${backendUrl}/files/list?recursive=true`, {
-        headers: getAuthHeaders()
-      });
-      // Adapt backend data to FileNode[]
-      const nodes = convertBackendFilesToTree(res.data.files);
-      setFiles(nodes);
-    } catch (err: any) {
-      console.error('Failed to fetch files:', err);
-      setFilesError(err.response?.data?.error || err.message || 'Failed to load files');
-    }
-  }, [session]);
-
-  // Deep scan helper: returns a flat list of files with optional content
-  const scanWorkspace = useCallback(async (opts?: { includeContent?: boolean; extensions?: string[] }) => {
-    if (!session?.access_token) throw new Error('Authentication required');
-    const params = new URLSearchParams();
-    params.set('path', '.');
-    params.set('recursive', 'true');
-    params.set('includeContent', opts?.includeContent ? 'true' : 'false');
-    params.set('ignoreHidden', 'true');
-    if (opts?.extensions && opts.extensions.length > 0) {
-      params.set('extensions', opts.extensions.join(','));
-    }
-    const res = await axios.get(`${backendUrl}/files/scan?${params.toString()}`, {
-      headers: getAuthHeaders()
-    });
-    // returns { exists, isDirectory, files: [{ name, isDirectory, size, modified, content? }] }
-    return res.data;
-  }, [session]);
-
-  // Simplified logging-only function - backend now handles all step analysis
-  const analyzeStepAgainstScan = (instruction: string, scan: any) => {
-    // Log to terminal for debugging
-    setOutput(prev => [...prev, 
-      `🔍 Frontend step called (logging only):`,
-      `   Instruction: ${instruction}`,
-      `   Scan files count: ${scan?.files?.length || 0}`,
-      `   Note: Backend now handles all step analysis`,
-      ``
-    ]);
-    
-    const allItems: any[] = Array.isArray(scan?.files) ? scan.files : [];
-    const filesList = allItems.filter(item => !item.isDirectory);
-    const directoriesList = allItems.filter(item => item.isDirectory);
-    
-    // Log basic workspace info
-    setOutput(prev => [...prev, 
-      `📁 Workspace info:`,
-      `   Total items: ${allItems.length}`,
-      `   Files: ${filesList.length}`,
-      `   Directories: ${directoriesList.length}`,
-      `   Backend will handle analysis...`,
-      ``
-    ]);
-
-    // Return simple generic result - backend handles real analysis
-    return { type: 'generic', exists: true, file: null, tokensChecked: [] };
-  };
-
-  useEffect(() => {
-    if (session?.access_token) {
-      fetchFiles();
-    }
-  }, [session, fetchFiles]);
-
-
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll chat to bottom
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
-
-  // Auto-scroll when typing animation is active
-  useEffect(() => {
-    if (isTyping) {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [isTyping]);
-
-  // Clear highlighted lines when file changes or code is modified
-  useEffect(() => {
-    setHighlightedLines([]);
-  }, [selectedFile?.id]);
-
-  // Load image preview as blob with auth when an image file is selected
-  useEffect(() => {
-    let revoked = false;
-    const isImage = !!selectedFile?.name && /\.(png|jpe?g|gif|bmp|webp|svg)$/i.test(selectedFile.name);
-    if (!isImage) {
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
-      setImagePreviewUrl(null);
-      return;
-    }
-    (async () => {
-      try {
-        console.log('🖼️ Loading image preview for:', selectedFile!.id);
-        const headers = getAuthHeaders();
-        console.log('🔑 Auth headers:', headers);
-        const fullUrl = `${backendUrl}/files/raw?path=${encodeURIComponent(selectedFile!.id)}`;
-        console.log('🌐 Full URL:', fullUrl);
-        console.log('📡 Making request...');
-        const res = await axios.get(`${backendUrl}/files/raw`, {
-          params: { path: selectedFile!.id },
-          headers: headers,
-          responseType: 'blob'
-        });
-        console.log('✅ Image loaded successfully, status:', res.status);
-        const url = URL.createObjectURL(res.data);
-        if (!revoked) setImagePreviewUrl(url);
-      } catch (e: any) {
-        console.error('❌ Failed to load image preview:', e);
-        console.error('📋 Error details:', {
-          status: e.response?.status,
-          statusText: e.response?.statusText,
-          data: e.response?.data,
-          message: e.message,
-          url: e.config?.url,
-          headers: e.config?.headers
-        });
-        console.error('📋 Request details:', {
-          url: `${backendUrl}/files/raw`,
-          path: selectedFile!.id,
-          hasSession: !!session,
-          hasToken: !!session?.access_token
-        });
-        if (!revoked) setImagePreviewUrl(null);
-      }
-    })();
-    return () => {
-      revoked = true;
-      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
-    };
-  }, [selectedFile?.id]);
-
-  // File operations
-  const handleFileSelect = async (file: FileNode) => {
-    if (file.type === 'file') {
-      // Prevent reloading if already selected
-      if (selectedFile && selectedFile.id === file.id) return;
-      
-      try {
-        const res = await axios.get(`${backendUrl}/files/read`, {
-          params: { path: file.id },
-          headers: getAuthHeaders(),
-        });
-        const content = res.data.data;
-        const language = getLanguageFromFileName(file.name);
-        const fileWithContent = { ...file, content, language };
-        setSelectedFile(fileWithContent);
-      } catch (err) {
-        console.error('Failed to read file:', err);
-        // Handle error, e.g., show a notification to the user
-      }
-    }
-  };
-
-  const buildPathFromId = (parentId: string | null, name: string): string => {
-    if (!parentId || parentId === '.' || parentId === '/') return name;
-    return parentId + '/' + name;
-  };
-  
+  // Optimistic file creation with immediate UI update
   const handleFileCreate = async (parentId: string | null, type: 'file' | 'folder', name: string) => {
-    try {
-      await axios.post(`${backendUrl}/files/create`, 
-        { path: buildPathFromId(parentId, name), isFolder: type === 'folder' },
-        { headers: getAuthHeaders() }
-      );
-      fetchFiles(); // Refetch files to update the tree
-    } catch (err: any) {
-      console.error('Failed to create:', err);
-      // Optionally, set an error state to show in the UI
-    }
-  };
+    const newPath = buildPathFromId(parentId, name);
+    
+    const optimisticNode: FileNode = {
+      id: newPath,
+      name,
+      type,
+      children: type === 'folder' ? [] : undefined,
+    };
 
+    const originalFiles = files;
 
-
-  // Add state for folder delete confirmation
-  const [pendingDeleteFolderId, setPendingDeleteFolderId] = useState<string | null>(null);
-  const [pendingDeleteFolderName, setPendingDeleteFolderName] = useState<string | null>(null);
-
-  // Update handleFileDelete to show confirmation for folders
-  const handleDeleteRequest = (fileId: string) => {
-    // Find the node to delete
-    const findNode = (nodes: FileNode[]): FileNode | null => {
-      for (const node of nodes) {
-        if (node.id === fileId) return node;
-        if (node.children) {
-          const found = findNode(node.children);
-          if (found) return found;
+    // Optimistically update UI
+    setFiles(prev => {
+      const newFiles = JSON.parse(JSON.stringify(prev)); // Deep copy
+      if (parentId === null) {
+        newFiles.push(optimisticNode);
+      } else {
+        const parent = findNodeById(parentId, newFiles);
+        if (parent && parent.type === 'folder') {
+          parent.children = parent.children ? [...parent.children, optimisticNode] : [optimisticNode];
         }
       }
-      return null;
-    };
-    const nodeToDelete = findNode(files);
-    if (nodeToDelete && nodeToDelete.type === 'folder') {
-      setPendingDeleteFolderId(fileId);
-      setPendingDeleteFolderName(nodeToDelete.name);
-      return;
+      return newFiles;
+    });
+
+    try {
+      await axios.post(`${backendUrl}/files/create`, 
+        { path: newPath, isFolder: type === 'folder' },
+        { headers: getAuthHeaders() }
+      );
+      // Success - optimistic update is now the source of truth
+    } catch (err: any) {
+      console.error('Failed to create file:', err);
+      // On error, revert the optimistic update
+      setFiles(originalFiles);
+      setFilesError(`Failed to create ${type}: ${err.response?.data?.error || err.message}`);
     }
-    // If not a folder, delete immediately
-    handleFileDelete(fileId);
   };
 
-  // Actual delete logic
+  // Optimistic file deletion with immediate UI update
   const handleFileDelete = async (fileId: string) => {
+    const originalFiles = files;
+    
+    // Optimistically remove from UI
+    setFiles(prev => {
+      const newFiles = JSON.parse(JSON.stringify(prev)); // Deep copy
+      return removeNodeById(fileId, newFiles);
+    });
+
+    if (selectedFile?.id === fileId) {
+      setSelectedFile(null);
+    }
+
     try {
       await axios.delete(`${backendUrl}/files/delete`, { 
         data: { path: fileId },
         headers: getAuthHeaders()
       });
-      fetchFiles(); // Refetch to update the tree
-      if (selectedFile?.id === fileId) {
-        setSelectedFile(null);
-      }
+      // Success - optimistic update is now the source of truth
     } catch (err: any) {
-      console.error('Failed to delete:', err);
-      // Optionally, set an error state
+      console.error('Failed to delete file:', err);
+      // On error, revert the optimistic update
+      setFiles(originalFiles);
+      setFilesError(`Failed to delete: ${err.response?.data?.error || err.message}`);
     } finally {
       setPendingDeleteFolderId(null);
       setPendingDeleteFolderName(null);
@@ -1614,6 +1547,25 @@ function IDEPage() {
     };
   }, []);
 
+  // Load files when component mounts and session is available
+  useEffect(() => {
+    if (session?.access_token) {
+      loadFiles();
+    }
+  }, [session, loadFiles]);
+
+  // Also try to load files on component mount regardless of session (for debugging)
+  useEffect(() => {
+    if (session?.access_token) {
+      loadFiles();
+    }
+  }, []);
+
+  // Debug: Log when files state changes
+  useEffect(() => {
+    console.log(`📁 Files state updated: ${files.length} files, error: ${filesError}`);
+  }, [files, filesError]);
+
   // Add state to track if the terminal has been initialized
   const [terminalInitialized, setTerminalInitialized] = useState(false);
 
@@ -1622,7 +1574,6 @@ function IDEPage() {
 
   // New handler for returning to the chat from the steps preview
   const handleReturnToChat = () => {
-    console.log('[RETURN TO CHAT] Starting follow-up flow');
     setShowStepsPreviewModal(false); // Close the modal
     setIsInSetupPhase(true); // Re-enter setup/chat phase
     setIsInFollowUpPhase(true); // Enter follow-up phase
@@ -1634,19 +1585,9 @@ function IDEPage() {
       content: "What else would you like to add to your project?",
       timestamp: new Date()
     }]);
-    
-    console.log('[RETURN TO CHAT] State set:', { 
-      isInSetupPhase: true, 
-      isInFollowUpPhase: true, 
-      showSubmitButton: false 
-    });
   };
 
-  // Generate AI-powered follow-up suggestions
-  const generateFollowUpSuggestions = async () => {
-    // Removed - no longer generating suggestions automatically
-    return;
-  };
+
 
   // Handle user response to follow-up suggestions
   const handleFollowUpResponse = async (userMessageContent: string) => {
@@ -1798,14 +1739,8 @@ function IDEPage() {
                 onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
                 onFileCreate={handleFileCreate}
                 onFileDelete={handleDeleteRequest}
-                onRefresh={() => {
-                  // First fetch files normally
-                  fetchFiles();
-                  // Then trigger a scan to show logs in terminal
-                  scanWorkspace({ includeContent: false }).catch(err => {
-                    console.error('Scan failed:', err);
-                  });
-                }}
+                onRefresh={handleRefresh}
+                isLoading={isLoadingFiles}
                 stepProgression={guidedProject && (
                   <GuidedStepPopup
                     instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
@@ -1880,12 +1815,37 @@ function IDEPage() {
                             </div>
                           </div>
                         </div>
+                      ) : filesError ? (
+                        <div className="flex items-center justify-center h-full bg-red-50">
+                          <div className="text-center">
+                            <div>
+                              <IconX className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                              <p className="text-red-800 text-lg">Failed to load files</p>
+                              <p className="text-red-600 text-sm mt-2">{filesError}</p>
+                              <button 
+                                onClick={loadFiles}
+                                className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                              >
+                                Try Again
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : files.length === 0 ? (
+                        <div className="flex items-center justify-center h-full bg-cream-beige/20">
+                          <div className="text-center">
+                            <IconCode className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
+                            <p className="text-deep-espresso text-lg">No files found</p>
+                            <p className="text-deep-espresso/70 text-sm mt-2">Create your first file to start coding</p>
+                           
+                          </div>
+                        </div>
                       ) : (
                         <div className="flex items-center justify-center h-full bg-cream-beige/20">
                           <div className="text-center">
                             <IconCode className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
-                            <p className="text-deep-espresso text-lg">Create a file to start coding</p>
-                            <p className="text-deep-espresso/70 text-sm mt-2">Use the file explorer to create your first file</p>
+                            <p className="text-deep-espresso text-lg">Select a file to start coding</p>
+                            <p className="text-deep-espresso/70 text-sm mt-2">Choose a file from the explorer on the left</p>
                           </div>
                         </div>
                       )}
@@ -1930,7 +1890,8 @@ function IDEPage() {
                       height: '400px', // Increased height
                       width: '100%',
                       background: 'black', // Black background for padding
-                      padding: '16px', // Add black padding
+                      paddingLeft: '10px',
+                      paddingBottom: '15px',
                       boxSizing: 'border-box',
                       display: activeTab === 'terminal' ? 'block' : 'none',
                       overflowX: 'auto', // Enable horizontal scroll
