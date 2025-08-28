@@ -641,8 +641,10 @@ function convertBackendFilesToTree(backendFiles: any[]): FileNode[] {
       let existingNode = currentParent.children?.find(child => child.name === part);
 
       if (!existingNode) {
+        // Create a unique ID that includes the full path context
+        const uniqueId = isLastPart ? file.name : `${file.name}:${currentPath}`;
         existingNode = {
-          id: currentPath,
+          id: uniqueId,
           name: part,
           type: (isLastPart && !file.isDirectory) ? 'file' : 'folder',
           children: [],

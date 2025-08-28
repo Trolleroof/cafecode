@@ -485,22 +485,17 @@ async function startServer() {
 
       // Send initial file system state
       try {
-        const workspacePath = UserWorkspaceManager.getUserWorkspacePath(userId);
-        const fileSystemState = fileSystemIndexer.getAllItems(userId, workspacePath);
-        
-        // Send connection confirmation
+        // Don't build file system index on every connection - this causes spam
+        // Just send a simple connection confirmation
         ws.send(JSON.stringify({
           type: 'connected',
           data: { message: 'File events WebSocket connected successfully' }
         }));
         
-        // Send initial file system state
-        ws.send(JSON.stringify({
-          type: 'initial_state',
-          data: fileSystemState
-        }));
+        // Don't send initial state - let the frontend request it when needed
+        // This prevents unnecessary file system indexing on every connection
       } catch (error) {
-        console.warn(`[FILE-EVENTS] Could not send initial state for user ${userId}:`, error.message);
+        console.warn(`[FILE-EVENTS] Could not send connection confirmation for user ${userId}:`, error.message);
       }
 
       ws.on('close', () => {
@@ -598,7 +593,7 @@ async function startServer() {
           if (client.readyState === 1) { // WebSocket.OPEN
             try {
               client.send(JSON.stringify(eventData));
-              console.log(`📡 [FILE-EVENTS] Sent ${eventType} event to client for user ${userId}: ${changeEvent.path}`);
+              // Reduced logging to prevent spam - only log errors
             } catch (error) {
               console.warn(`[FILE-EVENTS] Failed to send to client:`, error.message);
             }

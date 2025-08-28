@@ -11,8 +11,16 @@ export class FileSystemIndexer {
     // Cache expiry: userId -> timestamp
     this.lastUpdated = new Map();
     
-    // Cache duration: 5 minutes
-    this.CACHE_DURATION = 5 * 60 * 1000;
+    // Cache duration: 30 minutes (increased from 5 minutes to reduce spam)
+    this.CACHE_DURATION = 30 * 60 * 1000;
+    
+    // Debounce file change events to reduce spam
+    this.changeDebouncers = new Map();
+    this.DEBOUNCE_DELAY = 2000; // 2 seconds to reduce spam further
+    
+    // Track file changes to batch them
+    this.pendingChanges = new Map();
+    this.BATCH_DELAY = 5000; // 5 seconds to batch changes
   }
 
   /**
@@ -28,13 +36,18 @@ export class FileSystemIndexer {
     }
     
     // Rebuild index
-    console.log(`[FS_INDEXER] Building file system index for user: ${userId}`);
+    // Only log when building a new index, not when using cached one
+    if (!this.userIndexes.has(userId)) {
+      console.log(`[FS_INDEXER] Building file system index for user: ${userId}`);
+    }
     const index = this.buildIndex(workspacePath);
     this.userIndexes.set(userId, index);
     this.lastUpdated.set(userId, now);
     
-    // Set up file watcher for real-time updates
-    this.setupWatcher(userId, workspacePath);
+    // Set up file watcher for real-time updates (only once per user)
+    if (!this.watchers.has(userId)) {
+      this.setupWatcher(userId, workspacePath);
+    }
     
     return index;
   }
@@ -94,7 +107,10 @@ export class FileSystemIndexer {
 
     scanDirectory(workspacePath);
     
-    console.log(`[FS_INDEXER] Index built: ${files.size} files, ${folders.size} folders`);
+    // Only log significant index builds to reduce spam
+    if (files.size > 0 || folders.size > 0) {
+      console.log(`[FS_INDEXER] Index built: ${files.size} files, ${folders.size} folders`);
+    }
     return { files, folders, fullPaths };
   }
 
@@ -110,68 +126,130 @@ export class FileSystemIndexer {
     try {
       const watcher = fs.watch(workspacePath, { recursive: true }, (eventType, filename) => {
         if (filename && !filename.startsWith('.') && !filename.startsWith('_')) {
-          console.log(`[FS_INDEXER] File system change detected for user ${userId}: ${eventType} ${filename}`);
-          
-          // Determine the type of change and get more details
-          let changeType = 'unknown';
-          let filePath = filename;
-          
-          try {
-            const fullPath = path.join(workspacePath, filename);
-            const stats = fs.statSync(fullPath);
-            
-            if (eventType === 'rename') {
-              // Check if file exists to determine if it was created or deleted
-              if (fs.existsSync(fullPath)) {
-                changeType = 'created';
-              } else {
-                changeType = 'deleted';
-              }
-            } else if (eventType === 'change') {
-              changeType = 'modified';
-            }
-            
-            // Get relative path from workspace
-            const relativePath = path.relative(workspacePath, fullPath);
-            filePath = relativePath;
-            
-            // Emit custom event for WebSocket broadcasting
-            if (this.onFileChange) {
-              this.onFileChange(userId, {
-                type: changeType,
-                path: filePath,
-                filename: filename,
-                isDirectory: stats.isDirectory(),
-                size: stats.size,
-                timestamp: new Date().toISOString()
-              });
-            }
-            
-          } catch (error) {
-            // File might have been deleted or moved
-            if (eventType === 'rename') {
-              changeType = 'deleted';
-            }
-            
-            // Emit event even if we can't get stats
-            if (this.onFileChange) {
-              this.onFileChange(userId, {
-                type: changeType,
-                path: filePath,
-                filename: filename,
-                timestamp: new Date().toISOString()
-              });
-            }
-          }
-          
-          // Invalidate cache on next access
-          this.lastUpdated.set(userId, 0);
+          // Debounce file change events to reduce spam
+          this.debounceFileChange(userId, eventType, filename, workspacePath);
         }
       });
       
       this.watchers.set(userId, watcher);
     } catch (error) {
       console.warn(`[FS_INDEXER] Could not setup watcher for ${userId}:`, error.message);
+    }
+  }
+
+  /**
+   * Debounce file change events to reduce spam
+   */
+  debounceFileChange(userId, eventType, filename, workspacePath) {
+    // Track this change
+    if (!this.pendingChanges.has(userId)) {
+      this.pendingChanges.set(userId, new Set());
+    }
+    
+    const changes = this.pendingChanges.get(userId);
+    changes.add({ eventType, filename, workspacePath });
+    
+    // Clear existing debouncer
+    if (this.changeDebouncers.has(userId)) {
+      clearTimeout(this.changeDebouncers.get(userId));
+    }
+
+    // Set new debouncer with longer delay for batching
+    const debouncer = setTimeout(() => {
+      this.processBatchedChanges(userId);
+      this.changeDebouncers.delete(userId);
+    }, this.BATCH_DELAY);
+
+    this.changeDebouncers.set(userId, debouncer);
+  }
+
+  /**
+   * Process batched file changes to reduce spam
+   */
+  processBatchedChanges(userId) {
+    const changes = this.pendingChanges.get(userId);
+    if (!changes || changes.size === 0) return;
+    
+    // Process all pending changes at once
+    const processedChanges = new Set();
+    
+    for (const change of changes) {
+      const { eventType, filename, workspacePath } = change;
+      const changeKey = `${eventType}-${filename}`;
+      
+      if (!processedChanges.has(changeKey)) {
+        this.processFileChange(userId, eventType, filename, workspacePath);
+        processedChanges.add(changeKey);
+      }
+    }
+    
+    // Clear processed changes
+    this.pendingChanges.delete(userId);
+  }
+
+  /**
+   * Process individual file change
+   */
+  processFileChange(userId, eventType, filename, workspacePath) {
+    // Determine the type of change and get more details
+    let changeType = 'unknown';
+    let filePath = filename;
+    
+    try {
+      const fullPath = path.join(workspacePath, filename);
+      const stats = fs.statSync(fullPath);
+      
+      if (eventType === 'rename') {
+        // Check if file exists to determine if it was created or deleted
+        if (fs.existsSync(fullPath)) {
+          changeType = 'created';
+        } else {
+          changeType = 'deleted';
+        }
+      } else if (eventType === 'change') {
+        changeType = 'modified';
+      }
+      
+      // Get relative path from workspace
+      const relativePath = path.relative(workspacePath, fullPath);
+      filePath = relativePath;
+      
+      // Emit custom event for WebSocket broadcasting
+      if (this.onFileChange) {
+        this.onFileChange(userId, {
+          type: changeType,
+          path: filePath,
+          filename: filename,
+          isDirectory: stats.isDirectory(),
+          size: stats.size,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+    } catch (error) {
+      // File might have been deleted or moved
+      if (eventType === 'rename') {
+        changeType = 'deleted';
+      }
+      
+      // Emit event even if we can't get stats
+      if (this.onFileChange) {
+        this.onFileChange(userId, {
+          type: changeType,
+          path: filePath,
+          filename: filename,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+    
+    // Only invalidate cache periodically, not on every change
+    const now = Date.now();
+    const lastUpdate = this.lastUpdated.get(userId) || 0;
+    // TEMPORARY: Reduced to 1 minute for testing (was 24 minutes)
+    // Only invalidate if cache is older than 1 minute
+    if ((now - lastUpdate) > (60 * 1000)) {
+      this.lastUpdated.set(userId, 0);
     }
   }
 
@@ -277,6 +355,16 @@ export class FileSystemIndexer {
       this.watchers.get(userId).close();
       this.watchers.delete(userId);
     }
+    
+    // Clear any pending debouncers
+    if (this.changeDebouncers.has(userId)) {
+      clearTimeout(this.changeDebouncers.get(userId));
+      this.changeDebouncers.delete(userId);
+    }
+    
+    // Clear pending changes
+    this.pendingChanges.delete(userId);
+    
     this.userIndexes.delete(userId);
     this.lastUpdated.delete(userId);
     console.log(`[FS_INDEXER] Cleaned up resources for user: ${userId}`);

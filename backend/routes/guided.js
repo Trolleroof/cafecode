@@ -774,7 +774,6 @@ Return ONLY the JSON array.`;
     let questions;
     try {
       const cleanResponse = extractJsonFromResponse(responseText);
-      console.log("[SETUP] Extracted JSON:", cleanResponse);
       questions = robustJsonParse(cleanResponse);
       if (!Array.isArray(questions) || questions.length === 0) {
         throw new Error('Invalid questions format');
@@ -796,7 +795,6 @@ Return ONLY the JSON array.`;
         return cleaned;
       };
       questions = normalizeQuestions(questions);
-      console.log("[SETUP] Normalized questions:", questions);
       // Limit to maximum 5 questions
       questions = questions.slice(0, 5);
     } catch (e) {
@@ -845,8 +843,7 @@ router.post('/setup/chat', async (req, res) => {
     const answer = lastUser?.content?.trim() || '';
     const currentIndex = session.index;
     
-    console.log(`[SETUP] Processing question ${currentIndex + 1}/${session.questions.length}`);
-    console.log(`[SETUP] User answer:`, answer);
+
     
     // Save answer
     const qKey = `q${currentIndex + 1}`;
@@ -859,7 +856,7 @@ router.post('/setup/chat', async (req, res) => {
       const totalQuestions = session.questions.length;
       setupSessions.set(userId, session);
       
-      console.log(`[SETUP] Moving to question ${questionNumber}/${totalQuestions}:`, nextQuestion);
+
       
       // Generate a dynamic, encouraging acknowledgment for the user's answer
       let acknowledgment = `Got it, thanks! Let's move to the next question.`; // Fallback response
@@ -888,7 +885,7 @@ Now, generate a response for the user's answer provided in the context.`;
         if (responseText.trim()) {
           acknowledgment = responseText.trim();
         }
-        console.log('[SETUP] Generated Acknowledgment:', acknowledgment);
+
       } catch (e) {
         console.error('[SETUP] Error generating acknowledgment, using fallback:', e);
       }
@@ -907,7 +904,7 @@ Now, generate a response for the user's answer provided in the context.`;
     session.index = session.questions.length;
     setupSessions.set(userId, session);
     
-    console.log(`[SETUP] All questions completed. User answers:`, session.answers);
+
     
     const content = `Great, I've collected all the information I need. When you're ready, click "Generate Steps" to generate your project steps!`;
     

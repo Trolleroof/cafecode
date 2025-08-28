@@ -253,8 +253,10 @@ function convertBackendFilesToTree(backendFiles: any[]): FileNode[] {
       let existingNode = currentParent.children?.find(child => child.name === part);
 
       if (!existingNode) {
+        // Create a unique ID that includes the full path context
+        const uniqueId = isLastPart ? file.name : `${file.name}:${currentPath}`;
         existingNode = {
-          id: currentPath,
+          id: uniqueId,
           name: part,
           type: (isLastPart && !file.isDirectory) ? 'file' : 'folder',
           children: [],
@@ -300,6 +302,7 @@ function IDEPage() {
 
   // Chat scroll reference
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string[]>([]);
@@ -316,6 +319,14 @@ function IDEPage() {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages.length, isTyping]);
+  
   // Removed isChatOpen and showChatClosedMessage, chat is always open
 
   // Guided project state
@@ -479,8 +490,12 @@ function IDEPage() {
   const fileListETagRef = useRef<string | null>(null);
   const refreshDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fileEventsWsRef = useRef<WebSocket | null>(null);
+  const selectedFileRef = useRef<FileNode | null>(null);
+  const refreshFileTreeRef = useRef<((force?: boolean) => void) | null>(null);
+  const reconnectAttemptsRef = useRef<number>(0);
+  const connectingRef = useRef<boolean>(false);
   
-  // Unified refresh function with debouncing and ETag support
+  // Unified refresh function with debouncing and ETag support (optimized)
   const refreshFileTree = useCallback(async (force = false) => {
     // Clear existing debounce timer if force refresh
     if (force && refreshDebounceTimerRef.current) {
@@ -498,9 +513,9 @@ function IDEPage() {
       refreshDebounceTimerRef.current = setTimeout(() => {
         refreshDebounceTimerRef.current = null;
         refreshFileTree(true); // Execute the actual refresh
-      }, 5000); // 5 second debounce
+      }, 30000); // 30 second debounce (reduced from 5s to prevent spam)
       
-      console.log('🔄 [REFRESH] Scheduled debounced refresh in 5 seconds');
+      console.log('🔄 [REFRESH] Scheduled debounced refresh in 30 seconds');
       return;
     }
     
@@ -562,6 +577,15 @@ function IDEPage() {
       setIsLoadingFiles(false);
     }
   }, [session, selectedFile]);
+
+  // Keep refs in sync with latest values to avoid effect dependency churn
+  useEffect(() => {
+    selectedFileRef.current = selectedFile;
+  }, [selectedFile]);
+
+  useEffect(() => {
+    refreshFileTreeRef.current = refreshFileTree;
+  }, [refreshFileTree]);
   
   // Alias for backward compatibility
   const handleRefresh = refreshFileTree;
@@ -812,9 +836,10 @@ function IDEPage() {
     };
   }, []);
   
-  // Set up WebSocket connection for file events
+  // Set up WebSocket connection for file events (stabilized)
   useEffect(() => {
-    if (!session?.access_token) return;
+    const accessToken = session?.access_token;
+    if (!accessToken) return;
     
     // Determine WebSocket URL based on environment
     const getWebSocketUrl = () => {
@@ -832,6 +857,15 @@ function IDEPage() {
     let reconnectTimeout: NodeJS.Timeout | null = null;
     
     const connectWebSocket = () => {
+      // Prevent parallel connects
+      if (connectingRef.current) {
+        return;
+      }
+      // If an existing connection is open or connecting, skip
+      if (fileEventsWsRef.current && (fileEventsWsRef.current.readyState === WebSocket.OPEN || fileEventsWsRef.current.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+      connectingRef.current = true;
       try {
         const wsUrl = getWebSocketUrl();
         console.log('📡 [FILE-EVENTS] Attempting to connect to:', `${wsUrl}/file-events`);
@@ -845,6 +879,8 @@ function IDEPage() {
         ws.onopen = () => {
           console.log('📡 [FILE-EVENTS] WebSocket connected successfully');
           fileEventsWsRef.current = ws;
+          reconnectAttemptsRef.current = 0; // reset backoff
+          connectingRef.current = false;
         };
         
         ws.onmessage = (event) => {
@@ -885,7 +921,7 @@ function IDEPage() {
               case 'file:updated':
                 console.log(`📝 [FILE-EVENTS] File updated: ${data.path}`);
                 // If this is the currently selected file, we might want to reload its content
-                if (selectedFile && selectedFile.id === data.path) {
+                if (selectedFileRef.current && selectedFileRef.current.id === data.path) {
                   console.log('📝 [FILE-EVENTS] Current file was updated externally');
                   // Could show a notification or reload the file
                 }
@@ -905,8 +941,10 @@ function IDEPage() {
                 console.log(`❓ [FILE-EVENTS] Unknown event type: ${data.type}`);
             }
             
-            // Schedule a debounced refresh to ensure consistency
-            refreshFileTree(false);
+            // Don't schedule automatic refresh on every WebSocket event
+            // The optimistic updates above already keep the file tree in sync
+            // Only refresh if there's a real inconsistency detected
+            console.log('📡 [FILE-EVENTS] File tree updated optimistically - no refresh needed');
           } catch (err) {
             console.error('📡 [FILE-EVENTS] Error handling message:', err);
           }
@@ -926,7 +964,7 @@ function IDEPage() {
           });
           
           // Decode common close codes
-          const closeCodeMeaning = {
+          const closeCodeMeaning: Record<string, string> = {
             1000: 'Normal closure',
             1001: 'Going away', 
             1002: 'Protocol error',
@@ -936,23 +974,29 @@ function IDEPage() {
             4001: 'Missing access token',
             4002: 'Invalid access token'
           };
-          
-          console.log('📡 [FILE-EVENTS] Close code meaning:', closeCodeMeaning[event.code] || 'Unknown code');
+          const meaning = closeCodeMeaning[String(event.code)] || 'Unknown code';
+          console.log('📡 [FILE-EVENTS] Close code meaning:', meaning);
           fileEventsWsRef.current = null;
+          connectingRef.current = false;
           
           // Only attempt to reconnect if it wasn't a manual close and session is still valid
-          if (event.code !== 1000 && session?.access_token) {
-            console.log('📡 [FILE-EVENTS] Attempting to reconnect in 5 seconds...');
+          if (event.code !== 1000 && accessToken) {
+            // Exponential backoff with cap at 30s
+            const attempt = Math.min(reconnectAttemptsRef.current + 1, 5);
+            reconnectAttemptsRef.current = attempt;
+            const delay = Math.min(30000, 2000 * Math.pow(2, attempt - 1));
+            console.log(`📡 [FILE-EVENTS] Attempting to reconnect in ${Math.round(delay/1000)}s... (attempt ${attempt})`);
             reconnectTimeout = setTimeout(() => {
-              if (session?.access_token) {
+              if (accessToken) {
                 connectWebSocket();
               }
-            }, 5000);
+            }, delay);
           }
         };
         
       } catch (error) {
         console.warn('📡 [FILE-EVENTS] Failed to establish WebSocket connection (backend may not be running):', error);
+        connectingRef.current = false;
       }
     };
     
@@ -967,7 +1011,7 @@ function IDEPage() {
         ws.close(1000, 'Component unmounting');
       }
     };
-  }, [session, selectedFile, refreshFileTree]);
+  }, [session?.access_token]);
   
   const handleCodeChange = (value: string | undefined) => {
     if (selectedFile && value !== undefined) {
@@ -1106,9 +1150,14 @@ function IDEPage() {
         }
       } catch (error) {
         if (!ignoreIncomingSetupResponses) {
-          setChatMessages(prev => [...prev, { type: 'assistant', content: 'I\'ve noted your preferences. What else should we refine before generating steps?', timestamp: new Date() }]);
+          // Add a small delay to show the typing indicator for fallback message
+          setTimeout(() => {
+            setChatMessages(prev => [...prev, { type: 'assistant', content: 'I\'ve noted your preferences. What else should we refine before generating steps?', timestamp: new Date() }]);
+            setIsTyping(false);
+          }, 600);
+        } else {
+          setIsTyping(false);
         }
-        setIsTyping(false);
       } finally {
         setIsTyping(false);
       }
@@ -1117,7 +1166,12 @@ function IDEPage() {
 
     // Normal chat requires an active guided project
     if (!guidedProject) {
-      setChatMessages(prev => [...prev, { type: 'assistant', content: 'Please start a guided project before chatting with the assistant. Click "Start Guided Project" at the top to begin!', timestamp: new Date() }]);
+      setIsTyping(true);
+      // Add a small delay to show the typing indicator
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, { type: 'assistant', content: 'Please start a guided project before chatting with the assistant. Click "Start Guided Project" at the top to begin!', timestamp: new Date() }]);
+        setIsTyping(false);
+      }, 800);
       return;
     }
 
@@ -1151,7 +1205,12 @@ function IDEPage() {
         content: "I'm having trouble processing your request right now. Please try refreshing the page or ask your question again in a moment.",
         timestamp: new Date() 
       };
-      setChatMessages(prev => [...prev, errorMessage]);
+      // Add a small delay to show the typing indicator for error messages
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, errorMessage]);
+        setIsTyping(false);
+      }, 600);
+      return; // Return early since we're handling the typing state in the setTimeout
     } finally {
       setIsTyping(false);
     }
@@ -1160,20 +1219,28 @@ function IDEPage() {
   // Chat action buttons functionality
   const handleGetHint = async () => {
     if (!selectedFile || !selectedFile.content) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'Please select a file with some code first, and I\'ll give you a helpful hint!',
-        timestamp: new Date()
-      }]);
+      setIsTyping(true);
+      // Add a small delay to show the typing indicator
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: 'Please select a file with some code first, and I\'ll give you a helpful hint!',
+          timestamp: new Date()
+        }]);
+        setIsTyping(false);
+      }, 600);
       return;
     }
 
     setIsTyping(true);
-    setChatMessages(prev => [...prev, {
-      type: 'assistant',
-      content: '💡 Getting hint...',
-      timestamp: new Date()
-    }]);
+    // Add a small delay to show the typing indicator before the "Getting hint..." message
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: '💡 Getting hint...',
+        timestamp: new Date()
+      }]);
+    }, 400);
     try {
       const response = await fetch('/api/hint', {
         method: 'POST',
@@ -1214,7 +1281,12 @@ function IDEPage() {
         content: "💡 **Hint**: Try breaking down your problem into smaller steps. Look for any syntax errors first, then check your logic flow!", 
         timestamp: new Date() 
       };
-      setChatMessages(prev => [...prev, fallbackHint]);
+      // Add a small delay to show the typing indicator for fallback hint
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, fallbackHint]);
+        setIsTyping(false);
+      }, 600);
+      return; // Return early since we're handling the typing state in the setTimeout
     } finally {
       setIsTyping(false);
     }
@@ -1225,21 +1297,31 @@ function IDEPage() {
 
   const handleFixCode = async () => {
     if (!selectedFile || !selectedFile.content || selectedFile.content.trim().length < 10) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'You need to attempt something substantial for me to fix.',
-        timestamp: new Date()
-      }]);
+      setIsTyping(true);
+      // Add a small delay to show the typing indicator
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: 'You need to attempt something substantial for me to fix.',
+          timestamp: new Date()
+        }]);
+        setIsTyping(false);
+      }, 600);
       return;
     }
 
     // Only allow Fix Code if a guided project is active and the current step is not complete
     if (!guidedProject || stepComplete) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'Code fixing is only available for the current step of an active guided project.',
-        timestamp: new Date()
-      }]);
+      setIsTyping(true);
+      // Add a small delay to show the typing indicator
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: 'Code fixing is only available for the current step of an active guided project.',
+          timestamp: new Date()
+        }]);
+        setIsTyping(false);
+      }, 600);
       return;
     }
 
@@ -1257,11 +1339,16 @@ function IDEPage() {
       'python', 'javascript', 'java', 'cpp', 'c', 'html', 'css', 'typescript'
     ];
     if (!allowedLanguages.includes(selectedFile.language ?? '')) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'Code fixing is only supported for Python, JavaScript, Java, C++, C, HTML, CSS, and TypeScript files.',
-        timestamp: new Date()
-      }]);
+      setIsTyping(true);
+      // Add a small delay to show the typing indicator
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: 'Code fixing is only supported for Python, JavaScript, Java, C++, C, HTML, CSS, and TypeScript files.',
+          timestamp: new Date()
+        }]);
+        setIsTyping(false);
+      }, 600);
       return;
     }
     if (!errorMessage || errorMessage.trim().length === 0) {
@@ -1269,11 +1356,14 @@ function IDEPage() {
     }
 
     setIsTyping(true);
-    setChatMessages(prev => [...prev, {
-      type: 'assistant',
-      content: '🛠️ Fixing code...',
-      timestamp: new Date()
-    }]);
+    // Add a small delay to show the typing indicator before the "Fixing code..." message
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: '🛠️ Fixing code...',
+        timestamp: new Date()
+      }]);
+    }, 400);
     try {
       // Only send required fields to /api/code/fix
       const body = {
@@ -1452,7 +1542,6 @@ function IDEPage() {
 
   // New setup flow: start follow-up chat
   const handleStartProjectSetup = async (description: string) => {
-    window.console.log('[GUIDE-LOG] handleStartProjectSetup called with:', description);
     setIsStartingProject(true);
     setProjectStartError(null);
     setIsReactProject(/react|react\.js|reactjs/i.test(description));
@@ -1475,7 +1564,12 @@ function IDEPage() {
         // Now set isInSetupPhase after questions are generated and loading is done
         setIsInSetupPhase(true);
       } else if (result?.error) {
-        setChatMessages(prev => [...prev, { type: 'assistant', content: 'Let\'s clarify your idea with a few questions:\n1) What are the core features you want?\n2) Which technologies do you prefer?\n3) Any constraints or deadlines?\n4) Who is this for, and what\'s the simplest MVP?', timestamp: new Date() }]);
+        setIsTyping(true);
+        // Add a small delay to show the typing indicator
+        setTimeout(() => {
+          setChatMessages(prev => [...prev, { type: 'assistant', content: 'Let\'s clarify your idea with a few questions:\n1) What are the core features you want?\n2) Which technologies do you prefer?\n3) Any constraints or deadlines?\n4) Who is this for, and what\'s the simplest MVP?', timestamp: new Date() }]);
+          setIsTyping(false);
+        }, 800);
         // Set isInSetupPhase even on error to maintain consistency
         setIsInSetupPhase(true);
       }
@@ -1484,6 +1578,17 @@ function IDEPage() {
       setProjectStartError('Failed to start setup. Please try again.');
       // Set isInSetupPhase on error to maintain consistency
       setIsInSetupPhase(true);
+      
+      // Add typing indicator for error message
+      setIsTyping(true);
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, { 
+          type: 'assistant', 
+          content: 'Failed to start setup. Please try again.', 
+          timestamp: new Date() 
+        }]);
+        setIsTyping(false);
+      }, 600);
     } finally {
       setIsStartingProject(false);
     }
@@ -1602,7 +1707,12 @@ function IDEPage() {
         
         setGuidedProject({ projectId: projectResult.projectId, steps: projectResult.steps, currentStep: 0, projectContext: projectResult.projectContext });
         if (projectResult.welcomeMessage) {
-          setChatMessages(prev => [...prev, { type: 'assistant', content: projectResult.welcomeMessage.content, timestamp: new Date() }]);
+          setIsTyping(true);
+          // Add a small delay to show the typing indicator for welcome message
+          setTimeout(() => {
+            setChatMessages(prev => [...prev, { type: 'assistant', content: projectResult.welcomeMessage.content, timestamp: new Date() }]);
+            setIsTyping(false);
+          }, 800);
         }
         setShowStepsPreviewModal(false);
       } else {
@@ -1619,11 +1729,16 @@ function IDEPage() {
 
   const handleCheckStep = async () => {
     if (!guidedProject) {
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'Please start a guided project before checking steps.',
-        timestamp: new Date()
-      }]);
+      setIsTyping(true);
+      // Add a small delay to show the typing indicator
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: 'Please start a guided project before checking steps.',
+          timestamp: new Date()
+        }]);
+        setIsTyping(false);
+      }, 600);
       return;
     }
 
