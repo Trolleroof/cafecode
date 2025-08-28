@@ -551,6 +551,46 @@ router.post("/startProject", async (req, res) => {
       return res.status(400).json({ error: "Project description is required" });
     }
 
+    // Get user ID from the authenticated request
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    // Check if user has exceeded their free project limit
+    try {
+      // Check if user has paid for unlimited access
+      const { data: payment } = await req.supabase
+        .from('user_payments')
+        .select('status')
+        .eq('user_id', userId)
+        .eq('status', 'completed')
+        .single();
+
+      // If they haven't paid, check their project count
+      if (!payment) {
+        const { data: projectCount } = await req.supabase
+          .from('user_project_counts')
+          .select('project_count')
+          .eq('user_id', userId)
+          .single();
+
+        const currentCount = projectCount?.project_count || 0;
+        
+        if (currentCount >= 1) {
+          return res.status(402).json({ 
+            error: 'Payment required',
+            message: 'You\'ve completed your free project! Pay $4.99 to unlock unlimited projects.',
+            needsPayment: true,
+            currentProjectCount: currentCount
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking project limits:', error);
+      // Continue with project creation if we can't check limits
+    }
+
     const projectId = uuidv4();
     const projectContext = createProjectContext(projectFiles);
 
@@ -671,6 +711,29 @@ router.post("/startProject", async (req, res) => {
     // Construct project context string for Tavus
     const stepsList = steps.map((step, idx) => `${idx + 1}. ${step.instruction}`).join('\n');
     const tavusProjectContext = `Project Overview: ${projectDescription}\nSteps:\n${stepsList}`;
+
+    // Increment user's project count
+    try {
+      const { data: currentCount } = await req.supabase
+        .from('user_project_counts')
+        .select('project_count')
+        .eq('user_id', userId)
+        .single();
+      
+      const newCount = (currentCount?.project_count || 0) + 1;
+      
+      await req.supabase
+        .from('user_project_counts')
+        .upsert({
+          user_id: userId,
+          project_count: newCount
+        });
+      
+      console.log(`User ${userId} project count incremented to ${newCount}`);
+    } catch (error) {
+      console.error('Error incrementing project count:', error);
+      // Continue even if we can't update the count
+    }
 
     // Send initial chat message
     const welcomeMessage = {

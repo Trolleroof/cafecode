@@ -30,6 +30,25 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+    console.log('🔍 [MonacoEditor] Editor mounted with language:', language);
+    
+    // Register custom language configurations if not already registered
+    const registeredLanguages = monaco.languages.getLanguages().map((l: any) => l.id);
+    
+    // Add support for additional file types that Monaco might not have by default
+    const customLanguages = [
+      { id: 'dockerfile', extensions: ['dockerfile'], aliases: ['Dockerfile'] },
+      { id: 'makefile', extensions: ['makefile'], aliases: ['Makefile'] },
+      { id: 'toml', extensions: ['.toml'], aliases: ['TOML'] },
+      { id: 'dotenv', extensions: ['.env'], aliases: ['Environment'] }
+    ];
+    
+    customLanguages.forEach(lang => {
+      if (!registeredLanguages.includes(lang.id)) {
+        monaco.languages.register(lang);
+        console.log(`📝 [MonacoEditor] Registered language: ${lang.id}`);
+      }
+    });
     
     if (onEditorMount) {
       onEditorMount(editor, monaco);

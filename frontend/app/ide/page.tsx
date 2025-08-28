@@ -25,7 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
-import FileExplorer from '@/components/FileExplorer';
+import FileExplorer, { getLanguageFromFileName } from '@/components/FileExplorer';
 import HTMLPreview from '@/components/HTMLPreview';
 import RunDropdown from '@/components/RunDropdown';
 import TypingIndicator from '@/components/TypingIndicator';
@@ -44,12 +44,15 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/hooks/useAuth';
 import axios from 'axios';
-import { backendUrl } from '@/lib/utils';
 import ReactPreview from '@/components/ReactPreview';
 import ProjectCompletionModal from '@/components/ProjectCompletionModal';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
+
+const backendUrl = 'http://localhost:8000/api';
+const WebSocketUrl = 'ws://localhost:8000'
+
 
 // CSS keyframes for shimmer animation
 const shimmerKeyframes = `
@@ -87,17 +90,7 @@ interface GuidedProject {
   projectContext?: string;
 }
 
-const getLanguageFromFileName = (fileName: string): string => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  switch (extension) {
-    case 'js': return 'javascript';
-    case 'py': return 'python';
-    case 'html': return 'html';
-    case 'css': return 'css';
-    case 'json': return 'json';
-    default: return 'plaintext';
-  }
-};
+// Language detection now imported from FileExplorer
 
 // --- Helper: Recursively get all files ---
 const getAllFiles = (files: FileNode[]): FileNode[] => {
@@ -137,6 +130,40 @@ const updateFileInTree = (nodes: FileNode[], fileId: string, newContent: string)
       return { ...node, content: newContent };
     } else if (node.children) {
       return { ...node, children: updateFileInTree(node.children, fileId, newContent) };
+    }
+    return node;
+  });
+};
+
+// Helper function to update file content in tree (for lazy loading)
+const updateFileContentInTree = (nodes: FileNode[], fileId: string, content: string): FileNode[] => {
+  return nodes.map(node => {
+    if (node.id === fileId) {
+      return { ...node, content, language: getLanguageFromFileName(node.name) };
+    } else if (node.children) {
+      return { ...node, children: updateFileContentInTree(node.children, fileId, content) };
+    }
+    return node;
+  });
+};
+
+// Helper function to add a file to the tree
+const addFileToTree = (nodes: FileNode[], parentPath: string, newNode: FileNode): FileNode[] => {
+  return nodes.map(node => {
+    if (node.id === parentPath && node.type === 'folder') {
+      return { ...node, children: [...(node.children || []), newNode] };
+    } else if (node.children) {
+      return { ...node, children: addFileToTree(node.children, parentPath, newNode) };
+    }
+    return node;
+  });
+};
+
+// Helper function to remove a file from the tree
+const removeFileFromTree = (nodes: FileNode[], fileId: string): FileNode[] => {
+  return nodes.filter(node => node.id !== fileId).map(node => {
+    if (node.children) {
+      return { ...node, children: removeFileFromTree(node.children, fileId) };
     }
     return node;
   });
@@ -242,9 +269,9 @@ function convertBackendFilesToTree(backendFiles: any[]): FileNode[] {
       if (!isLastPart) {
         currentParent = existingNode;
       } else if (!file.isDirectory) {
-        // If it's the last part and it's a file, ensure its type is 'file' and no children
         existingNode.type = 'file';
         existingNode.children = undefined;
+        existingNode.language = getLanguageFromFileName(part);
       }
     }
   }
@@ -366,8 +393,41 @@ function IDEPage() {
   };
 
   // File selection handler
-  const handleFileSelect = (file: FileNode) => {
-    setSelectedFile(file);
+  const handleFileSelect = async (file: FileNode) => {
+    // If it's a folder, just select it
+    if (file.type === 'folder') {
+      setSelectedFile(file);
+      return;
+    }
+    
+    // For files, load content lazily if not already loaded
+    if (!file.content) {
+      try {
+        const res = await axios.get(`${backendUrl}/v2/file/${encodeURIComponent(file.id)}`, {
+          headers: getAuthHeaders()
+        });
+        
+        const fileWithContent = {
+          ...file,
+          content: res.data.content,
+          language: getLanguageFromFileName(file.name)
+        };
+        
+        // Update the file in the tree with content
+        setFiles(prevFiles => updateFileContentInTree(prevFiles, file.id, res.data.content));
+        setSelectedFile(fileWithContent);
+      } catch (err: any) {
+        console.error('Failed to load file content:', err);
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: `Failed to load file: ${err.response?.data?.error || err.message}`,
+          timestamp: new Date()
+        }]);
+      }
+    } else {
+      setSelectedFile(file);
+    }
+    
     setActiveTab('editor');
   };
 
@@ -383,7 +443,7 @@ function IDEPage() {
     handleFileDelete(fileId);
   };
 
-  // Simple file loading function
+  // Simple file loading function using v2 API
   const loadFiles = useCallback(async () => {
     if (!session?.access_token) {
       setFilesError('Authentication required');
@@ -394,11 +454,18 @@ function IDEPage() {
     setIsLoadingFiles(true);
     
     try {
-      const res = await axios.get(`${backendUrl}/files/list?recursive=true`, {
+      // Use new v2 API - single endpoint for file tree
+      const res = await axios.get(`${backendUrl}/v2/files?recursive=1&withContent=0`, {
         headers: getAuthHeaders()
       });
       
-      const nodes = convertBackendFilesToTree(res.data.files);
+      // Transform v2 format to tree structure
+      const fileList = res.data.map((item: any) => ({
+        name: item.path,
+        isDirectory: item.isDir
+      }));
+      
+      const nodes = convertBackendFilesToTree(fileList);
       setFiles(nodes);
     } catch (err: any) {
       console.error('Failed to fetch files:', err);
@@ -408,10 +475,114 @@ function IDEPage() {
     }
   }, [session]);
 
-  // Simple refresh function
-  const handleRefresh = useCallback(() => {
-    loadFiles();
-  }, [loadFiles]);
+  // Store ETag for file list
+  const fileListETagRef = useRef<string | null>(null);
+  const refreshDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const fileEventsWsRef = useRef<WebSocket | null>(null);
+  
+  // Unified refresh function with debouncing and ETag support
+  const refreshFileTree = useCallback(async (force = false) => {
+    // Clear existing debounce timer if force refresh
+    if (force && refreshDebounceTimerRef.current) {
+      clearTimeout(refreshDebounceTimerRef.current);
+      refreshDebounceTimerRef.current = null;
+    }
+    
+    // If not forced, debounce the refresh
+    if (!force) {
+      if (refreshDebounceTimerRef.current) {
+        console.log('🔄 [REFRESH] Debounced - skipping duplicate refresh request');
+        return;
+      }
+      
+      refreshDebounceTimerRef.current = setTimeout(() => {
+        refreshDebounceTimerRef.current = null;
+        refreshFileTree(true); // Execute the actual refresh
+      }, 5000); // 5 second debounce
+      
+      console.log('🔄 [REFRESH] Scheduled debounced refresh in 5 seconds');
+      return;
+    }
+    
+    console.log('🔄 [REFRESH] Starting file tree refresh...');
+    setFilesError(null);
+    setIsLoadingFiles(true);
+    
+    try {
+      const headers = {
+        ...getAuthHeaders(),
+        ...(fileListETagRef.current ? { 'If-None-Match': fileListETagRef.current } : {})
+      };
+      
+      const res = await axios.get(`${backendUrl}/v2/files?recursive=1&withContent=0`, { 
+        headers,
+        validateStatus: (status) => status < 500 // Accept 304 as valid response
+      });
+      
+      // Check if data hasn't changed (304 Not Modified)
+      if (res.status === 304) {
+        console.log('✅ [REFRESH] File tree unchanged (304 Not Modified)');
+        setIsLoadingFiles(false);
+        return;
+      }
+      
+      // Store new ETag if provided
+      const newETag = res.headers['etag'];
+      if (newETag) {
+        fileListETagRef.current = newETag;
+        console.log('📋 [REFRESH] Stored new ETag:', newETag);
+      }
+      
+      // Transform v2 format to tree structure
+      const fileList = res.data.map((item: any) => ({
+        name: item.path,
+        isDirectory: item.isDir
+      }));
+      
+      const nodes = convertBackendFilesToTree(fileList);
+      console.log(`✅ [REFRESH] Refresh completed: ${nodes.length} files loaded`);
+      
+      // Update the files state
+      setFiles(nodes);
+      
+      // If a file was selected, make sure it still exists
+      if (selectedFile) {
+        const stillExists = findNodeById(selectedFile.id, nodes);
+        if (!stillExists) {
+          console.log(`⚠️ [REFRESH] Selected file no longer exists: ${selectedFile.id}`);
+          setSelectedFile(null);
+        }
+      }
+    } catch (err: any) {
+      if (err.response?.status !== 304) {
+        console.error('Failed to refresh files:', err);
+        setFilesError(err.response?.data?.error || err.message || 'Failed to refresh files');
+      }
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  }, [session, selectedFile]);
+  
+  // Alias for backward compatibility
+  const handleRefresh = refreshFileTree;
+
+  // Smart refresh is now just an alias for force refresh
+  const handleSmartRefresh = useCallback(() => refreshFileTree(true), [refreshFileTree]);
+
+  // Detect inconsistencies between frontend and backend file states
+  const detectInconsistencies = (frontendFiles: FileNode[], backendFiles: FileNode[]): string[] => {
+    const inconsistencies: string[] = [];
+    
+    // Simple check: if file counts don't match, there's likely an inconsistency
+    if (frontendFiles.length !== backendFiles.length) {
+      inconsistencies.push(`File count mismatch: frontend=${frontendFiles.length}, backend=${backendFiles.length}`);
+    }
+    
+    // More sophisticated checks could be added here
+    // For now, this simple check is sufficient
+    
+    return inconsistencies;
+  };
 
   // Helper to get auth headers with proper Supabase token
   const getAuthHeaders = () => {
@@ -502,6 +673,7 @@ function IDEPage() {
       name,
       type,
       children: type === 'folder' ? [] : undefined,
+      language: type === 'file' ? getLanguageFromFileName(name) : undefined,
     };
 
     const originalFiles = files;
@@ -521,13 +693,19 @@ function IDEPage() {
     });
 
     try {
-      await axios.post(`${backendUrl}/files/create`, 
-        { path: newPath, isFolder: type === 'folder' },
+      await axios.post(`${backendUrl}/v2/file/${encodeURIComponent(newPath)}`, 
+        { isFolder: type === 'folder' },
         { headers: getAuthHeaders() }
       );
+      
+      console.log(`✅ [CREATE] File created successfully: ${newPath}`);
       // Success - optimistic update is now the source of truth
+      
+      // Optionally, we could do a quick refresh to ensure consistency
+      // But for now, let's trust the optimistic update
+      
     } catch (err: any) {
-      console.error('Failed to create file:', err);
+      console.error('❌ [CREATE] Failed to create file:', err);
       // On error, revert the optimistic update
       setFiles(originalFiles);
       setFilesError(`Failed to create ${type}: ${err.response?.data?.error || err.message}`);
@@ -549,13 +727,18 @@ function IDEPage() {
     }
 
     try {
-      await axios.delete(`${backendUrl}/files/delete`, { 
-        data: { path: fileId },
+      await axios.delete(`${backendUrl}/v2/file/${encodeURIComponent(fileId)}`, { 
         headers: getAuthHeaders()
       });
+      
+      console.log(`✅ [DELETE] File deleted successfully: ${fileId}`);
       // Success - optimistic update is now the source of truth
+      
+      // Optionally, we could do a quick refresh to ensure consistency
+      // But for now, let's trust the optimistic update
+      
     } catch (err: any) {
-      console.error('Failed to delete file:', err);
+      console.error('❌ [DELETE] Failed to delete file:', err);
       // On error, revert the optimistic update
       setFiles(originalFiles);
       setFilesError(`Failed to delete: ${err.response?.data?.error || err.message}`);
@@ -611,6 +794,181 @@ function IDEPage() {
     }
   };
 
+  // Auto-save timer ref
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      if (refreshDebounceTimerRef.current) {
+        clearTimeout(refreshDebounceTimerRef.current);
+      }
+      if (fileEventsWsRef.current) {
+        fileEventsWsRef.current.close();
+      }
+    };
+  }, []);
+  
+  // Set up WebSocket connection for file events
+  useEffect(() => {
+    if (!session?.access_token) return;
+    
+    // Determine WebSocket URL based on environment
+    const getWebSocketUrl = () => {
+      if (process.env.NODE_ENV === 'production') {
+        // In production, use the same host with ws/wss protocol
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${protocol}//${window.location.host}`;
+      } else {
+        // In development, connect to backend server
+        return 'ws://localhost:8000';
+      }
+    };
+    
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+    
+    const connectWebSocket = () => {
+      try {
+        const wsUrl = getWebSocketUrl();
+        console.log('📡 [FILE-EVENTS] Attempting to connect to:', `${wsUrl}/file-events`);
+        
+        const encodedToken = encodeURIComponent(session.access_token);
+        const fullWsUrl = `${wsUrl}/file-events?access_token=${encodedToken}`;
+        console.log('📡 [FILE-EVENTS] Full WebSocket URL (token truncated):', fullWsUrl.replace(/access_token=[^&]*/, 'access_token=***REDACTED***'));
+        
+        ws = new WebSocket(fullWsUrl);
+        
+        ws.onopen = () => {
+          console.log('📡 [FILE-EVENTS] WebSocket connected successfully');
+          fileEventsWsRef.current = ws;
+        };
+        
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            console.log('📡 [FILE-EVENTS] Received event:', data);
+            
+            if (data.type === 'connected') {
+              return; // Connection confirmation
+            }
+            
+            // Handle file events with optimistic updates
+            switch (data.type) {
+              case 'file:created':
+                console.log(`📁 [FILE-EVENTS] File created: ${data.path}`);
+                // Optimistically add the file to the tree
+                setFiles(prevFiles => {
+                  const parts = data.path.split('/');
+                  const fileName = parts.pop() || '';
+                  const parentPath = parts.length > 0 ? parts.join('/') : null;
+                  
+                  const newNode: FileNode = {
+                    id: data.path,
+                    name: fileName,
+                    type: data.isFolder ? 'folder' : 'file',
+                    children: data.isFolder ? [] : undefined,
+                    language: data.isFolder ? undefined : getLanguageFromFileName(fileName)
+                  };
+                  
+                  if (!parentPath) {
+                    return [...prevFiles, newNode];
+                  } else {
+                    return addFileToTree(prevFiles, parentPath, newNode);
+                  }
+                });
+                break;
+                
+              case 'file:updated':
+                console.log(`📝 [FILE-EVENTS] File updated: ${data.path}`);
+                // If this is the currently selected file, we might want to reload its content
+                if (selectedFile && selectedFile.id === data.path) {
+                  console.log('📝 [FILE-EVENTS] Current file was updated externally');
+                  // Could show a notification or reload the file
+                }
+                break;
+                
+              case 'file:deleted':
+                console.log(`🗑️ [FILE-EVENTS] File deleted: ${data.path}`);
+                // Remove the file from the tree
+                setFiles(prevFiles => removeFileFromTree(prevFiles, data.path));
+                // Clear selection if deleted file was selected
+                if (selectedFile && selectedFile.id === data.path) {
+                  setSelectedFile(null);
+                }
+                break;
+                
+              default:
+                console.log(`❓ [FILE-EVENTS] Unknown event type: ${data.type}`);
+            }
+            
+            // Schedule a debounced refresh to ensure consistency
+            refreshFileTree(false);
+          } catch (err) {
+            console.error('📡 [FILE-EVENTS] Error handling message:', err);
+          }
+        };
+        
+        ws.onerror = (error) => {
+          console.warn('📡 [FILE-EVENTS] WebSocket error (this is normal if backend is not running):', error);
+        };
+        
+        ws.onclose = (event) => {
+          console.log('📡 [FILE-EVENTS] WebSocket disconnected - Code:', event.code, 'Reason:', event.reason || 'No reason provided');
+          console.log('📡 [FILE-EVENTS] Close event details:', {
+            code: event.code,
+            reason: event.reason,
+            wasClean: event.wasClean,
+            type: event.type
+          });
+          
+          // Decode common close codes
+          const closeCodeMeaning = {
+            1000: 'Normal closure',
+            1001: 'Going away', 
+            1002: 'Protocol error',
+            1003: 'Unsupported data',
+            1006: 'Abnormal closure (no close frame)',
+            1011: 'Server error',
+            4001: 'Missing access token',
+            4002: 'Invalid access token'
+          };
+          
+          console.log('📡 [FILE-EVENTS] Close code meaning:', closeCodeMeaning[event.code] || 'Unknown code');
+          fileEventsWsRef.current = null;
+          
+          // Only attempt to reconnect if it wasn't a manual close and session is still valid
+          if (event.code !== 1000 && session?.access_token) {
+            console.log('📡 [FILE-EVENTS] Attempting to reconnect in 5 seconds...');
+            reconnectTimeout = setTimeout(() => {
+              if (session?.access_token) {
+                connectWebSocket();
+              }
+            }, 5000);
+          }
+        };
+        
+      } catch (error) {
+        console.warn('📡 [FILE-EVENTS] Failed to establish WebSocket connection (backend may not be running):', error);
+      }
+    };
+    
+    // Initial connection attempt
+    connectWebSocket();
+    
+    return () => {
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (ws) {
+        ws.close(1000, 'Component unmounting');
+      }
+    };
+  }, [session, selectedFile, refreshFileTree]);
+  
   const handleCodeChange = (value: string | undefined) => {
     if (selectedFile && value !== undefined) {
       const updatedFile = { ...selectedFile, content: value };
@@ -618,6 +976,28 @@ function IDEPage() {
       setFiles(updateFileInTree(files, selectedFile.id, value));
       // Clear highlights when code is modified
       setHighlightedLines([]);
+      
+      // Auto-save with debouncing (1 second delay)
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      
+      autoSaveTimerRef.current = setTimeout(async () => {
+        try {
+          await axios.put(`${backendUrl}/v2/file/${encodeURIComponent(selectedFile.id)}`, 
+            { content: value },
+            { headers: getAuthHeaders() }
+          );
+          console.log(`✅ [AUTO-SAVE] File saved: ${selectedFile.name}`);
+        } catch (err: any) {
+          console.error('Failed to auto-save file:', err);
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: `Failed to save file: ${err.response?.data?.error || err.message}`,
+            timestamp: new Date()
+          }]);
+        }
+      }, 1000);
     }
   };
 
@@ -1739,7 +2119,7 @@ function IDEPage() {
                 onToggleCollapse={() => setIsExplorerCollapsed(!isExplorerCollapsed)}
                 onFileCreate={handleFileCreate}
                 onFileDelete={handleDeleteRequest}
-                onRefresh={handleRefresh}
+                onRefresh={handleSmartRefresh}
                 isLoading={isLoadingFiles}
                 stepProgression={guidedProject && (
                   <GuidedStepPopup
@@ -1804,6 +2184,11 @@ function IDEPage() {
                         theme="vs-dark"
                         highlightedLines={highlightedLines}
                         readOnly={isEditorReadOnly}
+                        onEditorMount={(editor, monaco) => {
+                          console.log('🔍 [IDE] MonacoEditor mounted for file:', selectedFile.name);
+                          console.log('🔍 [IDE] Language:', selectedFile.language || 'plaintext');
+                          console.log('🔍 [IDE] Available Monaco languages:', monaco.languages.getLanguages().map((l: any) => l.id));
+                        }}
                       />
                     ) : isInSetupPhase ? (
                         <div className="flex items-center justify-center h-full bg-cream-beige">

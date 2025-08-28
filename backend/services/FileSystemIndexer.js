@@ -111,6 +111,59 @@ export class FileSystemIndexer {
       const watcher = fs.watch(workspacePath, { recursive: true }, (eventType, filename) => {
         if (filename && !filename.startsWith('.') && !filename.startsWith('_')) {
           console.log(`[FS_INDEXER] File system change detected for user ${userId}: ${eventType} ${filename}`);
+          
+          // Determine the type of change and get more details
+          let changeType = 'unknown';
+          let filePath = filename;
+          
+          try {
+            const fullPath = path.join(workspacePath, filename);
+            const stats = fs.statSync(fullPath);
+            
+            if (eventType === 'rename') {
+              // Check if file exists to determine if it was created or deleted
+              if (fs.existsSync(fullPath)) {
+                changeType = 'created';
+              } else {
+                changeType = 'deleted';
+              }
+            } else if (eventType === 'change') {
+              changeType = 'modified';
+            }
+            
+            // Get relative path from workspace
+            const relativePath = path.relative(workspacePath, fullPath);
+            filePath = relativePath;
+            
+            // Emit custom event for WebSocket broadcasting
+            if (this.onFileChange) {
+              this.onFileChange(userId, {
+                type: changeType,
+                path: filePath,
+                filename: filename,
+                isDirectory: stats.isDirectory(),
+                size: stats.size,
+                timestamp: new Date().toISOString()
+              });
+            }
+            
+          } catch (error) {
+            // File might have been deleted or moved
+            if (eventType === 'rename') {
+              changeType = 'deleted';
+            }
+            
+            // Emit event even if we can't get stats
+            if (this.onFileChange) {
+              this.onFileChange(userId, {
+                type: changeType,
+                path: filePath,
+                filename: filename,
+                timestamp: new Date().toISOString()
+              });
+            }
+          }
+          
           // Invalidate cache on next access
           this.lastUpdated.set(userId, 0);
         }
@@ -120,6 +173,13 @@ export class FileSystemIndexer {
     } catch (error) {
       console.warn(`[FS_INDEXER] Could not setup watcher for ${userId}:`, error.message);
     }
+  }
+
+  /**
+   * Set callback for file change events
+   */
+  setFileChangeCallback(callback) {
+    this.onFileChange = callback;
   }
 
   /**

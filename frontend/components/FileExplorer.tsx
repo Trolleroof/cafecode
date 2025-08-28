@@ -16,7 +16,7 @@ import {
   RefreshCw,
   Trash2
 } from 'lucide-react';
-import ProjectSetupLoader from './ProjectSetupLoader';
+
 
 interface FileNode {
   id: string;
@@ -46,83 +46,163 @@ interface FileExplorerProps {
 type SearchFilter = 'all' | 'name';
 
 const getFileIcon = (fileName: string) => {
+  // Handle special filenames without extensions
+  const lowerFileName = fileName.toLowerCase();
+  if (lowerFileName === 'dockerfile' || lowerFileName.startsWith('dockerfile.')) {
+    return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
+  }
+  if (lowerFileName === 'makefile' || lowerFileName === 'gnumakefile') {
+    return <FileCode2 className="h-5 w-5 text-gray-500 flex-shrink-0" />;
+  }
+  if (lowerFileName === '.gitignore' || lowerFileName === '.gitattributes') {
+    return <FileText className="h-5 w-5 text-orange-600 flex-shrink-0" />;
+  }
+  if (lowerFileName.startsWith('.env')) {
+    return <FileText className="h-5 w-5 text-yellow-600 flex-shrink-0" />;
+  }
+
   const extension = fileName.split('.').pop()?.toLowerCase();
   switch (extension) {
+    // Python
     case 'py':
+    case 'pyw':
+    case 'pyi':
       return <Code className="h-5 w-5 text-green-600 flex-shrink-0" />;
+    
+    // JavaScript/TypeScript
     case 'js':
-    case 'jsx':
+    case 'mjs':
+    case 'cjs':
       return <FileCode2 className="h-5 w-5 text-yellow-400 flex-shrink-0" />;
+    case 'jsx':
+      return <FileCode2 className="h-5 w-5 text-yellow-500 flex-shrink-0" />;
     case 'ts':
-    case 'tsx':
+    case 'mts':
+    case 'cts':
       return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
+    case 'tsx':
+      return <FileCode2 className="h-5 w-5 text-blue-500 flex-shrink-0" />;
+    
+    // Java/Kotlin/Scala
     case 'java':
+    case 'jar':
       return <FileCode2 className="h-5 w-5 text-red-600 flex-shrink-0" />;
-    case 'cpp':
+    case 'kt':
+    case 'kts':
+      return <FileCode2 className="h-5 w-5 text-pink-400 flex-shrink-0" />;
+    case 'scala':
+    case 'sc':
+      return <FileCode2 className="h-5 w-5 text-red-700 flex-shrink-0" />;
+    
+    // C/C++/C#
     case 'c':
     case 'h':
       return <FileCode2 className="h-5 w-5 text-indigo-500 flex-shrink-0" />;
+    case 'cpp':
+    case 'cc':
+    case 'cxx':
+    case 'hpp':
+    case 'hh':
+    case 'hxx':
+      return <FileCode2 className="h-5 w-5 text-indigo-600 flex-shrink-0" />;
     case 'cs':
+    case 'csx':
       return <FileCode2 className="h-5 w-5 text-purple-500 flex-shrink-0" />;
+    
+    // Go/Rust
     case 'go':
+    case 'mod':
+    case 'sum':
       return <FileCode2 className="h-5 w-5 text-cyan-600 flex-shrink-0" />;
+    case 'rs':
+      return <FileCode2 className="h-5 w-5 text-orange-700 flex-shrink-0" />;
+    
+    // Ruby/PHP/Perl
     case 'rb':
+    case 'rake':
+    case 'gemspec':
       return <FileCode2 className="h-5 w-5 text-pink-500 flex-shrink-0" />;
     case 'php':
+    case 'phtml':
       return <FileCode2 className="h-5 w-5 text-indigo-400 flex-shrink-0" />;
+    case 'pl':
+    case 'pm':
+      return <FileCode2 className="h-5 w-5 text-pink-700 flex-shrink-0" />;
+    
+    // Web Technologies
     case 'html':
+    case 'htm':
+    case 'xhtml':
       return <Globe className="h-5 w-5 text-orange-500 flex-shrink-0" />;
     case 'css':
       return <Palette className="h-5 w-5 text-blue-500 flex-shrink-0" />;
-    case 'json':
-      return <FileText className="h-5 w-5 text-amber-500 flex-shrink-0" />;
-    case 'xml':
-      return <FileText className="h-5 w-5 text-purple-400 flex-shrink-0" />;
-    case 'sh':
-      return <FileCode2 className="h-5 w-5 text-gray-600 flex-shrink-0" />;
-    case 'md':
-      return <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />;
-    case 'swift':
-      return <FileCode2 className="h-5 w-5 text-orange-400 flex-shrink-0" />;
-    case 'kt':
-      return <FileCode2 className="h-5 w-5 text-pink-400 flex-shrink-0" />;
-    case 'rs':
-      return <FileCode2 className="h-5 w-5 text-orange-700 flex-shrink-0" />;
-    case 'sql':
-      return <FileCode2 className="h-5 w-5 text-blue-700 flex-shrink-0" />;
-    case 'yaml':
-    case 'yml':
-      return <FileText className="h-5 w-5 text-yellow-700 flex-shrink-0" />;
-    case 'dockerfile':
-      return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
-    case 'bat':
-      return <FileCode2 className="h-5 w-5 text-gray-700 flex-shrink-0" />;
-    case 'pl':
-      return <FileCode2 className="h-5 w-5 text-pink-700 flex-shrink-0" />;
-    case 'r':
-      return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
-    case 'scala':
-      return <FileCode2 className="h-5 w-5 text-red-700 flex-shrink-0" />;
-    case 'lua':
-      return <FileCode2 className="h-5 w-5 text-indigo-700 flex-shrink-0" />;
-    case 'dart':
-      return <FileCode2 className="h-5 w-5 text-cyan-700 flex-shrink-0" />;
-    case 'ini':
-      return <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />;
-    case 'makefile':
-      return <FileCode2 className="h-5 w-5 text-gray-500 flex-shrink-0" />;
-    case 'toml':
-      return <FileText className="h-5 w-5 text-green-700 flex-shrink-0" />;
+    case 'scss':
+    case 'sass':
+      return <Palette className="h-5 w-5 text-pink-400 flex-shrink-0" />;
+    case 'less':
+      return <Palette className="h-5 w-5 text-blue-300 flex-shrink-0" />;
     case 'vue':
       return <FileCode2 className="h-5 w-5 text-green-500 flex-shrink-0" />;
     case 'svelte':
       return <FileCode2 className="h-5 w-5 text-orange-600 flex-shrink-0" />;
-    case 'scss':
-      return <Palette className="h-5 w-5 text-pink-400 flex-shrink-0" />;
-    case 'less':
-      return <Palette className="h-5 w-5 text-blue-300 flex-shrink-0" />;
+    
+    // Data/Config Files
+    case 'json':
+    case 'jsonc':
+    case 'json5':
+      return <FileText className="h-5 w-5 text-amber-500 flex-shrink-0" />;
+    case 'xml':
+    case 'xsl':
+    case 'xslt':
+      return <FileText className="h-5 w-5 text-purple-400 flex-shrink-0" />;
+    case 'yaml':
+    case 'yml':
+      return <FileText className="h-5 w-5 text-yellow-700 flex-shrink-0" />;
+    case 'toml':
+      return <FileText className="h-5 w-5 text-green-700 flex-shrink-0" />;
+    case 'ini':
+    case 'cfg':
+    case 'conf':
+    case 'config':
+      return <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />;
+    
+    // Shell/Scripts
+    case 'sh':
+    case 'bash':
+    case 'zsh':
+    case 'fish':
+      return <FileCode2 className="h-5 w-5 text-gray-600 flex-shrink-0" />;
+    case 'bat':
+    case 'cmd':
+    case 'ps1':
+      return <FileCode2 className="h-5 w-5 text-gray-700 flex-shrink-0" />;
+    
+    // Documentation
+    case 'md':
+    case 'mdx':
+    case 'markdown':
+      return <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />;
+    case 'rst':
+    case 'txt':
+      return <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />;
+    
+    // Other Languages
+    case 'swift':
+      return <FileCode2 className="h-5 w-5 text-orange-400 flex-shrink-0" />;
+    case 'r':
+    case 'rmd':
+      return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
+    case 'sql':
+      return <FileCode2 className="h-5 w-5 text-blue-700 flex-shrink-0" />;
+    case 'lua':
+      return <FileCode2 className="h-5 w-5 text-indigo-700 flex-shrink-0" />;
+    case 'dart':
+      return <FileCode2 className="h-5 w-5 text-cyan-700 flex-shrink-0" />;
     case 'coffee':
+    case 'litcoffee':
       return <FileCode2 className="h-5 w-5 text-yellow-700 flex-shrink-0" />;
+    
+    // Default
     default:
       return <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />;
   }
@@ -130,54 +210,165 @@ const getFileIcon = (fileName: string) => {
 
 const isValidFileExtension = (fileName: string): boolean => {
   const extension = fileName.split('.').pop()?.toLowerCase();
+  const lowerFileName = fileName.toLowerCase();
+  
+  // Special files without extensions
+  if (['dockerfile', 'makefile', 'gnumakefile', '.gitignore', '.gitattributes'].includes(lowerFileName)) {
+    return true;
+  }
+  
+  // Files starting with .env
+  if (lowerFileName.startsWith('.env')) {
+    return true;
+  }
+  
   return [
-    'js','ts','py','java','cpp','c','cs','go','rb','php','html','css','json','xml','sh','md','swift','kt','rs','sql','yaml','yml','dockerfile','bat','pl','r','scala','lua','dart','ini','makefile','toml','vue','svelte','scss','less','coffee','h','tsx','jsx','txt','env','gitignore','npmrc','babelrc','eslintrc','prettierrc','config'
-  ].includes(extension || '') || fileName === 'Dockerfile' || fileName === 'Makefile' || fileName.includes('.');
+    // JavaScript/TypeScript
+    'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs', 'mts', 'cts',
+    // Python
+    'py', 'pyw', 'pyi',
+    // Java/Kotlin/Scala
+    'java', 'jar', 'kt', 'kts', 'scala', 'sc',
+    // C/C++/C#
+    'c', 'h', 'cpp', 'cc', 'cxx', 'hpp', 'hh', 'hxx', 'cs', 'csx',
+    // Go/Rust
+    'go', 'mod', 'sum', 'rs',
+    // Ruby/PHP/Perl
+    'rb', 'rake', 'gemspec', 'php', 'phtml', 'pl', 'pm',
+    // Web
+    'html', 'htm', 'xhtml', 'css', 'scss', 'sass', 'less', 'vue', 'svelte',
+    // Data/Config
+    'json', 'jsonc', 'json5', 'xml', 'xsl', 'xslt', 'yaml', 'yml', 'toml', 'ini', 'cfg', 'conf', 'config',
+    // Shell/Scripts
+    'sh', 'bash', 'zsh', 'fish', 'bat', 'cmd', 'ps1',
+    // Documentation
+    'md', 'mdx', 'markdown', 'rst', 'txt',
+    // Other languages
+    'swift', 'r', 'rmd', 'sql', 'lua', 'dart', 'coffee', 'litcoffee',
+    // Common config files
+    'env', 'gitignore', 'npmrc', 'babelrc', 'eslintrc', 'prettierrc'
+  ].includes(extension || '') || fileName.includes('.');
 };
 
-const getLanguageFromFileName = (fileName: string): string => {
+export const getLanguageFromFileName = (fileName: string): string => {
+  // Handle special filenames
+  const lowerFileName = fileName.toLowerCase();
+  if (lowerFileName === 'dockerfile' || lowerFileName.startsWith('dockerfile.')) {
+    return 'dockerfile';
+  }
+  if (lowerFileName === 'makefile' || lowerFileName === 'gnumakefile') {
+    return 'makefile';
+  }
+  if (lowerFileName === '.gitignore' || lowerFileName === '.gitattributes') {
+    return 'plaintext';
+  }
+  if (lowerFileName.startsWith('.env')) {
+    return 'dotenv';
+  }
+  
   const extension = fileName.split('.').pop()?.toLowerCase();
   switch (extension) {
-    case 'js': return 'javascript';
-    case 'ts': return 'typescript';
-    case 'py': return 'python';
+    // JavaScript/TypeScript
+    case 'js':
+    case 'mjs':
+    case 'cjs': return 'javascript';
+    case 'jsx': return 'javascriptreact';
+    case 'ts':
+    case 'mts':
+    case 'cts': return 'typescript';
+    case 'tsx': return 'typescriptreact';
+    
+    // Python
+    case 'py':
+    case 'pyw':
+    case 'pyi': return 'python';
+    
+    // Java/Kotlin/Scala
     case 'java': return 'java';
-    case 'cpp': return 'cpp';
+    case 'kt':
+    case 'kts': return 'kotlin';
+    case 'scala':
+    case 'sc': return 'scala';
+    
+    // C/C++/C#
     case 'c': return 'c';
-    case 'cs': return 'csharp';
-    case 'go': return 'go';
-    case 'rb': return 'ruby';
-    case 'php': return 'php';
-    case 'html': return 'html';
-    case 'css': return 'css';
-    case 'json': return 'json';
-    case 'xml': return 'xml';
-    case 'sh': return 'shell';
-    case 'md': return 'markdown';
-    case 'swift': return 'swift';
-    case 'kt': return 'kotlin';
+    case 'h': return 'cpp';  // Headers usually contain C++ code
+    case 'cpp':
+    case 'cc':
+    case 'cxx':
+    case 'hpp':
+    case 'hh':
+    case 'hxx': return 'cpp';
+    case 'cs':
+    case 'csx': return 'csharp';
+    
+    // Go/Rust
+    case 'go':
+    case 'mod':
+    case 'sum': return 'go';
     case 'rs': return 'rust';
-    case 'sql': return 'sql';
-    case 'yaml':
-    case 'yml': return 'yaml';
-    case 'dockerfile': return 'dockerfile';
-    case 'bat': return 'bat';
-    case 'pl': return 'perl';
-    case 'r': return 'r';
-    case 'scala': return 'scala';
-    case 'lua': return 'lua';
-    case 'dart': return 'dart';
-    case 'ini': return 'ini';
-    case 'makefile': return 'makefile';
-    case 'toml': return 'toml';
+    
+    // Ruby/PHP/Perl
+    case 'rb':
+    case 'rake':
+    case 'gemspec': return 'ruby';
+    case 'php':
+    case 'phtml': return 'php';
+    case 'pl':
+    case 'pm': return 'perl';
+    
+    // Web Technologies
+    case 'html':
+    case 'htm':
+    case 'xhtml': return 'html';
+    case 'css': return 'css';
+    case 'scss':
+    case 'sass': return 'scss';
+    case 'less': return 'less';
     case 'vue': return 'vue';
     case 'svelte': return 'svelte';
-    case 'scss': return 'scss';
-    case 'less': return 'less';
-    case 'coffee': return 'coffeescript';
-    case 'h': return 'cpp';
-    case 'tsx': return 'typescript';
-    case 'jsx': return 'javascript';
+    
+    // Data/Config
+    case 'json':
+    case 'jsonc':
+    case 'json5': return 'json';
+    case 'xml':
+    case 'xsl':
+    case 'xslt': return 'xml';
+    case 'yaml':
+    case 'yml': return 'yaml';
+    case 'toml': return 'toml';
+    case 'ini':
+    case 'cfg':
+    case 'conf':
+    case 'config': return 'ini';
+    
+    // Shell/Scripts
+    case 'sh':
+    case 'bash':
+    case 'zsh':
+    case 'fish': return 'shell';
+    case 'bat':
+    case 'cmd': return 'bat';
+    case 'ps1': return 'powershell';
+    
+    // Documentation
+    case 'md':
+    case 'mdx':
+    case 'markdown': return 'markdown';
+    case 'rst': return 'restructuredtext';
+    case 'txt': return 'plaintext';
+    
+    // Other Languages
+    case 'swift': return 'swift';
+    case 'r':
+    case 'rmd': return 'r';
+    case 'sql': return 'sql';
+    case 'lua': return 'lua';
+    case 'dart': return 'dart';
+    case 'coffee':
+    case 'litcoffee': return 'coffeescript';
+    
     default: return 'plaintext';
   }
 };
@@ -552,8 +743,15 @@ export default function FileExplorer({
 
   const handleRefresh = () => {
     if (onRefresh) {
+      // When user clicks refresh button, bypass debounce with force refresh
       onRefresh();
     }
+  };
+
+  // Check for obvious file state inconsistencies
+  const checkForInconsistencies = () => {
+    // This is a simple heuristic - in a real app you might want more sophisticated checks
+    return false; // For now, just return false to avoid false positives
   };
 
   // UI: Create file/folder dialog
@@ -661,7 +859,7 @@ export default function FileExplorer({
           <button
             onClick={handleRefresh}
             className="p-1 hover:bg-cream-beige rounded"
-            title="Refresh File List"
+            title="Smart Refresh File List"
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 text-deep-espresso ${isLoading ? 'animate-spin' : ''}`} />
@@ -669,6 +867,13 @@ export default function FileExplorer({
 
         </div>
       </div>
+
+      {/* NProgress-style loading bar */}
+      {isLoading && (
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-cream-beige overflow-hidden z-50">
+          <div className="h-full bg-medium-coffee animate-progress-bar" />
+        </div>
+      )}
 
       {/* Search Bar */}
       <div className="p-2 border-b border-cream-beige flex-shrink-0">
@@ -682,16 +887,6 @@ export default function FileExplorer({
             className="w-full pl-8 pr-3 py-1 bg-cream-beige text-dark-charcoal text-sm border border-medium-coffee/30 rounded focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent"
           />
         </div>
-        
-        {/* Refresh Progress Indicator */}
-        {isLoading && (
-          <div className="mt-2 p-2 bg-medium-coffee/10 border border-medium-coffee/20 rounded text-xs text-medium-coffee">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-medium-coffee rounded-full animate-pulse"></div>
-              <span>Refreshing...</span>
-            </div>
-          </div>
-        )}
       </div>
       
       {/* Error Display */}
@@ -705,12 +900,19 @@ export default function FileExplorer({
       <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-4">
         <div className="min-w-max">
           {isLoading ? (
-            <ProjectSetupLoader 
-              isOpen={isLoading}
-              title="Loading Files"
-              description="Reading your project structure..."
-              showProgress={false}
-            />
+            // Inline skeleton loaders instead of blocking modal
+            <div className="px-2 space-y-1">
+              {[...Array(8)].map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 px-2 py-1.5 animate-pulse"
+                  style={{ paddingLeft: `${Math.random() > 0.5 ? 24 : 8}px` }}
+                >
+                  <div className="h-5 w-5 bg-cream-beige rounded" />
+                  <div className="h-4 bg-cream-beige rounded flex-1" style={{ width: `${60 + Math.random() * 40}%` }} />
+                </div>
+              ))}
+            </div>
           ) : files.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-center p-4">
               <File className="h-8 w-8 text-deep-espresso/50 mb-2" />

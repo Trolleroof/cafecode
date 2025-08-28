@@ -26,9 +26,7 @@ const Footer = () => {
               <Link href="/ide" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <ChatBubbleLeftRightIcon className="h-6 w-6" />
               </Link>
-              <Link href="/leetcode" className="text-cream-beige hover:text-medium-coffee transition-colors">
-                <GlobeAltIcon className="h-6 w-6" />
-              </Link>
+              
               <Link href="mailto:contact@cafecode.dev" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <EnvelopeIcon className="h-6 w-6" />
               </Link>

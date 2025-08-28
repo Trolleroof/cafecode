@@ -10,9 +10,18 @@ import { WebSocketServer } from 'ws';
 import pty from 'node-pty';
 import { UserTerminalManager } from './services/UserTerminalManager.js';
 import jwt from 'jsonwebtoken';
+import { createClient } from '@supabase/supabase-js';
+import { UserWorkspaceManager } from './services/UserWorkspaceManager.js';
+import { fileSystemIndexer } from './services/FileSystemIndexer.js';
 
 // Load environment variables FIRST
 dotenv.config();
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 // Import routes
 import codeRoutes from './routes/code.js';
@@ -22,13 +31,12 @@ import translateRoutes from './routes/translate.js';
 import hintRoutes from './routes/hint.js';
 import guidedRecapRoutes from './routes/guided_recap.js';
 import guidedRoutes from './routes/guided.js';
-import leetcodeRoutes from './routes/leetcode.js';
 import tavusRoutes from './routes/tavus.js';
 import nodejsRoutes from './routes/nodejs.js';
 import javaRoutes from './routes/java.js';
 import filesRoutes from './routes/files.js';
+import filesRoutesV2 from './routes/files-v2.js';
 import stripeRoutes from './routes/stripe.js';
-import { UserWorkspaceManager } from './services/UserWorkspaceManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -39,8 +47,9 @@ const PORT = process.env.PORT || 8000;
 // Verify environment variables are loaded
 console.log('🔧 Environment Variables Status:');
 console.log(`   PORT: ${PORT}`);
-console.log(`   NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 console.log(`   GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ Loaded' : '❌ Missing'}`);
+console.log(`   SUPABASE_JWT_SECRET: ${process.env.SUPABASE_JWT_SECRET ? '✅ Loaded' : '❌ Missing'}`);
+console.log(`   SUPABASE_JWT_SECRET length: ${process.env.SUPABASE_JWT_SECRET?.length || 'N/A'}`);
 console.log(`   ALLOWED_ORIGINS: ${process.env.ALLOWED_ORIGINS || 'Using defaults'}`);
 
 // Trust proxy configuration
@@ -196,6 +205,9 @@ const authenticateUser = (req, res, next) => {
       role: payload.role
     };
     
+    // Add Supabase client to request
+    req.supabase = supabase;
+    
     next();
   } catch (err) {
     console.error('❌ Authentication error:', err.name, '-', err.message);
@@ -220,10 +232,10 @@ app.use((req, res, next) => {
 // --- Apply authentication to all sensitive API routes ---
 // All routes below require a valid Supabase JWT token
 app.use('/api/files', authenticateUser, filesRoutes);
+app.use('/api/v2', authenticateUser, filesRoutesV2);
 app.use('/api/code', authenticateUser, codeRoutes);
 app.use('/api/python', authenticateUser, pythonRoutes);
 app.use('/api/nodejs', authenticateUser, nodejsRoutes);
-app.use('/api/leetcode', authenticateUser, leetcodeRoutes);
 app.use('/api/guided', authenticateUser, guidedRoutes);
 app.use('/api/recap', authenticateUser, guidedRecapRoutes);
 app.use('/api/hint', authenticateUser, hintRoutes);
@@ -255,7 +267,6 @@ app.get('/', (req, res) => {
       guided_start_project: '/api/guided/startProject',
       guided_simple_chat: '/api/guided/simple-chat',
       guided_followup: '/api/guided/followup',
-      leetcode: '/api/leetcode',
       tavus: '/api/tavus'
     }
   });
@@ -359,38 +370,66 @@ async function startServer() {
     // Store server reference for graceful shutdown
     global.server = server;
 
-    // --- WebSocket Terminal Integration (multiple terminals per user) ---
-    const wss = new WebSocketServer({ server, path: '/terminal' });
+    // --- Unified WebSocket Server with Path-Based Routing ---
+    const wss = new WebSocketServer({ server });
+    
+    console.log('🔧 [WEBSOCKET] Unified WebSocket server initialized');
+
+    // Store connected clients by user ID for file events
+    const fileEventClients = new Map(); // userId -> Set of WebSocket connections
 
     wss.on('connection', (ws, req) => {
-      // 1. Get access_token and terminal_id from query string
+      console.log('📡 [WEBSOCKET] New connection attempt to:', req.url, 'from:', req.socket.remoteAddress);
+      
       const url = new URL(req.url, `http://${req.headers.host}`);
+      const pathname = url.pathname;
       const token = url.searchParams.get('access_token');
-      const requestedTerminalId = url.searchParams.get('terminal_id') || undefined;
+      
       if (!token) {
+        console.log('❌ [WEBSOCKET] Missing access token');
         ws.close(4001, 'Missing access token');
         return;
       }
 
-      // 2. Verify JWT and extract user ID
+      // Verify JWT and extract user ID
       let userId;
       try {
         const payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
         userId = payload.sub; // Supabase user ID is in 'sub'
+        console.log('✅ [WEBSOCKET] Token verified for user:', userId);
       } catch (err) {
+        console.log('❌ [WEBSOCKET] Invalid access token:', err.message);
         ws.close(4002, 'Invalid access token');
         return;
       }
 
-      // 3. Start or attach to terminal for this user
+      // Route based on pathname
+      if (pathname === '/terminal') {
+        console.log('📡 [TERMINAL] Handling terminal connection for user:', userId);
+        handleTerminalConnection(ws, req, userId, url, wss);
+      } else if (pathname === '/file-events') {
+        console.log('📡 [FILE-EVENTS] Handling file-events connection for user:', userId);
+        handleFileEventsConnection(ws, req, userId, fileEventClients);
+      } else {
+        console.log('❌ [WEBSOCKET] Unknown path:', pathname);
+        ws.close(4004, 'Unknown endpoint');
+      }
+    });
+
+    // Terminal connection handler
+    function handleTerminalConnection(ws, req, userId, url, wss) {
+      const requestedTerminalId = url.searchParams.get('terminal_id') || undefined;
+      
+      // Start or attach to terminal for this user
       const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
       const { id: terminalId, pty: ptyProcess } = UserTerminalManager.startTerminal(userId, shell, 80, 34, requestedTerminalId);
 
       // Store metadata on websocket
       ws.userId = userId;
       ws.terminalId = terminalId;
+      ws.connectionType = 'terminal';
 
-      // 4. Wire up PTY <-> WebSocket
+      // Wire up PTY <-> WebSocket
       ptyProcess.on('data', (data) => {
         try { ws.send(data); } catch (_) {}
       });
@@ -427,8 +466,146 @@ async function startServer() {
           UserTerminalManager.killTerminal(userId, terminalId);
         }
       });
+    }
+
+    // File events connection handler
+    function handleFileEventsConnection(ws, req, userId, fileEventClients) {
+      // Add client to user's connection set
+      if (!fileEventClients.has(userId)) {
+        fileEventClients.set(userId, new Set());
+      }
+      fileEventClients.get(userId).add(ws);
+
+      // Store metadata on websocket
+      ws.userId = userId;
+      ws.connectionType = 'file-events';
+
+      console.log(`📡 [FILE-EVENTS] Client connected for user: ${userId}`);
+
+      // Send initial file system state
+      try {
+        const workspacePath = UserWorkspaceManager.getUserWorkspacePath(userId);
+        const fileSystemState = fileSystemIndexer.getAllItems(userId, workspacePath);
+        
+        // Send connection confirmation
+        ws.send(JSON.stringify({
+          type: 'connected',
+          data: { message: 'File events WebSocket connected successfully' }
+        }));
+        
+        // Send initial file system state
+        ws.send(JSON.stringify({
+          type: 'initial_state',
+          data: fileSystemState
+        }));
+      } catch (error) {
+        console.warn(`[FILE-EVENTS] Could not send initial state for user ${userId}:`, error.message);
+      }
+
+      ws.on('close', () => {
+        // Remove client from user's connection set
+        const userClients = fileEventClients.get(userId);
+        if (userClients) {
+          userClients.delete(ws);
+          if (userClients.size === 0) {
+            fileEventClients.delete(userId);
+          }
+        }
+        console.log(`📡 [FILE-EVENTS] Client disconnected for user: ${userId}`);
+      });
+
+      ws.on('error', (error) => {
+        console.error(`📡 [FILE-EVENTS] WebSocket error for user ${userId}:`, error);
+      });
+    }
+
+    // 5. Integrate with FileSystemIndexer to broadcast changes
+    // Override the setupWatcher method to broadcast events
+    const originalSetupWatcher = fileSystemIndexer.setupWatcher.bind(fileSystemIndexer);
+    fileSystemIndexer.setupWatcher = function(userId, workspacePath) {
+      // Call original method
+      originalSetupWatcher(userId, workspacePath);
+      
+      // Get the watcher and enhance it to broadcast events
+      const watcher = this.watchers.get(userId);
+      if (watcher) {
+        const originalOn = watcher.on;
+        watcher.on = function(event, filename) {
+          if (event === 'change' && filename && !filename.startsWith('.') && !filename.startsWith('_')) {
+            // Broadcast file change to all connected clients for this user
+            const userClients = fileEventClients.get(userId);
+            if (userClients) {
+              const eventData = {
+                type: 'file_changed',
+                data: {
+                  path: filename,
+                  timestamp: new Date().toISOString()
+                }
+              };
+              
+              userClients.forEach(client => {
+                if (client.readyState === 1) { // WebSocket.OPEN
+                  try {
+                    client.send(JSON.stringify(eventData));
+                  } catch (error) {
+                    console.warn(`[FILE-EVENTS] Failed to send to client:`, error.message);
+                  }
+                }
+              });
+            }
+          }
+          
+          // Call original event handler
+          if (originalOn) {
+            originalOn.call(this, event, filename);
+          }
+        };
+      }
+    };
+
+    // Set up the file change callback to broadcast events via WebSocket
+    fileSystemIndexer.setFileChangeCallback((userId, changeEvent) => {
+      const userClients = fileEventClients.get(userId);
+      if (userClients) {
+        // Map the change type to the format expected by frontend
+        let eventType;
+        switch (changeEvent.type) {
+          case 'created':
+            eventType = 'file:created';
+            break;
+          case 'modified':
+            eventType = 'file:updated';
+            break;
+          case 'deleted':
+            eventType = 'file:deleted';
+            break;
+          default:
+            eventType = 'file:updated';
+        }
+        
+        const eventData = {
+          type: eventType,
+          path: changeEvent.path,
+          filename: changeEvent.filename,
+          isFolder: changeEvent.isDirectory,
+          isDirectory: changeEvent.isDirectory,
+          size: changeEvent.size,
+          timestamp: changeEvent.timestamp
+        };
+        
+        userClients.forEach(client => {
+          if (client.readyState === 1) { // WebSocket.OPEN
+            try {
+              client.send(JSON.stringify(eventData));
+              console.log(`📡 [FILE-EVENTS] Sent ${eventType} event to client for user ${userId}: ${changeEvent.path}`);
+            } catch (error) {
+              console.warn(`[FILE-EVENTS] Failed to send to client:`, error.message);
+            }
+          }
+        });
+      }
     });
-    // --- End WebSocket Terminal Integration ---
+    // --- End WebSocket File Events Integration ---
     
   } catch (error) {
     console.error('❌ Failed to start server:', error);

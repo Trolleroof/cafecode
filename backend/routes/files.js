@@ -246,26 +246,39 @@ router.post('/copy', async (req, res) => {
 });
 
 // List files in a directory (recursive or non-recursive)
+// DEPRECATED: Redirects to v2 API
 router.get('/list', async (req, res) => {
   try {
+    console.log('⚠️ [DEPRECATED] /api/files/list called, redirecting to v2 API');
+    
     const userId = req.user.id;
     const relDir = req.query.dir || '.';
     const recursive = req.query.recursive === 'true';
     
-    // Cache listing results
-    const cacheKey = buildKey(userId, 'list', { relDir, recursive });
-    let files = Cache.get(cacheKey);
+    // Fetch from v2 API format
+    const v2Url = `${req.protocol}://${req.get('host')}/api/v2/files?recursive=${recursive ? '1' : '0'}&withContent=0`;
+    const response = await fetch(v2Url, {
+      headers: {
+        'Authorization': req.headers.authorization
+      }
+    });
     
-    if (files) {
-      console.log(`📋 [LIST] Cache HIT for ${relDir} (${files.length} files)`);
-    } else {
-      console.log(`📋 [LIST] Cache MISS for ${relDir}, fetching from filesystem...`);
-      files = await Cache.dedupe(cacheKey, async () => UserFileService.listFiles(userId, relDir, recursive));
-      Cache.set(cacheKey, files, { ttlMs: 30_000, tags: buildTags(userId, 'list', relDir) });
-      console.log(`📋 [LIST] Cached ${files.length} files for ${relDir}`);
+    if (!response.ok) {
+      throw new Error(`V2 API returned ${response.status}`);
     }
     
-    res.json({ files });
+    const v2Data = await response.json();
+    
+    // Transform v2 format back to v1 format
+    const files = v2Data.map(item => ({
+      name: item.path,
+      isDirectory: item.isDir
+    }));
+    
+    // Filter by directory if specified
+    const filteredFiles = relDir === '.' ? files : files.filter(f => f.name.startsWith(relDir + '/'));
+    
+    res.json({ files: filteredFiles });
   } catch (err) {
     console.error('File list error:', err);
     res.status(500).json({ error: err.message });

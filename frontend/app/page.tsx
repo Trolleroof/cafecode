@@ -221,16 +221,28 @@ export default function Home() {
             {/* Coffee Shop Badge */}
              
             {/* Main heading with coffee theme */}
+<<<<<<< Updated upstream
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal leading-tight">
                 <span className="block mb-2">Ship Your Code,</span>
                 <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient leading-[1.2] py-1 mb-6">
+=======
+              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal mb-4 leading-tight">
+                <span className="block mb-2">Ship Your Project,</span>
+                <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient leading-[1.2] py-1 mb-2">
+>>>>>>> Stashed changes
                   Sip Your Coffee
                 </span>
               </h1>
               {/* Coffee-themed Subheading */}
+<<<<<<< Updated upstream
               <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl text-medium-coffee mb-10 max-w-2xl leading-relaxed font-medium">
                 Actually learn to code projects in the time it takes to sip your morning coffee
                 <span className="block mt-8 font-bold text-dark-charcoal text-base sm:text-lg xl:text-xl">The only rule? No vibecoding.</span>
+=======
+              <p className="text-lg sm:text-xl lg:text-2xl text-deep-espresso mb-8 max-w-2xl leading-relaxed font-medium">
+                Actually learn to code to build projects in the time it takes to sip your morning coffee
+                <span className="block mt-4 font-bold text-dark-charcoal text-base sm:text-lg">The only rule? No vibecoding.</span>
+>>>>>>> Stashed changes
               </p>
               {/* Hero action buttons */}
               <div className="flex gap-6 mb-12">
