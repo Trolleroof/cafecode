@@ -70,6 +70,7 @@ app.use(compression({
 // CORS configuration (must run before rate limiting)
 const defaultAllowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001',
   'https://v2-bolt-hackathon.vercel.app',
   'https://trycafecode.xyz',
   'https://www.trycafecode.xyz',

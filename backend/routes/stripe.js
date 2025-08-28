@@ -1,7 +1,14 @@
 import express from 'express';
 import { StripeService } from '../services/StripeService.js';
+import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 /**
  * @route POST /api/stripe/checkout
@@ -86,18 +93,34 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   }
 
   try {
-    // Handle the event
-    switch (event.type) {
-      case 'checkout.session.completed':
-        const session = event.data.object;
-        console.log(`Payment completed for session: ${session.id}`);
-        console.log(`User ID: ${session.client_reference_id}`);
-        console.log(`Amount: ${session.amount_total} cents`);
-        
-        // TODO: Update your database to mark this user as paid
-        // You'll implement this in the next step
-        
-        break;
+          // Handle the event
+      switch (event.type) {
+        case 'checkout.session.completed':
+          const session = event.data.object;
+          console.log(`Payment completed for session: ${session.id}`);
+          console.log(`User ID: ${session.client_reference_id}`);
+          console.log(`Amount: ${session.amount_total} cents`);
+          
+          // Update user profile in database using the new function
+          try {
+            // Call the database function to update payment status
+            const { error } = await supabase.rpc('update_payment_status', {
+              user_uuid: session.client_reference_id,
+              stripe_session: session.id,
+              payment_status: 'paid',
+              amount_cents: session.amount_total
+            });
+            
+            if (error) {
+              console.error('Database update error:', error);
+            } else {
+              console.log('User payment status updated successfully');
+            }
+          } catch (error) {
+            console.error('Error updating user payment status:', error);
+          }
+          
+          break;
         
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object;

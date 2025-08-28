@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   IconPlayerPlay,
   IconArrowRight,
@@ -16,6 +16,8 @@ import {
   IconTrendingUp,
   IconBulb,
   IconRefresh,
+  IconCreditCard,
+  IconLock,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -24,6 +26,9 @@ import Footer from '@/components/Footer';
 import { Dialog, DialogTrigger, DialogContent } from '@/components/ui/dialog';
 import dynamic from 'next/dynamic';
 import { supabase } from '../lib/supabase';
+import PaymentModal from '@/components/PaymentModal';
+import ProjectCounter from '@/components/ProjectCounter';
+import { useProjectManager } from '../hooks/useProjectManager';
 
 const MenuBoard = dynamic(() => import('./features/MenuBoard'), { ssr: false });
 
@@ -38,7 +43,22 @@ export default function Home() {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
 
+  // Use the project manager hook
+  const { user, projectCount, hasUnlimitedAccess, isLoading: projectLoading } = useProjectManager();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
   const handleStartCoding = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    // Check if user needs to pay (more than 3 free projects)
+    if (projectCount >= 3 && !hasUnlimitedAccess) {
+      setShowPaymentModal(true);
+      return;
+    }
+
     setLoadingButton('ide');
     setTimeout(() => {
       router.push('/ide');
@@ -62,18 +82,21 @@ export default function Home() {
       setAuthPassword('');
       setAuthError('');
       setAuthLoading(false);
-      // Optionally, refresh or redirect
     }
   };
+
   const handleSignInWithGoogle = async () => {
     setAuthLoading(true);
     setAuthError('');
     await supabase.auth.signInWithOAuth({ provider: 'google' });
   };
+
   const handleSignUpRedirect = () => {
     setShowAuthModal(false);
     router.push('/sign-up');
   };
+
+
 
   return (
     <>
@@ -138,8 +161,18 @@ export default function Home() {
           </div>
         </div>
       )}
-      {/* Custom Bolt.new Badge Configuration */}
-     
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        projectCount={projectCount}
+        onPaymentSuccess={() => {
+          setShowPaymentModal(false);
+          // The hook will automatically refresh the data when the user returns
+        }}
+      />
+
       <div className="min-h-screen bg-light-cream">
         <Header />
 
@@ -147,68 +180,18 @@ export default function Home() {
         <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden w-full py-24 md:py-32">
           {/* Uniform background color for hero section */}
           <div className="absolute inset-0 bg-light-cream"></div>
-          {/* Auth Modal (only overlays hero section) */}
-          {showAuthModal && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-              <div className="bg-light-cream rounded-lg shadow-lg p-8 w-full max-w-md relative">
-                <button
-                  className="absolute top-2 right-2 text-dark-charcoal hover:text-medium-coffee"
-                  onClick={() => setShowAuthModal(false)}
-                  aria-label="Close"
-                >
-                  <IconArrowRight className="h-6 w-6" />
-                </button>
-                <h2 className="text-2xl font-bold mb-4 text-medium-coffee">Sign In</h2>
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={authEmail}
-                    onChange={e => setAuthEmail(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-medium-coffee"
-                    required
-                  />
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    value={authPassword}
-                    onChange={e => setAuthPassword(e.target.value)}
-                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-medium-coffee"
-                    required
-                  />
-                  {authError && <div className="text-red-600 text-sm">{authError}</div>}
-                  <button
-                    type="submit"
-                    className="w-full btn-coffee-primary py-2 text-lg"
-                    disabled={authLoading}
-                  >
-                    {authLoading ? 'Signing In...' : 'Sign In'}
-                  </button>
-                </form>
-                <div className="my-4 flex items-center justify-center">
-                  <span className="text-gray-400">or</span>
-                </div>
-                <button
-                  onClick={handleSignInWithGoogle}
-                  className="w-full btn-coffee-secondary py-2 text-lg flex items-center justify-center gap-2"
-                  disabled={authLoading}
-                >
-                  <img src="/images/logo-trans.png" alt="Google" className="h-5 w-5" />
-                  Sign In with Google
-                </button>
-                <div className="mt-6 text-center">
-                  <span className="text-gray-600">Don't have an account? </span>
-                  <button
-                    onClick={handleSignUpRedirect}
-                    className="text-medium-coffee font-semibold hover:underline"
-                  >
-                    Sign Up
-                  </button>
-                </div>
-              </div>
+          
+          {/* Project Counter Display */}
+          {user && (
+            <div className="absolute top-8 right-8">
+              <ProjectCounter
+                projectCount={projectCount}
+                hasUnlimitedAccess={hasUnlimitedAccess}
+                onUpgradeClick={() => setShowPaymentModal(true)}
+              />
             </div>
           )}
-          
+
           {/* Animated coffee elements */}
           <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-medium-coffee to-deep-espresso rounded-full opacity-10 animate-steam-rise blur-xl"></div>
           <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-deep-espresso to-medium-coffee rounded-full opacity-10 animate-coffee-drip blur-xl" style={{ animationDelay: '2s' }}></div>
@@ -221,28 +204,16 @@ export default function Home() {
             {/* Coffee Shop Badge */}
              
             {/* Main heading with coffee theme */}
-<<<<<<< Updated upstream
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal leading-tight">
                 <span className="block mb-2">Ship Your Code,</span>
                 <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient leading-[1.2] py-1 mb-6">
-=======
-              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal mb-4 leading-tight">
-                <span className="block mb-2">Ship Your Project,</span>
-                <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient leading-[1.2] py-1 mb-2">
->>>>>>> Stashed changes
                   Sip Your Coffee
                 </span>
               </h1>
               {/* Coffee-themed Subheading */}
-<<<<<<< Updated upstream
               <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl text-medium-coffee mb-10 max-w-2xl leading-relaxed font-medium">
                 Actually learn to code projects in the time it takes to sip your morning coffee
                 <span className="block mt-8 font-bold text-dark-charcoal text-base sm:text-lg xl:text-xl">The only rule? No vibecoding.</span>
-=======
-              <p className="text-lg sm:text-xl lg:text-2xl text-deep-espresso mb-8 max-w-2xl leading-relaxed font-medium">
-                Actually learn to code to build projects in the time it takes to sip your morning coffee
-                <span className="block mt-4 font-bold text-dark-charcoal text-base sm:text-lg">The only rule? No vibecoding.</span>
->>>>>>> Stashed changes
               </p>
               {/* Hero action buttons */}
               <div className="flex gap-6 mb-12">
