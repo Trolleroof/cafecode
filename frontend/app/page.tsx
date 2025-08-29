@@ -223,16 +223,7 @@ export default function Home() {
                    
                   </div>
                   
-                  {/* Button action indicator */}
-                  <div className="text-sm text-medium-coffee/70 mt-3">
-                    {!user ? (
-                      <span></span>
-                    ) : projectCount >= 1 && !hasUnlimitedAccess ? (
-                      <span className="text-red-600">Upgrade required to continue coding</span>
-                    ) : (
-                      <span>Ready to start your coding journey!</span>
-                    )}
-                  </div>
+                 
                 </div>
                 {/* Right: Hero Image */}
                 <div className="flex-1 flex justify-center items-center w-full max-w-3xl xl:max-w-5xl 2xl:max-w-6xl mx-auto relative">

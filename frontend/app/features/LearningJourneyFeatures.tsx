@@ -11,6 +11,48 @@ interface FeatureNode {
   position: 'left' | 'right' | 'center';
 }
 
+// Sample features data
+const features: FeatureNode[] = [
+  {
+    id: 'feature-1',
+    title: 'Interactive Code Execution',
+    description: 'Run code directly in the browser with real-time feedback and error handling.',
+    code: `function greet(name) {
+  return \`Hello, \${name}!\`;
+}
+
+console.log(greet('Developer'));`,
+    level: 'beginner',
+    position: 'left'
+  },
+  {
+    id: 'feature-2',
+    title: 'Real-time Collaboration',
+    description: 'Code together with team members in real-time with live cursors and chat.',
+    code: `// Multiple users can edit simultaneously
+const sharedCode = {
+  author: 'Team',
+  version: '1.0.0',
+  features: ['collaboration', 'realtime']
+};`,
+    level: 'intermediate',
+    position: 'center'
+  },
+  {
+    id: 'feature-3',
+    title: 'AI-Powered Code Review',
+    description: 'Get intelligent suggestions and automated code quality improvements.',
+    code: `// AI analyzes your code
+const aiReview = await codeAI.analyze(code, {
+  quality: 'high',
+  suggestions: true,
+  refactoring: true
+});`,
+    level: 'advanced',
+    position: 'right'
+  }
+];
+
 export default function LearningJourneyFeatures() {
   const [activeNode, setActiveNode] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,7 +131,12 @@ export default function LearningJourneyFeatures() {
 }
 
 // Individual Feature Node Component
-function FeatureNode({ feature, index, isActive, onActivate }) {
+function FeatureNode({ feature, index, isActive, onActivate }: { 
+  feature: FeatureNode; 
+  index: number; 
+  isActive: boolean; 
+  onActivate: () => void; 
+}) {
   const [ref, inView] = useInView({
     threshold: 0.5,
     triggerOnce: true

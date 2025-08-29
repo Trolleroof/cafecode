@@ -84,28 +84,49 @@ export default function PaymentSuccessPage() {
           </p>
 
           {/* Payment Details */}
-          {paymentDetails && (
-            <div className="bg-light-cream rounded-xl p-4 mb-6 text-left">
-              <h3 className="font-semibold text-dark-charcoal mb-3 flex items-center gap-2">
-                <IconCreditCard className="h-5 w-5 text-medium-coffee" />
-                Payment Details
-              </h3>
-              <div className="space-y-2 text-sm text-deep-espresso">
-                <div className="flex justify-between">
-                  <span>Amount:</span>
-                  <span className="font-semibold">$4.99</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Date:</span>
-                  <span>{new Date(paymentDetails.created * 1000).toLocaleDateString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Status:</span>
-                  <span className="text-green-600 font-semibold">✓ Paid</span>
-                </div>
+          <div className="bg-light-cream rounded-xl p-4 mb-6 text-left">
+            <h3 className="font-semibold text-dark-charcoal mb-3 flex items-center gap-2">
+              <IconCreditCard className="h-5 w-5 text-medium-coffee" />
+              Payment Details
+            </h3>
+            <div className="space-y-2 text-sm text-deep-espresso">
+              <div className="flex justify-between">
+                <span>Amount:</span>
+                <span className="font-semibold">$4.99</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Date:</span>
+                <span className="font-semibold">
+                  {(() => {
+                    try {
+                      if (paymentDetails?.created && typeof paymentDetails.created === 'number') {
+                        return new Date(paymentDetails.created * 1000).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        });
+                      }
+                      return new Date().toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      });
+                    } catch (error) {
+                      return new Date().toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      });
+                    }
+                  })()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Status:</span>
+                <span className="text-green-600 font-semibold">✓ Paid</span>
               </div>
             </div>
-          )}
+          </div>
 
           {/* What You Get */}
           <div className="bg-gradient-to-r from-medium-coffee to-deep-espresso rounded-xl p-4 mb-6 text-white">

@@ -10,10 +10,10 @@ import { supabase } from '../lib/supabase';
 // WebSocket URL Configuration - UNCOMMENT THE OPTION YOU WANT TO USE
 
 // Option 1: Connect to local backend (for development)
-const WS_BASE_URL = 'ws://localhost:8000/terminal';
+// const WS_BASE_URL = 'ws://localhost:8000/terminal';
 
 // Option 2: Connect to Fly.io backend (for production)
-// const WS_BASE_URL = 'wss://cafecode-backend-v2.fly.dev/terminal';
+const WS_BASE_URL = 'wss://cafecode-backend-v2.fly.dev/terminal';
 
 type TerminalTab = {
   id: string;

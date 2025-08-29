@@ -14,6 +14,57 @@ interface CodeStage {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
 }
 
+// Sample code evolution stages
+const codeStages: CodeStage[] = [
+  {
+    id: 'stage-1',
+    title: 'Basic Function to Arrow Function',
+    beforeCode: `function add(a, b) {
+  return a + b;
+}`,
+    afterCode: `const add = (a, b) => a + b;`,
+    explanation: 'Convert traditional function declaration to modern arrow function syntax for cleaner, more concise code.',
+    insights: ['Arrow functions are more concise', 'Implicit return for single expressions', 'Lexical this binding'],
+    difficulty: 'beginner'
+  },
+  {
+    id: 'stage-2',
+    title: 'For Loop to Array Methods',
+    beforeCode: `const numbers = [1, 2, 3, 4, 5];
+const doubled = [];
+for (let i = 0; i < numbers.length; i++) {
+  doubled.push(numbers[i] * 2);
+}`,
+    afterCode: `const numbers = [1, 2, 3, 4, 5];
+const doubled = numbers.map(num => num * 2);`,
+    explanation: 'Replace imperative for loops with functional array methods for more readable and maintainable code.',
+    insights: ['Functional programming approach', 'More declarative code', 'Better readability'],
+    difficulty: 'intermediate'
+  },
+  {
+    id: 'stage-3',
+    title: 'Callback to Promise to Async/Await',
+    beforeCode: `function fetchData(callback) {
+  fetch('/api/data')
+    .then(response => response.json())
+    .then(data => callback(null, data))
+    .catch(error => callback(error));
+}`,
+    afterCode: `async function fetchData() {
+  try {
+    const response = await fetch('/api/data');
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}`,
+    explanation: 'Modernize asynchronous code from callback patterns to async/await for better error handling and readability.',
+    insights: ['Cleaner error handling', 'Sequential async operations', 'Better debugging'],
+    difficulty: 'advanced'
+  }
+];
+
 export default function CodeEvolutionTheater() {
   const [activeStage, setActiveStage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -60,7 +111,7 @@ export default function CodeEvolutionTheater() {
         <div className="mt-20">
           <CodeTimeline
             activeStage={activeStage}
-            onStageSelect={(stageId) => {
+            onStageSelect={(stageId: string) => {
               setActiveStage(stageId);
               setIsPlaying(true);
             }}
@@ -74,7 +125,11 @@ export default function CodeEvolutionTheater() {
   );
 }
 
-function TheaterStage({ isPlaying, activeStage, onStageComplete }) {
+function TheaterStage({ isPlaying, activeStage, onStageComplete }: { 
+  isPlaying: boolean; 
+  activeStage: string | null; 
+  onStageComplete: () => void; 
+}) {
   const stage = codeStages.find(s => s.id === activeStage);
   const [currentLine, setCurrentLine] = useState(0);
   
@@ -158,7 +213,10 @@ function TheaterStage({ isPlaying, activeStage, onStageComplete }) {
   );
 }
 
-function CodeTimeline({ activeStage, onStageSelect }) {
+function CodeTimeline({ activeStage, onStageSelect }: { 
+  activeStage: string | null; 
+  onStageSelect: (stageId: string) => void; 
+}) {
   return (
     <div className="relative">
       {/* Timeline Track */}
@@ -198,7 +256,7 @@ function CodeTimeline({ activeStage, onStageSelect }) {
   );
 }
 
-function AmbientLighting({ isPlaying }) {
+function AmbientLighting({ isPlaying }: { isPlaying: boolean }) {
   return (
     <div className="fixed inset-0 pointer-events-none">
       {/* Spotlight Effect */}

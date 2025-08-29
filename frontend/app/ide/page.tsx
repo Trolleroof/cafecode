@@ -50,8 +50,13 @@ import ProjectCompletionModal from '@/components/ProjectCompletionModal';
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
 
-const backendUrl = 'http://localhost:8000/api';
-const WebSocketUrl = 'ws://localhost:8000'
+// const backendUrl = 'http://localhost:8000/api';
+// const WebSocketUrl = 'ws://localhost:8000'
+
+
+//public backend url
+const backendUrl = 'https://cafecode-backend-v2.fly.dev/api'
+const WS_BASE_URL = 'wss://cafecode-backend-v2.fly.dev';
 
 
 // CSS keyframes for shimmer animation
