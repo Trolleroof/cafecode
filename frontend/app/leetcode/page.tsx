@@ -441,7 +441,6 @@ function LeetCodePage() {
     if (!hasFetchedProblems.current && session?.access_token) {
       hasFetchedProblems.current = true;
       setIsProblemsLoading(true); // <-- set loading true before fetch
-      console.log('Fetching LeetCode problems...');
       fetch('/api/leetcode/assigned', {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -458,7 +457,6 @@ function LeetCodePage() {
           }
         })
         .then(data => {
-          console.log('LeetCode problems loaded:', data.problems?.length || 0);
           setLeetcodeProblems(data.problems || []);
         })
         .catch(error => {
@@ -475,8 +473,6 @@ function LeetCodePage() {
     let isCurrent = true;
     const slug = currentProblem?.slug;
     if (slug && session?.access_token) {
-      console.log('[useEffect-testcases] currentProblem.slug changed:', slug);
-      console.log('[useEffect-testcases] currentProblem:', currentProblem);
       fetch(`/api/leetcode/testcases?slug=${slug}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -485,14 +481,12 @@ function LeetCodePage() {
       })
         .then(async res => {
           if (!res.ok) {
-            console.warn('Testcases API returned error, using empty testcases');
             return { testcases: '' };
           }
           const contentType = res.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
             return res.json();
           } else {
-            console.warn('Testcases API returned non-JSON, using empty testcases');
             return { testcases: '' };
           }
         })
@@ -502,10 +496,8 @@ function LeetCodePage() {
           if (data.testcases && typeof data.testcases === 'string' && data.testcases.trim() !== '') {
             const parsed = parseLeetCodeTestCases(data.testcases);
             setTestCases(parsed);
-            console.log('setTestCases (from string):', parsed);
           } else if (data.testcases && Array.isArray(data.testcases)) {
             setTestCases(data.testcases);
-            console.log('setTestCases (from array):', data.testcases);
           } else if (
             (!data.testcases || data.testcases.trim() === '') &&
             currentProblem &&
@@ -514,24 +506,18 @@ function LeetCodePage() {
           ) {
             const parsed = parseLeetCodeTestCases(currentProblem.exampleTestcases);
             setTestCases(parsed);
-            console.log('setTestCases (from exampleTestcases fallback):', parsed);
           } else {
             setTestCases([]);
-            console.log('setTestCases ([]): []');
           }
         })
         .catch(error => {
-          if (!isCurrent) return;
           console.error('Error fetching testcases:', error);
           setTestCaseContent('');
           setTestCases([]);
-          console.log('setTestCases ([]): [] (error case)');
         });
     } else {
       setTestCaseContent('');
       setTestCases([]);
-      console.log('[useEffect-testcases] setTestCases ([]): [] (no slug)');
-      console.log('[useEffect-testcases] currentProblem:', currentProblem);
     }
     return () => {
       isCurrent = false;

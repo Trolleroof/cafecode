@@ -74,8 +74,8 @@ npm install @tabler/icons-react
 ## 🔄 How It Works
 
 ### Payment Flow
-1. User creates 3 free projects
-2. On 4th project, payment modal appears
+1. User creates 1 free project
+2. On 2nd project, payment modal appears
 3. User clicks "Upgrade Now" → redirected to Stripe
 4. After payment, Stripe redirects back with success status
 5. Webhook updates database, user gets unlimited access
@@ -134,7 +134,7 @@ const { hasUnlimitedAccess, projectCount } = useProjectManager();
 
 if (hasUnlimitedAccess) {
   // User has paid, unlimited access
-} else if (projectCount >= 3) {
+} else if (projectCount >= 1) {
   // User needs to upgrade
   setShowPaymentModal(true);
 } else {

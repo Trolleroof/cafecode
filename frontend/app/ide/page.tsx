@@ -2635,7 +2635,7 @@ function IDEPage() {
             showProgress={true}
             spinnerSize="medium"
             countUpProgress={true}
-            countUpSpeed={80}
+            countUpSpeed={20}
             dynamicMessages={[
               "Analyzing your project description...",
               "Creating step-by-step learning path...",
@@ -2658,7 +2658,7 @@ function IDEPage() {
           progressSpeed="slow"
           spinnerSize="large"
           countUpProgress={true}
-          countUpSpeed={60}
+                      countUpSpeed={15}
           dynamicMessages={[
             "Creating guided steps and preparing your workspace...",
             "Setting up project files and structure...",

@@ -68,7 +68,7 @@ export default function ProjectSetupLoader({
             return progress;
           }
           // Always increment by 1 for smoother animation
-          return prev + 3;
+          return prev + 1;
         });
       }, baseSpeed);
       
@@ -85,9 +85,9 @@ export default function ProjectSetupLoader({
       const targetProgress = autoProgress ? currentProgress : progress;
       
       if (displayedProgress < targetProgress) {
-        // Increment by more for faster animation
+        // Increment by smaller values for smoother animation
         const timer = setTimeout(() => {
-          setDisplayedProgress(prev => Math.min(prev + 5, targetProgress));
+          setDisplayedProgress(prev => Math.min(prev + 1, targetProgress));
         }, countUpSpeed);
         
         return () => clearTimeout(timer);

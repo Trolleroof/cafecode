@@ -589,6 +589,45 @@ router.post("/startProject", async (req, res) => {
     const projectId = uuidv4();
     const projectContext = createProjectContext(projectFiles);
 
+    // Parse step count from project description
+    const parseStepCount = (description) => {
+      // Look for numeric patterns: "4 steps", "four steps", "4", "four", etc.
+      const numericMatch = description.match(/(\d+)\s*steps?/i);
+      if (numericMatch) {
+        return parseInt(numericMatch[1]);
+      }
+      
+      // Look for written number patterns: "four steps", "ten steps", etc.
+      const writtenNumbers = {
+        'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+        'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+        'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15,
+        'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19, 'twenty': 20
+      };
+      
+      for (const [word, number] of Object.entries(writtenNumbers)) {
+        if (description.toLowerCase().includes(`${word} steps`)) {
+          return number;
+        }
+      }
+      
+      // Look for standalone numbers that might indicate step count
+      const standaloneMatch = description.match(/\b(\d{1,2})\b/);
+      if (standaloneMatch) {
+        const num = parseInt(standaloneMatch[1]);
+        // Only use if it's a reasonable step count (1-50)
+        if (num >= 1 && num <= 50) {
+          return num;
+        }
+      }
+      
+      // Default to 12 steps if no specific count found
+      return 12;
+    };
+
+    const requestedStepCount = parseStepCount(projectDescription);
+    console.log(`[STEP COUNT] Parsed step count: ${requestedStepCount} from description: "${projectDescription}"`);
+
     // If steps are provided from the setup/preview flow, use them directly
     let steps = null;
     if (Array.isArray(predefinedSteps) && predefinedSteps.length > 0) {
@@ -599,8 +638,14 @@ router.post("/startProject", async (req, res) => {
       }));
     }
 
-    // Enhanced prompt for guided projects
-    const prompt = guidedProjectPrompt.replace('${projectDescription}', projectDescription).replace('${projectContext}', projectContext);
+    // Enhanced prompt for guided projects with step count enforcement
+    let prompt = guidedProjectPrompt.replace('${projectDescription}', projectDescription).replace('${projectContext}', projectContext);
+    
+    // Add explicit step count requirement to the prompt
+    prompt += `\n\n🚨 CRITICAL STEP COUNT REQUIREMENT 🚨
+You MUST return EXACTLY ${requestedStepCount} steps. No more, no fewer.
+If you cannot complete the task in ${requestedStepCount} steps, you must break it down differently or combine steps to match the exact count.
+This is NON-NEGOTIABLE - your response will be rejected if you don't return exactly ${requestedStepCount} steps.`;
 
     // Check if this is a React project and provide special response
     // const isReactProject = /react|react\.js|reactjs/i.test(projectDescription);

@@ -23,12 +23,12 @@ export class StripeService {
               description: 'One-time payment to unlock unlimited project creation on Cafécode',
               images: ['https://trycafecode.xyz/logo.png'], // Your logo URL
             },
-            unit_amount: 1999, // $19.99 in cents (Stripe uses cents)
+            unit_amount: 499, // $19.99 in cents (Stripe uses cents)
           },
           quantity: 1,
         }],
         mode: 'payment', // One-time payment (not subscription)
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/ide?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/ide?payment=canceled`,
         client_reference_id: userId, // This helps you track which user made the payment
         metadata: {

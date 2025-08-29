@@ -214,10 +214,11 @@ export default function StepsPreviewModal({
             clearInterval(interval!);
             return 99;
           }
-          const increment = prev < 50 ? 8 : prev < 80 ? 4 : 2;
+          // Use smaller increments for smoother progression
+          const increment = prev < 50 ? 1.5 : prev < 80 ? 1 : 0.8;
           return Math.min(prev + increment, 99);
         });
-      }, 150);
+      }, 100);
     } else {
       setProgress(0);
     }

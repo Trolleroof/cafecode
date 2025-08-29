@@ -20,7 +20,7 @@ export default function PaymentTestPage() {
       setNewProjectName('');
       alert('Project created successfully!');
     } catch (error) {
-      alert(error.message);
+      alert(error instanceof Error ? error.message : 'Failed to create project');
     } finally {
       setCreating(false);
     }
@@ -73,7 +73,7 @@ export default function PaymentTestPage() {
           <p className="text-sm text-deep-espresso mt-2">
             {hasUnlimitedAccess 
               ? 'You have unlimited access to create projects!' 
-              : `You can create ${3 - projectCount} more free projects.`
+              : `You can create ${1 - projectCount} more free project.`
             }
           </p>
         </div>
