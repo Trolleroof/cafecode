@@ -7,17 +7,14 @@ RUN apk add --no-cache python3 make g++ bash git
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Clear npm cache and install dependencies with multiple fallback strategies
-RUN npm cache clean --force && \
-    npm install --verbose --production=false --no-optional || \
-    (npm cache clean --force && npm install --verbose --production=false --no-optional --force) || \
-    (rm -rf node_modules package-lock.json && npm install --verbose --production=false)
+# Install dependencies
+RUN npm install --production=false
 
 # Copy the rest of the application
 COPY . .
 
 # Verify critical dependencies are installed
-RUN npm list lru-cache && \
+RUN npm list redis && \
     npm list express && \
     echo "Dependencies verified successfully"
 

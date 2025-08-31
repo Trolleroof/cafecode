@@ -279,7 +279,7 @@ app.get('/health', async (req, res) => {
     const geminiStatus = geminiService ? await geminiService.checkHealth() : false;
     // Lazy import to avoid circular dependency
     const { Cache } = await import('./services/Cache.js');
-    const cacheStats = Cache.getStats();
+    const cacheStats = await Cache.getStats();
     
     res.json({
       status: geminiStatus ? 'healthy' : 'degraded',

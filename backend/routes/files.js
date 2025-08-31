@@ -47,7 +47,7 @@ router.get('/scan', async (req, res) => {
 
     // Cache lookup / de-dupe
     const cacheKey = buildKey(userId, 'scan', { relPath, recursive, includeContent, maxBytes, extensions, ignoreHidden });
-    const cached = Cache.get(cacheKey);
+    const cached = await Cache.get(cacheKey);
     let result = cached;
     if (!result) {
       result = await Cache.dedupe(cacheKey, async () => {
@@ -59,7 +59,7 @@ router.get('/scan', async (req, res) => {
           ignoreHidden,
         });
       });
-      Cache.set(cacheKey, result, {
+      await Cache.set(cacheKey, result, {
         ttlMs: includeContent ? 15_000 : 30_000,
         tags: buildTags(userId, 'scan', relPath),
       });
@@ -113,11 +113,11 @@ router.get('/read', async (req, res) => {
     
     // Cache small reads only (<=128KB)
     const cacheKey = buildKey(userId, 'read', { relPath });
-    let data = Cache.get(cacheKey);
+    let data = await Cache.get(cacheKey);
     if (!data) {
       data = await UserFileService.readFileSynced(userId, relPath);
       if (typeof data === 'string' && Buffer.byteLength(data, 'utf8') <= 131072) {
-        Cache.set(cacheKey, data, { ttlMs: 20_000, tags: buildTags(userId, 'read', relPath) });
+        await Cache.set(cacheKey, data, { ttlMs: 20_000, tags: buildTags(userId, 'read', relPath) });
       }
     }
     res.json({ data });
@@ -139,7 +139,7 @@ router.post('/write', async (req, res) => {
     
     await UserFileService.writeFileSynced(userId, relPath, data || '');
     // Invalidate cache entries related to this path
-    Cache.invalidateUserPath(userId, relPath);
+    await Cache.invalidateUserPath(userId, relPath);
     res.json({ success: true });
   } catch (err) {
     console.error('File write error:', err);
@@ -164,8 +164,8 @@ router.delete('/delete', async (req, res) => {
     console.log(`🗑️ [DELETE] Invalidating cache for file: ${relPath} and parent dir: ${parentDir}`);
     
     // Use the new targeted method for directory listings
-    Cache.invalidateDirectoryListings(userId, parentDir);
-    Cache.invalidateUserPath(userId, relPath);
+    await Cache.invalidateDirectoryListings(userId, parentDir);
+    await Cache.invalidateUserPath(userId, relPath);
     
     res.json({ success: true });
   } catch (err) {
@@ -195,8 +195,8 @@ router.post('/create', async (req, res) => {
     console.log(`➕ [CREATE] Invalidating cache for file: ${relPath} and parent dir: ${parentDir}`);
     
     // Use the new targeted method for directory listings
-    Cache.invalidateDirectoryListings(userId, parentDir);
-    Cache.invalidateUserPath(userId, relPath);
+    await Cache.invalidateDirectoryListings(userId, parentDir);
+    await Cache.invalidateUserPath(userId, relPath);
     
     res.json({ success: true });
   } catch (err) {
@@ -216,8 +216,8 @@ router.post('/rename', async (req, res) => {
     }
     
     await UserFileService.renameFile(userId, oldPath, newPath);
-    Cache.invalidateUserPath(userId, oldPath);
-    Cache.invalidateUserPath(userId, newPath);
+    await Cache.invalidateUserPath(userId, oldPath);
+    await Cache.invalidateUserPath(userId, newPath);
     res.json({ success: true });
   } catch (err) {
     console.error('File rename error:', err);
@@ -236,8 +236,8 @@ router.post('/copy', async (req, res) => {
     }
     
     await UserFileService.copyFileOrFolder(userId, sourcePath, destinationPath);
-    Cache.invalidateUserPath(userId, sourcePath);
-    Cache.invalidateUserPath(userId, destinationPath);
+    await Cache.invalidateUserPath(userId, sourcePath);
+    await Cache.invalidateUserPath(userId, destinationPath);
     res.json({ success: true });
   } catch (err) {
     console.error('File copy error:', err);
@@ -362,9 +362,9 @@ router.post('/upload', upload.array('files'), async (req, res) => {
     // Invalidate uploaded paths (and parent directory)
     if (saved.length > 0) {
       for (const f of saved) {
-        Cache.invalidateUserPath(userId, f.path);
+        await Cache.invalidateUserPath(userId, f.path);
       }
-      if (targetDir) Cache.invalidateUserPath(userId, targetDir);
+      if (targetDir) await Cache.invalidateUserPath(userId, targetDir);
     }
 
     res.json({ success: true, files: saved });
@@ -404,7 +404,7 @@ router.get('/raw', async (req, res) => {
 // Cache metrics (for observability)
 router.get('/cache-stats', async (req, res) => {
   try {
-    const stats = Cache.getStats();
+    const stats = await Cache.getStats();
     console.log(`📊 [CACHE-STATS] Cache stats requested: ${stats.entries} entries, ${stats.metrics.hitRate.toFixed(2)} hit rate`);
     res.json(stats);
   } catch (err) {
@@ -421,13 +421,13 @@ router.post('/cache-clear', async (req, res) => {
     
     if (path) {
       // Clear specific path
-      const cleared = Cache.invalidateUserPath(userId, path);
+      const cleared = await Cache.invalidateUserPath(userId, path);
       console.log(`🧹 [CACHE-CLEAR] Cleared ${cleared} cache entries for path: ${path}`);
       res.json({ success: true, cleared });
     } else {
       // Clear all user caches
       const userTag = SimpleCache.createTagUser(userId);
-      Cache.invalidateByTags([userTag]);
+      await Cache.invalidateByTags([userTag]);
       console.log(`🧹 [CACHE-CLEAR] Cleared all cache entries for user: ${userId}`);
       res.json({ success: true, message: 'All user caches cleared' });
     }

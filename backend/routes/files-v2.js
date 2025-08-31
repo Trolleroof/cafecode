@@ -23,7 +23,7 @@ router.get('/files', async (req, res) => {
     
     // Simple cache key
     const cacheKey = `v2:files:${userId}:${recursive}:${withContent}`;
-    const cached = Cache.get(cacheKey);
+    const cached = await Cache.get(cacheKey);
     
     if (cached && !withContent) { // Only cache non-content requests
       res.set('X-Cache', 'HIT');
@@ -78,7 +78,7 @@ router.get('/files', async (req, res) => {
     
     // Cache the result
     if (!withContent) {
-      Cache.set(cacheKey, result, { ttlMs: CACHE_TTL });
+      await Cache.set(cacheKey, result, { ttlMs: CACHE_TTL });
     }
     
     res.set('X-Cache', 'MISS');
@@ -105,7 +105,7 @@ router.get('/file/*', async (req, res) => {
     
     // Cache small files
     const cacheKey = `v2:file:${userId}:${filePath}`;
-    const cached = Cache.get(cacheKey);
+    const cached = await Cache.get(cacheKey);
     
     if (cached) {
       res.set('X-Cache', 'HIT');
@@ -116,7 +116,7 @@ router.get('/file/*', async (req, res) => {
     
     // Cache if small enough (< 128KB)
     if (content.length < 131072) {
-      Cache.set(cacheKey, content, { ttlMs: FILE_CONTENT_CACHE_TTL });
+      await Cache.set(cacheKey, content, { ttlMs: FILE_CONTENT_CACHE_TTL });
     }
     
     res.set('X-Cache', 'MISS');
@@ -144,8 +144,8 @@ router.put('/file/*', async (req, res) => {
     await UserFileService.writeFileSynced(userId, filePath, content || '');
     
     // Invalidate caches
-    Cache.invalidateUserPath(userId, filePath);
-    Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
+    await Cache.invalidateUserPath(userId, filePath);
+    await Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
     
     // Broadcast file update event
     if (req.app.locals.broadcastFileEvent) {
@@ -179,7 +179,7 @@ router.delete('/file/*', async (req, res) => {
     await UserFileService.deleteFileOrFolder(userId, filePath);
     
     // Invalidate caches
-    Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
+    await Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
     
     // Broadcast file delete event
     if (req.app.locals.broadcastFileEvent) {
@@ -218,7 +218,7 @@ router.post('/file/*', async (req, res) => {
     }
     
     // Invalidate caches
-    Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
+    await Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
     
     // Broadcast file create event
     if (req.app.locals.broadcastFileEvent) {
@@ -258,7 +258,7 @@ router.post('/upload', upload.array('files'), async (req, res) => {
     }
     
     // Invalidate caches
-    Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
+    await Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
     
     res.json({ success: true, files: uploaded });
   } catch (err) {
