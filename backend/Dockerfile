@@ -10,8 +10,10 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install --production=false
 
-# Copy the rest of the application
 COPY . .
+
+# Remove any node_modules that might have been copied and reinstall
+RUN rm -rf node_modules && npm install --production=false
 
 # Verify critical dependencies are installed
 RUN npm list redis && \
