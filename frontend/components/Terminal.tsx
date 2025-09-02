@@ -51,7 +51,7 @@ const Terminal: React.FC = () => {
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('[Terminal] Auth session:', session ? 'Found' : 'None', 'Token length:', session?.access_token?.length || 0);
+
       setAccessToken(session?.access_token ?? null);
     })();
   }, []);
@@ -134,10 +134,10 @@ const Terminal: React.FC = () => {
     // Create WebSocket connection
     let ws: WebSocket | null = null;
     if (accessToken) {
-      console.log(`[Terminal] Connecting WebSocket for tab ${tabId} with token length:`, accessToken.length);
+
       ws = new WebSocket(`${WS_BASE_URL}?access_token=${accessToken}&terminal_id=${tabId}`);
       ws.onopen = () => {
-        console.log(`[Terminal] WebSocket connected for tab ${tabId}`);
+
         // Send size after connection is established
         if (fitAddon) {
           const dims = fitAddon.proposeDimensions() || { cols: 80, rows: 24 };
@@ -176,13 +176,13 @@ const Terminal: React.FC = () => {
   // Re-attach terminals when access token becomes available
   useEffect(() => {
     if (accessToken && tabs.length > 0) {
-      console.log(`[Terminal] Access token available, re-attaching ${tabs.length} tabs`);
+
       tabs.forEach(tab => {
         if (tab.xterm && !tab.ws && !tab.isAttached) {
-          console.log(`[Terminal] Re-attaching WebSocket for tab ${tab.id}`);
+
           const ws = new WebSocket(`${WS_BASE_URL}?access_token=${accessToken}&terminal_id=${tab.id}`);
           ws.onopen = () => {
-            console.log(`[Terminal] Re-attached WebSocket connected for tab ${tab.id}`);
+
             if (tab.fit) {
               const dims = tab.fit.proposeDimensions() || { cols: 80, rows: 24 };
               ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));

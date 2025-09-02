@@ -375,12 +375,16 @@ function IDEPage() {
   // Helper function to find a node by its ID in the file tree
   const findNodeById = (id: string, nodes: FileNode[]): FileNode | null => {
     for (const node of nodes) {
-      if (node.id === id) return node;
+      if (node.id === id) {
+        console.log(`🔍 [FIND-NODE] Found node: ${id}`);
+        return node;
+      }
       if (node.children) {
         const found = findNodeById(id, node.children);
         if (found) return found;
       }
     }
+    console.log(`🔍 [FIND-NODE] Node not found: ${id}`);
     return null;
   };
 
@@ -709,6 +713,14 @@ function IDEPage() {
 
     // Optimistically update UI
     setFiles(prev => {
+      // Check if file already exists before adding
+      const existingFile = findNodeById(newPath, prev);
+      if (existingFile) {
+        console.log(`📁 [OPTIMISTIC] File already exists, skipping optimistic update: ${newPath}`);
+        return prev;
+      }
+      
+      console.log(`📁 [OPTIMISTIC] Adding file optimistically: ${newPath}`);
       const newFiles = JSON.parse(JSON.stringify(prev)); // Deep copy
       if (parentId === null) {
         newFiles.push(optimisticNode);
@@ -890,8 +902,17 @@ function IDEPage() {
             switch (data.type) {
               case 'file:created':
                 console.log(`📁 [FILE-EVENTS] File created: ${data.path}`);
-                // Optimistically add the file to the tree
+                // Check if file already exists (to prevent duplicates from optimistic updates)
                 setFiles(prevFiles => {
+                  const existingFile = findNodeById(data.path, prevFiles);
+                  if (existingFile) {
+                    console.log(`📁 [FILE-EVENTS] File already exists, skipping: ${data.path}`);
+                    return prevFiles; // File already exists, don't add again
+                  }
+
+                  console.log(`📁 [FILE-EVENTS] Adding new file to tree: ${data.path}`);
+                  
+                  // File doesn't exist, add it to the tree
                   const parts = data.path.split('/');
                   const fileName = parts.pop() || '';
                   const parentPath = parts.length > 0 ? parts.join('/') : null;
