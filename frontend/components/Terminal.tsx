@@ -27,6 +27,37 @@ type TerminalTab = {
 
 const createTerminalId = () => `term_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
+// Helper function to get websocket status as a readable string
+const getWebSocketStatus = (ws: WebSocket | null): string => {
+  if (!ws) return 'No WebSocket';
+  
+  switch (ws.readyState) {
+    case WebSocket.CONNECTING:
+      return 'Connecting';
+    case WebSocket.OPEN:
+      return 'Connected';
+    case WebSocket.CLOSING:
+      return 'Closing';
+    case WebSocket.CLOSED:
+      return 'Closed';
+    default:
+      return 'Unknown';
+  }
+};
+
+// Helper function to log websocket status for all tabs
+const logWebSocketStatus = (tabs: TerminalTab[], activeId: string | null) => {
+  console.log('🔄 Terminal Tab Switch - WebSocket Status:');
+  console.log(`Active Tab: ${activeId || 'None'}`);
+  
+  tabs.forEach((tab, index) => {
+    const status = getWebSocketStatus(tab.ws);
+    const isActive = tab.id === activeId;
+    console.log(`  Tab ${index + 1} (${tab.id}): ${status}${isActive ? ' [ACTIVE]' : ''}`);
+  });
+  console.log('---');
+};
+
 const Terminal: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [tabs, setTabs] = useState<TerminalTab[]>([]);
@@ -43,9 +74,25 @@ const Terminal: React.FC = () => {
       ws: null,
       isAttached: false
     };
-    setTabs(prev => [...prev, newTab]);
+    setTabs(prev => {
+      const updated = [...prev, newTab];
+      // Log websocket status after adding new tab
+      setTimeout(() => {
+        logWebSocketStatus(updated, newId);
+      }, 0);
+      return updated;
+    });
     setActiveId(newId);
   }, [tabs.length]);
+
+  // Function to handle tab switching with websocket status logging
+  const switchToTab = useCallback((tabId: string) => {
+    setActiveId(tabId);
+    // Log websocket status after state update
+    setTimeout(() => {
+      logWebSocketStatus(tabs, tabId);
+    }, 0);
+  }, [tabs]);
 
   // Fetch access token once
   useEffect(() => {
@@ -223,7 +270,12 @@ const Terminal: React.FC = () => {
       }
       const next = prev.filter(t => t.id !== tabId);
       if (activeId === tabId) {
-        setActiveId(next.length ? next[next.length - 1].id : null);
+        const newActiveId = next.length ? next[next.length - 1].id : null;
+        setActiveId(newActiveId);
+        // Log websocket status after closing tab
+        setTimeout(() => {
+          logWebSocketStatus(next, newActiveId);
+        }, 0);
       }
       return next;
     });
@@ -272,16 +324,20 @@ const Terminal: React.FC = () => {
     }
   }, [activeId, tabs]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount only
   useEffect(() => {
     return () => {
-      tabs.forEach(t => {
-        try { t.ws?.close(); } catch (_) {}
-        try { t.xterm?.dispose(); } catch (_) {}
-        try { t.resizeObserver?.disconnect(); } catch (_) {}
+      // Use a ref to get the current tabs at unmount time
+      setTabs(currentTabs => {
+        currentTabs.forEach(t => {
+          try { t.ws?.close(); } catch (_) {}
+          try { t.xterm?.dispose(); } catch (_) {}
+          try { t.resizeObserver?.disconnect(); } catch (_) {}
+        });
+        return currentTabs; // Don't actually change state, just use it for cleanup
       });
     };
-  }, [tabs]);
+  }, []); // Empty dependency array - only run on mount/unmount
 
   return (
     <div style={{ backgroundColor: 'rgb(0, 0, 0)', paddingTop: '2px', width: '100%', height: 400 }}>
@@ -289,7 +345,7 @@ const Terminal: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderBottom: '1px solid #222', backgroundColor: '#000' }}>
         <div style={{ display: 'flex', overflowX: 'auto' }}>
           {tabs.map(tab => (
-            <div key={tab.id} onClick={() => setActiveId(tab.id)} style={{
+            <div key={tab.id} onClick={() => switchToTab(tab.id)} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', marginRight: '2px',
               cursor: 'pointer', borderRadius: 4,
               backgroundColor: activeId === tab.id ? '#111' : 'transparent',
