@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import ProjectSetupLoader from './ProjectSetupLoader';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '../app/security/hooks/useAuth';
 
 interface TavusConversationProps {
   currentCode: string;

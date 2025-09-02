@@ -70,7 +70,7 @@ export default function Home() {
           try {
             const { data: profile, error } = await supabase
               .from('profiles')
-              .select('project_count, payment_status, subscription_status')
+              .select('project_count, payment_status, has_unlimited_access')
               .eq('id', user.id)
               .single();
             
@@ -78,7 +78,7 @@ export default function Home() {
               setProjectCount(profile.project_count || 0);
               setHasUnlimitedAccess(
                 profile.payment_status === 'paid' || 
-                profile.subscription_status === 'active'
+                profile.has_unlimited_access === true
               );
             } else {
               // Set defaults if no profile found

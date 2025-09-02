@@ -30,7 +30,7 @@ import HTMLPreview from '@/components/HTMLPreview';
 import RunDropdown from '@/components/RunDropdown';
 import TypingIndicator from '@/components/TypingIndicator';
 import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ProtectedRoute } from '@/app/security/components/ProtectedRoute';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GuidedStepPopup from '@/components/GuidedStepPopup';
@@ -42,7 +42,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import TavusConversation from '../../components/TavusConversation';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '../security/hooks/useAuth';
 import axios from 'axios';
 import ReactPreview from '@/components/ReactPreview';
 import ProjectCompletionModal from '@/components/ProjectCompletionModal';
@@ -845,18 +845,7 @@ function IDEPage() {
   useEffect(() => {
     const accessToken = session?.access_token;
     if (!accessToken) return;
-    
-    // Determine WebSocket URL based on environment
-    const getWebSocketUrl = () => {
-      if (process.env.NODE_ENV === 'production') {
-        // In production, use the same host with ws/wss protocol
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        return `${protocol}//${window.location.host}`;
-      } else {
-        // In development, connect to backend server
-        return 'ws://localhost:8000';
-      }
-    };
+       
     
     let ws: WebSocket | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
@@ -872,7 +861,7 @@ function IDEPage() {
       }
       connectingRef.current = true;
       try {
-        const wsUrl = getWebSocketUrl();
+        const wsUrl = WS_BASE_URL
         console.log('📡 [FILE-EVENTS] Attempting to connect to:', `${wsUrl}/file-events`);
         
         const encodedToken = encodeURIComponent(session.access_token);
@@ -1645,10 +1634,26 @@ function IDEPage() {
         setShowStepsPreviewModal(true);
         setIsInSetupPhase(false);
       } else {
-        setStepsFlowError(result?.error || 'An error happened. Please try again.');
+        if (response.status === 500) {
+          setStepsFlowError('Server error occurred. Please press "Generate Steps" again to retry.');
+          // Also add to chat
+          setChatMessages(prev => [...prev, {
+            type: 'assistant',
+            content: '❌ **Server Error**: The step generation failed. Please press "Generate Steps" again to retry.',
+            timestamp: new Date()
+          }]);
+        } else {
+          setStepsFlowError(result?.error || 'An error happened. Please try again.');
+        }
       }
     } catch (e) {
-      setStepsFlowError('An error happened. Please try again.');
+      setStepsFlowError('Server error occurred. Please press "Generate Steps" again to retry.');
+      // Also add to chat
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: '❌ **Server Error**: The step generation failed. Please press "Generate Steps" again to retry.',
+        timestamp: new Date()
+      }]);
     } finally {
       setIsGeneratingSteps(false);
     }
@@ -2061,11 +2066,6 @@ function IDEPage() {
     }
   }, []);
 
-  // Debug: Log when files state changes
-  useEffect(() => {
-    console.log(`📁 Files state updated: ${files.length} files, error: ${filesError}`);
-  }, [files, filesError]);
-
   // Add state to track if the terminal has been initialized
   const [terminalInitialized, setTerminalInitialized] = useState(false);
 
@@ -2167,7 +2167,7 @@ function IDEPage() {
         <header className="flex items-center justify-between p-4 border-b border-cream-beige bg-light-cream shadow-lg ide-dimmable">
     
                  <div className="flex items-center space-x-1">
-           <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-cream-beige">
+           <button onClick={() => router.push('/')} className="p-2 rounded-full hover:bg-cream-beige">
             <IconArrowLeft className="h-5 w-5 text-deep-espresso" />
           </button>
           <div className="w-9 h-9 flex items-center justify-center">
@@ -2472,7 +2472,7 @@ function IDEPage() {
                         <div className={`max-w-[85%] px-6 py-4 rounded-2xl shadow-lg text-base ${msg.type === 'user' ? 'bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream ml-auto' : 'bg-white text-dark-charcoal border-2 border-cream-beige/50 shadow-md'}`}
                           style={idx === 0 ? { marginTop: 0 } : {}}>
                           {msg.type === 'assistant' && (msg.content.includes('substantial') || msg.content.startsWith('🛠️ Fixing code')) ? (
-                            <div className="font-semibold text-base">
+                            <div className="text-base">
                               {msg.content}
                             </div>
                           ) : msg.type === 'assistant' && msg.content.startsWith('Here are the changes:') ? (
