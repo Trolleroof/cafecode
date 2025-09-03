@@ -46,6 +46,7 @@ import { useAuth } from '../security/hooks/useAuth';
 import axios from 'axios';
 import ReactPreview from '@/components/ReactPreview';
 import ProjectCompletionModal from '@/components/ProjectCompletionModal';
+import { FileNode } from '@/types';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
@@ -67,14 +68,7 @@ const shimmerKeyframes = `
   }
 `;
 
-interface FileNode {
-  id: string;
-  name: string;
-  type: 'file' | 'folder';
-  content?: string;
-  children?: FileNode[];
-  language?: string;
-}
+
 
 interface ChatMessage {
   type: 'user' | 'assistant';
@@ -2110,14 +2104,7 @@ function IDEPage() {
     if (session?.access_token) {
       loadFiles();
     }
-  }, [session, loadFiles]);
-
-  // Also try to load files on component mount regardless of session (for debugging)
-  useEffect(() => {
-    if (session?.access_token) {
-      loadFiles();
-    }
-  }, []);
+  }, [session?.access_token]); // Only depend on session token, not the loadFiles function
 
   // Add state to track if the terminal has been initialized
   const [terminalInitialized, setTerminalInitialized] = useState(false);

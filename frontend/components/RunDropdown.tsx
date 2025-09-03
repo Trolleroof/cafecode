@@ -2,15 +2,7 @@
 
 import React, { useState } from 'react';
 import { Play, ChevronDown, File, Globe } from 'lucide-react';
-
-interface FileNode {
-  id: string;
-  name: string;
-  type: 'file' | 'folder';
-  content?: string;
-  children?: FileNode[];
-  language?: string;
-}
+import { FileNode } from '@/types';
 
 interface RunDropdownProps {
   files: FileNode[];

@@ -14,20 +14,10 @@ import {
   Search,
   Menu,
   RefreshCw,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
-
-
-interface FileNode {
-  id: string;
-  name: string;
-  type: 'file' | 'folder';
-  content?: string;
-  children?: FileNode[];
-  language?: string;
-  size?: number;
-  modified?: Date;
-}
+import { FileNode, SearchFilter } from '@/types';
 
 interface FileExplorerProps {
   files: FileNode[];
@@ -42,8 +32,6 @@ interface FileExplorerProps {
   onFileSelect?: (file: FileNode) => void;
   isLoading?: boolean;
 }
-
-type SearchFilter = 'all' | 'name';
 
 const getFileIcon = (fileName: string) => {
   // Handle special filenames without extensions
