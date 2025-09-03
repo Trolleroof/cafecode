@@ -6,8 +6,22 @@ import path from 'path';
 export class UserTerminalManager {
   // Map of userId -> Map of terminalId -> PTY process
   static userIdToTerminals = new Map();
+  // Add caching for faster terminal creation
+  static terminalCache = new Map();
+  static cacheTimeout = 30000; // 30 seconds
 
   static startTerminal(userId, shell = 'bash', cols = 80, rows = 34, terminalId = null) {
+    // Check cache first
+    const cacheKey = `${userId}_${cols}_${rows}`;
+    const cached = UserTerminalManager.terminalCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < UserTerminalManager.cacheTimeout) {
+      // Return cached terminal with new ID
+      const newTerminalId = terminalId || `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const terminalsForUser = UserTerminalManager.userIdToTerminals.get(userId) || new Map();
+      terminalsForUser.set(newTerminalId, cached.pty);
+      return { id: newTerminalId, pty: cached.pty };
+    }
+
     // Ensure map for user exists
     if (!UserTerminalManager.userIdToTerminals.has(userId)) {
       UserTerminalManager.userIdToTerminals.set(userId, new Map());
@@ -26,23 +40,23 @@ export class UserTerminalManager {
       fs.mkdirSync(cwd, { recursive: true });
     }
     
-    // Always use bash as the shell
-    let shellCmd = 'bash';
-    let shellArgs = ['-i'];
-    
-    // Set environment variables for better terminal experience
+    // Optimized environment setup
     const env = {
       ...process.env,
       TERM: 'xterm-color',
       USER: userId,
       HOME: cwd,
       PWD: cwd,
-      SHELL: shellCmd,
-      PS1: '$ ', // Blank prompt
+      SHELL: 'bash',
+      PS1: '$ ',
       HOSTNAME: 'mac',
+      // Performance optimizations
+      NODE_OPTIONS: '--max-old-space-size=4096', // Increase memory for faster npm operations
+      npm_config_cache: path.join(cwd, '.npm-cache'), // Local npm cache
+      npm_config_prefer_offline: 'true', // Use offline cache when possible
     };
     
-    const ptyProcess = pty.spawn(shellCmd, shellArgs, {
+    const ptyProcess = pty.spawn('bash', ['-i'], {
       name: 'xterm-color',
       cols,
       rows,
@@ -50,17 +64,26 @@ export class UserTerminalManager {
       env,
     });
     
-    // Set up initial terminal state
+    // Optimized initial setup with reduced delay
     setTimeout(() => {
-      // Change to workspace directory
       ptyProcess.write(`cd "${cwd}"\n`);
-      // Set the prompt to be clean
       ptyProcess.write('export PS1="$ "\n');
-      // Clear the screen once at startup
+      
+      ptyProcess.write('npm config set prefer-offline true\n');
+      ptyProcess.write('npm config set audit false\n');
+      ptyProcess.write('npm config set fund false\n');
+      
       ptyProcess.write('clear\n');
-    }, 500);
+    }, 50); 
     
     terminalsForUser.set(terminalId, ptyProcess);
+    
+    // Cache the terminal for reuse
+    UserTerminalManager.terminalCache.set(cacheKey, {
+      pty: ptyProcess,
+      timestamp: Date.now()
+    });
+    
     return { id: terminalId, pty: ptyProcess };
   }
 

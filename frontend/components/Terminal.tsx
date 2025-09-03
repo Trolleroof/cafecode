@@ -63,8 +63,11 @@ const Terminal: React.FC = () => {
   const [tabs, setTabs] = useState<TerminalTab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   const addTab = useCallback(() => {
+    if (isInitializing) return; // Prevent multiple simultaneous initializations
+    
     const newId = createTerminalId();
     const newTab: TerminalTab = { 
       id: newId, 
@@ -74,25 +77,15 @@ const Terminal: React.FC = () => {
       ws: null,
       isAttached: false
     };
-    setTabs(prev => {
-      const updated = [...prev, newTab];
-      // Log websocket status after adding new tab
-      setTimeout(() => {
-        logWebSocketStatus(updated, newId);
-      }, 0);
-      return updated;
-    });
+    
+    setTabs(prev => [...prev, newTab]);
     setActiveId(newId);
-  }, [tabs.length]);
+  }, [tabs.length, isInitializing]);
 
-  // Function to handle tab switching with websocket status logging
+  // Function to handle tab switching
   const switchToTab = useCallback((tabId: string) => {
     setActiveId(tabId);
-    // Log websocket status after state update
-    setTimeout(() => {
-      logWebSocketStatus(tabs, tabId);
-    }, 0);
-  }, [tabs]);
+  }, []);
 
   // Fetch access token once
   useEffect(() => {
@@ -112,113 +105,116 @@ const Terminal: React.FC = () => {
 
   const attachXterm = useCallback((tabId: string, node: HTMLDivElement | null) => {
     const tab = tabs.find(t => t.id === tabId);
-    if (!tab || !node || tab.isAttached) return;
+    if (!tab || !node || tab.isAttached || isInitializing) return;
 
-    const term = new XTerm({
-      cols: 80,
-      rows: 24,
-      fontSize: 14,
-      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-      theme: {
-        background: '#000000',
-        foreground: '#ffffff',
-        cursor: '#ffffff',
-        black: '#000000',
-        red: '#e06c75',
-        green: '#98c379',
-        yellow: '#d19a66',
-        blue: '#61afef',
-        magenta: '#c678dd',
-        cyan: '#56b6c2',
-        white: '#ffffff',
-        brightBlack: '#5c6370',
-        brightRed: '#e06c75',
-        brightGreen: '#98c379',
-        brightYellow: '#d19a66',
-        brightBlue: '#61afef',
-        brightMagenta: '#c678dd',
-        brightCyan: '#56b6c2',
-        brightWhite: '#ffffff'
-      },
-      allowTransparency: true,
-      cursorBlink: true,
-      cursorStyle: 'block',
-      scrollback: 1000,
-      tabStopWidth: 4,
-      wordSeparator: ' ()[]{}\',"`',
-      scrollOnUserInput: true,
-      scrollSensitivity: 1,
-      fastScrollModifier: 'alt',
-      fastScrollSensitivity: 5
-    });
-    
-    const fitAddon = new FitAddon();
-    const clipboardAddon = new ClipboardAddon();
-    term.loadAddon(fitAddon);
-    term.loadAddon(clipboardAddon);
-    term.open(node);
-    
-    // Ensure proper sizing and fit
-    setTimeout(() => {
-      fitAddon.fit();
-      // Send initial size to backend
-      const dims = fitAddon.proposeDimensions() || { cols: 80, rows: 24 };
-      if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
-      }
-    }, 100);
+    setIsInitializing(true);
 
-    // Add resize observer to handle dynamic resizing
-    const resizeObserver = new ResizeObserver(() => {
-      fitAddon.fit();
-      const dims = fitAddon.proposeDimensions() || { cols: 80, rows: 24 };
-      if (ws && ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
-      }
-    });
-    resizeObserver.observe(node);
-
-    // Create WebSocket connection
-    let ws: WebSocket | null = null;
-    if (accessToken) {
-
-      ws = new WebSocket(`${WS_BASE_URL}?access_token=${accessToken}&terminal_id=${tabId}`);
-      ws.onopen = () => {
-
-        // Send size after connection is established
-        if (fitAddon) {
+    try {
+      const term = new XTerm({
+        cols: 80,
+        rows: 24,
+        fontSize: 14,
+        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+        theme: {
+          background: '#000000',
+          foreground: '#ffffff',
+          cursor: '#ffffff',
+          black: '#000000',
+          red: '#e06c75',
+          green: '#98c379',
+          yellow: '#d19a66',
+          blue: '#61afef',
+          magenta: '#c678dd',
+          cyan: '#56b6c2',
+          white: '#ffffff',
+          brightBlack: '#5c6370',
+          brightRed: '#e06c75',
+          brightGreen: '#98c379',
+          brightYellow: '#d19a66',
+          brightBlue: '#61afef',
+          brightMagenta: '#c678dd',
+          brightCyan: '#56b6c2',
+          brightWhite: '#ffffff'
+        },
+        allowTransparency: true,
+        cursorBlink: true,
+        cursorStyle: 'block',
+        scrollback: 1000,
+        tabStopWidth: 4,
+        wordSeparator: ' ()[]{}\',"`',
+        scrollOnUserInput: true,
+        scrollSensitivity: 1,
+        fastScrollModifier: 'alt',
+        fastScrollSensitivity: 5,
+        // Performance optimizations
+        disableStdin: false,
+        convertEol: true
+      });
+      
+      const fitAddon = new FitAddon();
+      const clipboardAddon = new ClipboardAddon();
+      
+      // Load addons before opening
+      term.loadAddon(fitAddon);
+      term.loadAddon(clipboardAddon);
+      term.open(node);
+      
+      // Optimized sizing with requestAnimationFrame for smoother rendering
+      requestAnimationFrame(() => {
+        try {
+          fitAddon.fit();
           const dims = fitAddon.proposeDimensions() || { cols: 80, rows: 24 };
-          ws?.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
-        }
-      };
-      ws.onmessage = (event) => {
-        term.write(event.data);
-        // Auto-scroll to bottom when new content arrives
-        term.scrollToBottom();
-      };
-      ws.onclose = () => term.writeln('\r\n🖧 Terminal has been disconnected. PLEASE RELOAD.');
+          
+          // Create WebSocket connection
+          let ws: WebSocket | null = null;
+          if (accessToken) {
+            ws = new WebSocket(`${WS_BASE_URL}?access_token=${accessToken}&terminal_id=${tabId}`);
+            
+            ws.onopen = () => {
+              // Send size immediately after connection
+              ws?.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
+            };
+            
+            ws.onmessage = (event) => {
+              term.write(event.data);
+              term.scrollToBottom();
+            };
+            
+            ws.onclose = () => {
+              term.writeln('\r\n🖧 Terminal disconnected. Reload to reconnect.');
+            };
 
-      term.onData((data) => {
-        if (ws && ws.readyState === 1) {
-          ws.send(data);
-          // Auto-scroll to bottom when user types
-          term.scrollToBottom();
+            term.onData((data) => {
+              if (ws && ws.readyState === 1) {
+                ws.send(data);
+                term.scrollToBottom();
+              }
+            });
+          } else {
+            term.writeln('🔄 Waiting for authentication...');
+          }
+
+          // Update tab state
+          setTabs(prev => prev.map(t => t.id === tabId ? { 
+            ...t, 
+            xterm: term, 
+            fit: fitAddon, 
+            ws, 
+            isAttached: true
+          } : t));
+          
+          setIsInitializing(false);
+        } catch (error) {
+          console.error('Error initializing terminal:', error);
+          setIsInitializing(false);
         }
       });
-    } else {
-      term.writeln('🔄 Waiting for authentication...');
-    }
 
-    // Store terminal, fitAddon, ws and observer in the tabs state
-    setTabs(prev => prev.map(t => t.id === tabId ? { 
-      ...t, 
-      xterm: term, 
-      fit: fitAddon, 
-      ws, 
-      resizeObserver,
-      isAttached: true
-    } : t));
-  }, [accessToken, tabs]);
+    } catch (error) {
+      console.error('Error creating terminal:', error);
+      setIsInitializing(false);
+    }
+  }, [accessToken, tabs, isInitializing]);
 
   // Re-attach terminals when access token becomes available
   useEffect(() => {
@@ -307,17 +303,15 @@ const Terminal: React.FC = () => {
         // Small delay to ensure the DOM has updated visibility
         setTimeout(() => {
           try {
-            // Refresh the terminal display
-            activeTab.xterm?.refresh(0, activeTab.xterm.rows - 1);
-            // Ensure terminal is properly sized
+            // Only resize if needed - don't refresh the display content
             activeTab.fit?.fit();
-            // Send updated size to backend
+            // Send updated size to backend only if dimensions changed
             if (activeTab.ws && activeTab.ws.readyState === 1 && activeTab.fit) {
               const dims = activeTab.fit.proposeDimensions() || { cols: 80, rows: 24 };
               activeTab.ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
             }
           } catch (e) {
-            console.error('[Terminal] Error refreshing terminal:', e);
+            console.error('[Terminal] Error resizing terminal:', e);
           }
         }, 50);
       }

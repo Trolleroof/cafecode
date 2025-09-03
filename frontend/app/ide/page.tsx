@@ -304,6 +304,7 @@ function IDEPage() {
   // Folder deletion confirmation state
   const [pendingDeleteFolderId, setPendingDeleteFolderId] = useState<string | null>(null);
   const [pendingDeleteFolderName, setPendingDeleteFolderName] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Chat scroll reference
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -372,19 +373,46 @@ function IDEPage() {
   // Simple file loading state
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
 
-  // Helper function to find a node by its ID in the file tree
-  const findNodeById = (id: string, nodes: FileNode[]): FileNode | null => {
-    for (const node of nodes) {
-      if (node.id === id) {
-        console.log(`🔍 [FIND-NODE] Found node: ${id}`);
-        return node;
-      }
-      if (node.children) {
-        const found = findNodeById(id, node.children);
-        if (found) return found;
+  // Create a file ID cache for efficient lookups
+  const fileIdCache = useMemo(() => {
+    const cache = new Map<string, FileNode>();
+    const buildCache = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        cache.set(node.id, node);
+        if (node.children) {
+          buildCache(node.children);
+        }
+      });
+    };
+    buildCache(files);
+    return cache;
+  }, [files]);
+
+  // Helper function to find a node by its ID using cache for efficiency
+  const findNodeById = (id: string, nodes?: FileNode[]): FileNode | null => {
+    // Use cache for quick lookup
+    const cached = fileIdCache.get(id);
+    if (cached) {
+      return cached;
+    }
+    
+    // Fallback to tree traversal if cache miss (shouldn't happen often)
+    if (nodes) {
+      for (const node of nodes) {
+        if (node.id === id) {
+          return node;
+        }
+        if (node.children) {
+          const found = findNodeById(id, node.children);
+          if (found) return found;
+        }
       }
     }
-    console.log(`🔍 [FIND-NODE] Node not found: ${id}`);
+    
+    // Only log missing nodes for debugging, but skip common test files
+    if (process.env.NODE_ENV === 'development' && id !== 'test.py' && !id.includes('test')) {
+      console.log(`🔍 [FIND-NODE] Node not found: ${id}`);
+    }
     return null;
   };
 
@@ -453,7 +481,7 @@ function IDEPage() {
 
   // File deletion request handler (with confirmation for folders)
   const handleDeleteRequest = (fileId: string) => {
-    const nodeToDelete = findNodeById(fileId, files);
+    const nodeToDelete = findNodeById(fileId);
     if (nodeToDelete && nodeToDelete.type === 'folder') {
       setPendingDeleteFolderId(fileId);
       setPendingDeleteFolderName(nodeToDelete.name);
@@ -571,7 +599,7 @@ function IDEPage() {
       
       // If a file was selected, make sure it still exists
       if (selectedFile) {
-        const stillExists = findNodeById(selectedFile.id, nodes);
+        const stillExists = findNodeById(selectedFile.id);
         if (!stillExists) {
           console.log(`⚠️ [REFRESH] Selected file no longer exists: ${selectedFile.id}`);
           setSelectedFile(null);
@@ -714,7 +742,7 @@ function IDEPage() {
     // Optimistically update UI
     setFiles(prev => {
       // Check if file already exists before adding
-      const existingFile = findNodeById(newPath, prev);
+      const existingFile = findNodeById(newPath);
       if (existingFile) {
         console.log(`📁 [OPTIMISTIC] File already exists, skipping optimistic update: ${newPath}`);
         return prev;
@@ -725,7 +753,7 @@ function IDEPage() {
       if (parentId === null) {
         newFiles.push(optimisticNode);
       } else {
-        const parent = findNodeById(parentId, newFiles);
+        const parent = findNodeById(parentId);
         if (parent && parent.type === 'folder') {
           parent.children = parent.children ? [...parent.children, optimisticNode] : [optimisticNode];
         }
@@ -757,6 +785,9 @@ function IDEPage() {
   const handleFileDelete = async (fileId: string) => {
     const originalFiles = files;
     
+    // Set loading state
+    setIsDeleting(true);
+    
     // Optimistically remove from UI
     setFiles(prev => {
       const newFiles = JSON.parse(JSON.stringify(prev)); // Deep copy
@@ -784,6 +815,7 @@ function IDEPage() {
       setFiles(originalFiles);
       setFilesError(`Failed to delete: ${err.response?.data?.error || err.message}`);
     } finally {
+      setIsDeleting(false);
       setPendingDeleteFolderId(null);
       setPendingDeleteFolderName(null);
     }
@@ -904,7 +936,7 @@ function IDEPage() {
                 console.log(`📁 [FILE-EVENTS] File created: ${data.path}`);
                 // Check if file already exists (to prevent duplicates from optimistic updates)
                 setFiles(prevFiles => {
-                  const existingFile = findNodeById(data.path, prevFiles);
+                  const existingFile = findNodeById(data.path);
                   if (existingFile) {
                     console.log(`📁 [FILE-EVENTS] File already exists, skipping: ${data.path}`);
                     return prevFiles; // File already exists, don't add again
@@ -2732,10 +2764,18 @@ function IDEPage() {
                   Cancel
                 </button>
                 <button
-                  className="px-6 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-all duration-200 hover:scale-105 shadow-md"
+                  className="px-6 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition-all duration-200 hover:scale-105 shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2"
                   onClick={() => handleFileDelete(pendingDeleteFolderId)}
+                  disabled={isDeleting}
                 >
-                  Delete
+                  {isDeleting ? (
+                    <>
+                      <IconLoader2 className="h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
                 </button>
               </div>
             </div>
