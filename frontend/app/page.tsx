@@ -128,25 +128,12 @@ export default function Home() {
         <Header />
 
             {/* Hero Section */}
-            <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden w-full py-16 md:py-24">
-              {/* Uniform background color for hero section */}
-              <div className="absolute inset-0 bg-light-cream"></div>
-              
-              {/* Project Counter Display */}
-              {/* Temporarily removed to prevent hydration issues */}
-              {/* Temporarily removed to prevent hydration issues */}
-
-              {/* Animated coffee elements */}
-              <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-medium-coffee to-deep-espresso rounded-full opacity-10 animate-steam-rise blur-xl"></div>
-              <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-deep-espresso to-medium-coffee rounded-full opacity-10 animate-coffee-drip blur-xl" style={{ animationDelay: '2s' }}></div>
-              <div className="absolute bottom-1/3 left-20 w-20 h-20 bg-gradient-to-br from-medium-coffee to-cream-beige rounded-full opacity-10 animate-bean-bounce blur-xl" style={{ animationDelay: '4s' }}></div>
-              <div className="absolute top-1/2 right-1/4 w-16 h-16 bg-gradient-to-br from-deep-espresso to-medium-coffee rounded-full opacity-10 animate-float" style={{ animationDelay: '1s' }}></div>
-
-              <div className="relative z-10 w-full max-w-[2000px] mx-auto flex flex-col md:flex-row items-center px-4 xl:px-16 2xl:px-32 gap-12 md:gap-20">
+            <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-light-cream w-full py-24">
+              <div className="relative z-10 w-full max-w-[2000px] mx-auto flex flex-col md:flex-row items-center px-6 xl:px-16 2xl:px-32 gap-12 md:gap-20">
                 {/* Left: Text Content */}
-                <div className="flex-1 flex flex-col pt-12 mt-8 items-start md:items-start text-left max-w-xl">
+                <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left max-w-xl space-y-8">
                 {/* Coffee Shop Badge */}
-                
+
                 {/* Project Counter - Show user's project status */}
                 {user && (
                   <div className="mb-8">
@@ -156,7 +143,7 @@ export default function Home() {
                       onUpgradeClick={() => setShowPaymentModal(true)}
                       onRefresh={refreshUserData}
                     />
-                    
+
                     {/* Status message */}
                     <div className="mt-3 text-sm text-medium-coffee">
                       {hasUnlimitedAccess ? (
@@ -178,21 +165,19 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-                 
+
                 {/* Main heading with coffee theme */}
-                  <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal leading-tight">
-                    <span className="block mb-2">Ship Your Code,</span>
-                    <span className="block bg-gradient-to-r from-medium-coffee via-deep-espresso to-medium-coffee bg-clip-text text-transparent animate-gradient leading-[1.2] py-1 mb-6">
-                      Sip Your Coffee
-                    </span>
+                  <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-semibold text-dark-charcoal tracking-tight">
+                    <span className="block">Ship Your Code.</span>
+                    <span className="block text-medium-coffee">Sip Your Coffee.</span>
                   </h1>
                   {/* Coffee-themed Subheading */}
-                  <p className="text-lg sm:text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl text-medium-coffee mb-10 max-w-2xl leading-relaxed font-medium">
-                    Actually learn to code projects in the time it takes to sip your morning coffee
-                    <span className="block mt-8 font-bold text-dark-charcoal text-base sm:text-lg xl:text-xl">The only rule? No vibecoding.</span>
+                  <p className="text-lg sm:text-xl lg:text-2xl text-medium-coffee max-w-2xl leading-relaxed font-medium">
+                    Actually learn to code projects in the time it takes to sip your morning coffee.
+                    <span className="block mt-6 font-semibold text-dark-charcoal text-base sm:text-lg">The only rule? Novibecoding.</span>
                   </p>
                   {/* Hero action buttons */}
-                  <div className="flex gap-6 mb-12">
+                  <div className="flex gap-6 mt-4">
                     <button
                       onClick={() => {
                         if (!user) {
@@ -201,7 +186,7 @@ export default function Home() {
                           handleStartCoding();
                         }
                       }}
-                      className="px-8 py-4 text-lg xl:text-2xl font-bold rounded-xl shadow-coffee hover:shadow-espresso transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 bg-gradient-to-r from-deep-espresso to-medium-coffee hover:from-medium-coffee hover:to-deep-espresso text-light-cream border-2 border-deep-espresso/20 hover:border-deep-espresso/40"
+                      className="px-10 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2 bg-dark-charcoal text-light-cream hover:bg-black"
                       disabled={loadingButton !== null}
                     >
                       {loadingButton === 'ide' ? (
@@ -213,10 +198,9 @@ export default function Home() {
                         'Start Coding!'
                       )}
                     </button>
-                   
+
                   </div>
-                  
-                 
+
                 </div>
                 {/* Right: Hero Image */}
                 <div className="flex-1 flex justify-center items-center w-full max-w-3xl xl:max-w-5xl 2xl:max-w-6xl mx-auto relative">
@@ -231,8 +215,7 @@ export default function Home() {
                 </div>
               </div>
             </section>
-
-            {/* Problem Statement Section - Coffee themed */}
+{/* Problem Statement Section - Coffee themed */}
             <section id="problemStatement" className='py-20 md:py-24 bg-light-cream relative overflow-hidden'>
               
               <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
