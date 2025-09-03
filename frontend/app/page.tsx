@@ -186,7 +186,7 @@ export default function Home() {
                           handleStartCoding();
                         }
                       }}
-                      className="px-10 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2 bg-dark-charcoal text-light-cream hover:bg-black"
+                      className="px-10 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-b from-medium-coffee to-deep-espresso text-light-cream hover:from-deep-espresso hover:to-dark-charcoal"
                       disabled={loadingButton !== null}
                     >
                       {loadingButton === 'ide' ? (
