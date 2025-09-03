@@ -10,6 +10,11 @@ Your tasks:
 
 Instruction: "${instruction}"
 
+**PROJECT CONTEXT:**
+${projectContext}
+
+**IMPORTANT:** Use the project context above to understand the current file structure. If the instruction asks to create a file that already exists in the project (even in a subdirectory), consider whether this is actually a modification step instead of a creation step.
+
 **SIMPLE RULES:**
 1. Prioritize MODIFICATION over creation when both are implied. If the instruction includes verbs like "update", "edit", "modify", "change", or phrasing like "add X to/with/in Y", DO NOT treat it as creation. In such cases, set isCreation: false (this will be handled as a modification elsewhere).
 2. "add" is AMBIGUOUS and MUST NOT be used as a creation signal. Only treat as creation when clear verbs like "create", "make", or "new" are used without modification context.

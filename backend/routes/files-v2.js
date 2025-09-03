@@ -181,6 +181,11 @@ router.delete('/file/*', async (req, res) => {
     // Invalidate caches
     await Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
     
+    // Immediately update FileSystemIndexer cache
+    const { fileSystemIndexer } = await import('../services/FileSystemIndexer.js');
+    fileSystemIndexer.invalidateUserCache(userId);
+    fileSystemIndexer.removeFileFromCache(userId, filePath);
+    
     // Broadcast file delete event
     if (req.app.locals.broadcastFileEvent) {
       req.app.locals.broadcastFileEvent(userId, {
@@ -219,6 +224,11 @@ router.post('/file/*', async (req, res) => {
     
     // Invalidate caches
     await Cache.invalidateByTags([SimpleCache.createTagUser(userId)]);
+    
+    // Immediately update FileSystemIndexer cache
+    const { fileSystemIndexer } = await import('../services/FileSystemIndexer.js');
+    fileSystemIndexer.invalidateUserCache(userId);
+    fileSystemIndexer.addFileToCache(userId, filePath, isFolder);
     
     // Broadcast file create event
     if (req.app.locals.broadcastFileEvent) {

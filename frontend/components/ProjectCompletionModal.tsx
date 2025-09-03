@@ -75,7 +75,15 @@ const ProjectCompletionModal: React.FC<ProjectCompletionModalProps> = ({
         }
       })();
     }
-  }, [isOpen, projectFiles, chatHistory, guidedProject, session, recapText]);
+  }, [isOpen, projectFiles, chatHistory, guidedProject, session]); // Removed recapText from dependencies
+
+  // Reset recap text when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setRecapText('');
+      setIsRecapLoading(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && confettiCanvasRef.current) {

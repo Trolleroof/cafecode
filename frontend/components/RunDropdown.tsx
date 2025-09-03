@@ -86,19 +86,25 @@ export default function RunDropdown({ files, onRunFile, isRunning }: RunDropdown
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-64 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-10">
+        <div className="absolute top-full left-0 mt-1 w-64 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-10 overflow-hidden">
           <div className="py-1">
-            {executableFiles.map((file) => (
+            {executableFiles.map((file, index) => (
               <button
                 key={file.id}
                 onClick={() => {
                   onRunFile(file);
                   setIsOpen(false);
                 }}
-                className="flex items-center w-full px-4 py-2 text-left text-gray-200 hover:bg-gray-700"
+                className={`flex items-center w-full px-3 py-2.5 text-left text-gray-200 hover:bg-gray-700 transition-colors duration-150 ${
+                  index === 0 ? 'rounded-t-md' : ''
+                } ${
+                  index === executableFiles.length - 1 ? 'rounded-b-md' : ''
+                }`}
               >
-                {getFileIcon(file.name)}
-                <span className="ml-2">{file.name}</span>
+                <div className="flex-shrink-0">
+                  {getFileIcon(file.name)}
+                </div>
+                <span className="ml-3 text-sm font-medium truncate">{file.name}</span>
               </button>
             ))}
           </div>

@@ -23,6 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" type="image/x-icon" href="frontend/public/images/favicon.ico" />
+        <link rel="shortcut icon" type="image/x-icon" href="frontend/public/images/favicon.ico" />
+        <link rel="apple-touch-icon" href="/images/favicon.ico" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Inter:wght@400;500;700&family=Playfair+Display:wght@700&family=Raleway:wght@400;500&display=swap" rel="stylesheet" />
@@ -42,6 +45,8 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
        {children}
+        {/* Global toast renderer */}
+        <Toaster position="top-center" richColors closeButton />
         <SpeedInsights />
         <Analytics />
       </body>

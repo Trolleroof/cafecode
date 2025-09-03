@@ -46,6 +46,8 @@ import { useAuth } from '../security/hooks/useAuth';
 import axios from 'axios';
 import ReactPreview from '@/components/ReactPreview';
 import ProjectCompletionModal from '@/components/ProjectCompletionModal';
+import PaymentModal from '@/components/PaymentModal';
+import { supabase } from '../../lib/supabase';
 import { FileNode } from '@/types';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
@@ -475,7 +477,7 @@ function IDEPage() {
 
   // File deletion request handler (with confirmation for folders)
   const handleDeleteRequest = (fileId: string) => {
-    const nodeToDelete = findNodeById(fileId);
+    const nodeToDelete = findNodeById(fileId, files);
     if (nodeToDelete && nodeToDelete.type === 'folder') {
       setPendingDeleteFolderId(fileId);
       setPendingDeleteFolderName(nodeToDelete.name);
@@ -593,7 +595,7 @@ function IDEPage() {
       
       // If a file was selected, make sure it still exists
       if (selectedFile) {
-        const stillExists = findNodeById(selectedFile.id);
+        const stillExists = findNodeById(selectedFile.id, nodes);
         if (!stillExists) {
           console.log(`⚠️ [REFRESH] Selected file no longer exists: ${selectedFile.id}`);
           setSelectedFile(null);
@@ -733,23 +735,29 @@ function IDEPage() {
 
     const originalFiles = files;
 
-    // Optimistically update UI
+
     setFiles(prev => {
-      // Check if file already exists before adding
-      const existingFile = findNodeById(newPath);
+      const existingFile = findNodeById(newPath, prev);
       if (existingFile) {
         console.log(`📁 [OPTIMISTIC] File already exists, skipping optimistic update: ${newPath}`);
         return prev;
       }
       
       console.log(`📁 [OPTIMISTIC] Adding file optimistically: ${newPath}`);
+      console.log(`📁 [OPTIMISTIC] Parent ID: ${parentId}`);
+      console.log(`📁 [OPTIMISTIC] Current files count: ${prev.length}`);
+      
       const newFiles = JSON.parse(JSON.stringify(prev)); // Deep copy
       if (parentId === null) {
         newFiles.push(optimisticNode);
+        console.log(`📁 [OPTIMISTIC] Added to root, new count: ${newFiles.length}`);
       } else {
-        const parent = findNodeById(parentId);
+        const parent = findNodeById(parentId, newFiles);
         if (parent && parent.type === 'folder') {
           parent.children = parent.children ? [...parent.children, optimisticNode] : [optimisticNode];
+          console.log(`📁 [OPTIMISTIC] Added to parent ${parentId}, children count: ${parent.children.length}`);
+        } else {
+          console.log(`📁 [OPTIMISTIC] Parent not found or not a folder: ${parentId}`);
         }
       }
       return newFiles;
@@ -792,6 +800,11 @@ function IDEPage() {
       setSelectedFile(null);
     }
 
+    // Close the modal immediately after optimistic update for better UX
+    setIsDeleting(false);
+    setPendingDeleteFolderId(null);
+    setPendingDeleteFolderName(null);
+
     try {
       await axios.delete(`${backendUrl}/v2/file/${encodeURIComponent(fileId)}`, { 
         headers: getAuthHeaders()
@@ -800,18 +813,11 @@ function IDEPage() {
       console.log(`✅ [DELETE] File deleted successfully: ${fileId}`);
       // Success - optimistic update is now the source of truth
       
-      // Optionally, we could do a quick refresh to ensure consistency
-      // But for now, let's trust the optimistic update
-      
     } catch (err: any) {
       console.error('❌ [DELETE] Failed to delete file:', err);
       // On error, revert the optimistic update
       setFiles(originalFiles);
       setFilesError(`Failed to delete: ${err.response?.data?.error || err.message}`);
-    } finally {
-      setIsDeleting(false);
-      setPendingDeleteFolderId(null);
-      setPendingDeleteFolderName(null);
     }
   };
 
@@ -930,7 +936,7 @@ function IDEPage() {
                 console.log(`📁 [FILE-EVENTS] File created: ${data.path}`);
                 // Check if file already exists (to prevent duplicates from optimistic updates)
                 setFiles(prevFiles => {
-                  const existingFile = findNodeById(data.path);
+                  const existingFile = findNodeById(data.path, prevFiles);
                   if (existingFile) {
                     console.log(`📁 [FILE-EVENTS] File already exists, skipping: ${data.path}`);
                     return prevFiles; // File already exists, don't add again
@@ -1711,6 +1717,45 @@ function IDEPage() {
     setStepsFlowError(null);
     setIsStartingFromSteps(true);
     try {
+      // Enforce paywall only when creating a new project
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('project_count, payment_status, has_unlimited_access, subscription_status')
+            .eq('id', user.id)
+            .single();
+          const unlimited = profile?.payment_status === 'paid' || profile?.has_unlimited_access === true || profile?.subscription_status === 'active';
+          const count = profile?.project_count || 0;
+          setProjectCount(count);
+          setHasUnlimitedAccess(unlimited);
+          if (count >= 1 && !unlimited) {
+            // Notify in terminal and show paywall modal
+            setOutput(prev => [
+              ...prev,
+              '🚫 Free project limit reached.',
+              'You have used your 1 free project.',
+              'Upgrade to unlock unlimited guided projects.',
+              'Opening payment options...'
+            ]);
+            // Small toast notification for quick feedback
+            try {
+              const { toast } = await import('sonner');
+              toast.warning('Free project limit reached', {
+                description: 'Upgrade to create unlimited guided projects.',
+              });
+            } catch {}
+            setShowPaymentModal(true);
+            setIsStartingFromSteps(false);
+            return; // Do not start project
+          }
+        }
+      } catch (e) {
+        // If we fail to check, allow flow to continue rather than blocking
+        console.warn('Paywall check failed, continuing:', e);
+      }
+
       // Get the original steps that were generated from setup
       const originalStepsData = originalSteps;
       
@@ -2062,6 +2107,31 @@ function IDEPage() {
   // Add state for congratulations modal
   const [showCongrats, setShowCongrats] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [projectCount, setProjectCount] = useState(0);
+  const [hasUnlimitedAccess, setHasUnlimitedAccess] = useState(false);
+
+  const refreshUserData = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('project_count, payment_status, has_unlimited_access, subscription_status')
+        .eq('id', user.id)
+        .single();
+      if (profile) {
+        setProjectCount(profile.project_count || 0);
+        setHasUnlimitedAccess(
+          profile.payment_status === 'paid' ||
+          profile.has_unlimited_access === true ||
+          profile.subscription_status === 'active'
+        );
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
 
   const handleFinishProject = async () => {
@@ -2084,6 +2154,31 @@ function IDEPage() {
       `   Keep coding, sipping coffee, and learning new things!`,
       ``
     ]);
+
+    // Increment finished project count in Supabase
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Try RPC first
+        const { error: rpcError } = await supabase.rpc('increment_project_count', { user_uuid: user.id });
+        if (rpcError) {
+          console.warn('increment_project_count RPC failed; falling back to select+update:', rpcError.message);
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('project_count')
+            .eq('id', user.id)
+            .single();
+          const next = (profile?.project_count || 0) + 1;
+          await supabase
+            .from('profiles')
+            .update({ project_count: next })
+            .eq('id', user.id);
+        }
+        await refreshUserData();
+      }
+    } catch (e) {
+      console.error('Failed to increment project count on completion:', e);
+    }
   };
 
 
@@ -2779,6 +2874,16 @@ function IDEPage() {
           chatHistory={chatMessages}
           guidedProject={guidedProject}
           session={session}
+        />
+
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          projectCount={projectCount}
+          onPaymentSuccess={async () => {
+            setShowPaymentModal(false);
+            await refreshUserData();
+          }}
         />
       </div>
     </ProtectedRoute>

@@ -104,13 +104,6 @@ export default function Home() {
       router.push('/login');
       return;
     }
-
-    // Check if user needs to pay (more than 1 free project)
-    if (projectCount >= 1 && !hasUnlimitedAccess) {
-      setShowPaymentModal(true);
-      return;
-    }
-
     setLoadingButton('ide');
     router.push('/ide');
   };

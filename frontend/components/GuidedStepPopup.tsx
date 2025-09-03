@@ -172,7 +172,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           disabled={stepNumber === 1}
         >
           <ArrowLeft className="h-5 w-5 mr-2" />
-          Previous
+          Back
         </Button>
 
         {/* Check Step Button */}

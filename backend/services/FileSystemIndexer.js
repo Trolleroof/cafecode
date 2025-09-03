@@ -289,7 +289,7 @@ export class FileSystemIndexer {
     const index = this.getUserIndex(userId, workspacePath);
     const normalizedName = targetName.toLowerCase().replace(/^\.\//, '');
     
-    // Check direct matches
+    
     const pathInfo = index.fullPaths.get(normalizedName);
     if (pathInfo) {
       if (!expectedType || pathInfo.type === expectedType) {
@@ -302,8 +302,23 @@ export class FileSystemIndexer {
       }
     }
     
-    // Check partial matches (just filename without path)
+
     const fileNameOnly = path.basename(normalizedName);
+    
+    
+    for (const [fullPath, info] of index.fullPaths) {
+      if (info.name.toLowerCase() === fileNameOnly) {
+        if (!expectedType || info.type === expectedType) {
+          return {
+            exists: true,
+            type: info.type,
+            actualName: info.name,
+            relativePath: info.relativePath
+          };
+        }
+      }
+    }
+    
     
     if (expectedType === 'file' || !expectedType) {
       if (index.files.has(fileNameOnly)) {
@@ -368,6 +383,69 @@ export class FileSystemIndexer {
     this.userIndexes.delete(userId);
     this.lastUpdated.delete(userId);
     console.log(`[FS_INDEXER] Cleaned up resources for user: ${userId}`);
+  }
+
+  /**
+   * Immediately invalidate and rebuild cache for a user
+   * This is called when files are created/deleted to ensure immediate consistency
+   */
+  invalidateUserCache(userId) {
+    console.log(`🔄 [FS_INDEXER] Immediately invalidating cache for user: ${userId}`);
+    this.lastUpdated.set(userId, 0); // Force cache rebuild on next access
+    // Optionally, immediately rebuild the cache
+    if (this.userIndexes.has(userId)) {
+      this.userIndexes.delete(userId);
+    }
+  }
+
+  /**
+   * Add a file to the cache immediately (for optimistic updates)
+   */
+  addFileToCache(userId, filePath, isFolder = false) {
+    const index = this.userIndexes.get(userId);
+    if (!index) return; // Cache doesn't exist yet, will be built on next access
+    
+    const normalizedPath = filePath.toLowerCase().replace(/^\.\//, '');
+    const fileName = path.basename(filePath);
+    
+    if (isFolder) {
+      index.folders.add(fileName.toLowerCase());
+      index.folders.add(normalizedPath);
+      index.fullPaths.set(normalizedPath, {
+        type: 'folder',
+        relativePath: filePath,
+        name: fileName
+      });
+    } else {
+      index.files.add(fileName.toLowerCase());
+      index.files.add(normalizedPath);
+      index.fullPaths.set(normalizedPath, {
+        type: 'file',
+        relativePath: filePath,
+        name: fileName
+      });
+    }
+    
+    console.log(`➕ [FS_INDEXER] Added ${isFolder ? 'folder' : 'file'} to cache: ${filePath}`);
+  }
+
+  /**
+   * Remove a file from the cache immediately
+   */
+  removeFileFromCache(userId, filePath) {
+    const index = this.userIndexes.get(userId);
+    if (!index) return;
+    
+    const normalizedPath = filePath.toLowerCase().replace(/^\.\//, '');
+    const fileName = path.basename(filePath);
+    
+    index.files.delete(fileName.toLowerCase());
+    index.files.delete(normalizedPath);
+    index.folders.delete(fileName.toLowerCase());
+    index.folders.delete(normalizedPath);
+    index.fullPaths.delete(normalizedPath);
+    
+    console.log(`➖ [FS_INDEXER] Removed file from cache: ${filePath}`);
   }
 
   /**

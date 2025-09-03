@@ -355,13 +355,46 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
   };
 }
 
+// Helper function to check if a file/folder exists in projectFiles tree
+function checkFileExistsInProjectTree(projectFiles, targetName, type = 'file') {
+  if (!projectFiles || !Array.isArray(projectFiles)) {
+    return false;
+  }
+  
+  const searchInFiles = (files) => {
+    for (const file of files) {
+      if (file.name === targetName && file.type === type) {
+        return true;
+      }
+      if (file.children && file.children.length > 0) {
+        if (searchInFiles(file.children)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  
+  return searchInFiles(projectFiles);
+}
+
 // Validate step completion based on type and requirements
 function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
   console.log(`[VALIDATE STEP] Type: ${stepType.type}, Target: ${stepType.targetName}, Exists: ${stepType.exists}`);
   
+  // Enhanced validation: if static checker says file doesn't exist, double-check with projectFiles tree
+  let actualExists = stepType.exists;
+  if (!actualExists && projectFiles && projectFiles.length > 0) {
+    const existsInTree = checkFileExistsInProjectTree(projectFiles, targetName, stepType.type === 'file-create' ? 'file' : 'folder');
+    if (existsInTree) {
+      console.log(`[VALIDATE STEP] File found in projectFiles tree: ${targetName}`);
+      actualExists = true;
+    }
+  }
+  
   switch (stepType.type) {
     case 'folder':
-      if (stepType.exists) {
+      if (actualExists) {
         return {
           completed: true,
           feedback: `Great job! You've created the folder '${stepType.targetName}'.`,
@@ -376,7 +409,7 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
       }
     
     case 'file-create':
-      if (stepType.exists) {
+      if (actualExists) {
         return {
           completed: true,
           feedback: `Perfect! You've created the file '${stepType.targetName}'.`,
@@ -391,7 +424,7 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
       }
     
     case 'file-reference':
-      if (stepType.exists) {
+      if (actualExists) {
         return {
           completed: true,
           feedback: `Good! The file '${stepType.targetName}' exists.`,
@@ -406,7 +439,7 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
       }
     
     case 'file-modify':
-      if (!stepType.exists) {
+      if (!actualExists) {
         return {
           completed: false,
           feedback: `The file '${stepType.targetName}' needs to be created or modified.`,
@@ -500,7 +533,9 @@ function languageFromFilename(filename) {
 // AI-powered extraction of creation intent (file/folder) and target name
 async function aiExtractCreationIntent(geminiService, instruction, projectFiles) {
   const projectContext = createProjectContext(projectFiles);
-  const prompt = readAiCreationIntentPrompt().replace('${instruction}', instruction);
+  const prompt = readAiCreationIntentPrompt()
+    .replace('${instruction}', instruction)
+    .replace('${projectContext}', projectContext);
 
   try {
     const result = await geminiService.model.generateContent(prompt);
@@ -752,18 +787,8 @@ This is NON-NEGOTIABLE - your response will be rejected if you don't return exac
     const stepsList = steps.map((step, idx) => `${idx + 1}. ${step.instruction}`).join('\n');
     const tavusProjectContext = `Project Overview: ${projectDescription}\nSteps:\n${stepsList}`;
 
-    // Increment user's project count (profiles.project_count) using RPC
-    try {
-      const { error: rpcError } = await req.supabase.rpc('increment_project_count', {
-        user_uuid: userId
-      });
-      if (rpcError) {
-        console.warn('increment_project_count RPC failed:', rpcError.message);
-      }
-    } catch (error) {
-      console.error('Error incrementing project count:', error);
-      // Continue even if we can't update the count
-    }
+    // NOTE: Do NOT increment project count on start.
+    // We count completed projects only when the user clicks Finish in the IDE.
 
     // Send initial chat message
     const welcomeMessage = {
@@ -1223,16 +1248,21 @@ router.post("/analyzeStep", async (req, res) => {
     console.log("Current step ID:", currentStep.id);
     console.log("Code being analyzed (first 200 chars):", code?.substring(0, 200) + (code && code.length > 200 ? "..." : ""));
 
+    // Ensure we have projectFiles for analysis
+    const filesForAnalysis = projectFiles || project.projectFiles || [];
+    console.log(`[ANALYZE STEP] Using projectFiles with ${filesForAnalysis.length} items for analysis`);
+    
     // Phase 1: Comprehensive step type analysis
-    const stepType = analyzeStepType(currentStep.instruction, projectFiles || project.projectFiles || [], req.user.id);
+    const stepType = analyzeStepType(currentStep.instruction, filesForAnalysis, req.user.id);
     
     process.stdout.write("\n\n\n================ BACKEND STEP ANALYSIS ================\n");
     process.stdout.write(`Instruction: ${currentStep.instruction}\n`);
+    process.stdout.write(`ProjectFiles count: ${filesForAnalysis.length}\n`);
     process.stdout.write(`Step Type Analysis: ${JSON.stringify(stepType, null, 2)}\n`);
     process.stdout.write("=======================================================\n\n\n");
     
     // Phase 2: Validate step completion based on type
-    const validation = validateStepCompletion(stepType, stepType.targetName, projectFiles || project.projectFiles || [], code);
+    const validation = validateStepCompletion(stepType, stepType.targetName, filesForAnalysis, code);
     
     console.log(`[ANALYZE STEP] Validation result:`, validation);
     
@@ -1268,7 +1298,7 @@ router.post("/analyzeStep", async (req, res) => {
         const staticResult = await staticCreationChecker.analyzeCreationIntent(
           currentStep.instruction,
           req.user.id,
-          projectFiles || project.projectFiles || []
+          filesForAnalysis
         );
 
         let intent;
@@ -1284,7 +1314,7 @@ router.post("/analyzeStep", async (req, res) => {
           intent = await aiExtractCreationIntent(
             req.geminiService,
             currentStep.instruction,
-            projectFiles || project.projectFiles || []
+            filesForAnalysis
           );
 
         }
