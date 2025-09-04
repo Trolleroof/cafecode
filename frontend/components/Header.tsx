@@ -109,9 +109,9 @@ const Header = () => {
           <div className="hidden lg:flex items-center space-x-3 xl:space-x-4">
             {session ? (
               <>
-                <button 
+                <button
                   onClick={handleGoToIDE}
-                  className="bg-medium-coffee hover:bg-deep-espresso text-white px-6 py-2 text-base shadow-lg transition-colors rounded-lg flex items-center gap-2 font-medium -ml-4"
+                  className="btn-coffee-secondary px-6 py-2 text-base shadow-lg flex items-center gap-2 font-medium -ml-4"
                   disabled={loadingButton === 'ide'}
                 >
                   {loadingButton === 'ide' ? (
@@ -142,14 +142,14 @@ const Header = () => {
                 </div>
               </>
             ) : (
-              <button
-                onClick={() => {
-                  setLoadingBrewing(true);
-                  router.push('/login');
-                }}
-                className="btn-coffee-primary px-5 py-2 text-base shadow-lg hover:shadow-coffee flex items-center gap-2"
-                disabled={loadingBrewing}
-              >
+                <button
+                  onClick={() => {
+                    setLoadingBrewing(true);
+                    router.push('/login');
+                  }}
+                  className="btn-coffee-secondary px-5 py-2 text-base shadow-lg hover:shadow-coffee flex items-center gap-2"
+                  disabled={loadingBrewing}
+                >
                 {loadingBrewing ? (
                   <>
                     <ArrowPathIcon className="h-4 w-4 animate-spin" />
@@ -166,9 +166,9 @@ const Header = () => {
           <div className="flex lg:hidden items-center space-x-3">
             {/* Mobile Start Coding Button */}
             {session && (
-              <button 
+              <button
                 onClick={handleGoToIDE}
-                className="bg-medium-coffee hover:bg-deep-espresso text-white px-4 py-2 text-xs shadow-lg transition-colors rounded-lg flex items-center gap-2 font-medium"
+                className="btn-coffee-secondary px-4 py-2 text-xs shadow-lg flex items-center gap-2 font-medium"
                 disabled={loadingButton === 'ide'}
               >
                 {loadingButton === 'ide' ? (
@@ -202,14 +202,14 @@ const Header = () => {
                 <button onClick={handleSignOut} className="btn-coffee-secondary px-3 py-1 text-xs">Sign Out</button>
               </>
             ) : (
-              <button
-                onClick={() => {
-                  setLoadingBrewing(true);
-                  router.push('/login');
-                }}
-                className="btn-coffee-primary px-4 py-2 text-xs shadow-lg hover:shadow-coffee flex items-center gap-2"
-                disabled={loadingBrewing}
-              >
+                <button
+                  onClick={() => {
+                    setLoadingBrewing(true);
+                    router.push('/login');
+                  }}
+                  className="btn-coffee-secondary px-4 py-2 text-xs shadow-lg hover:shadow-coffee flex items-center gap-2"
+                  disabled={loadingBrewing}
+                >
                 {loadingBrewing ? (
                   <>
                     <ArrowPathIcon className="h-5 w-5 animate-spin" />
