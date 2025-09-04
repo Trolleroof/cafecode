@@ -15,7 +15,8 @@ import {
   Menu,
   RefreshCw,
   Trash2,
-  Loader2
+  Loader2,
+  CheckCircle
 } from 'lucide-react';
 import { FileNode, SearchFilter } from '@/types';
 
@@ -31,6 +32,7 @@ interface FileExplorerProps {
   onRefresh?: () => void;
   onFileSelect?: (file: FileNode) => void;
   isLoading?: boolean;
+  highlightedFileId?: string | null;
 }
 
 const getFileIcon = (fileName: string) => {
@@ -380,6 +382,7 @@ const FileTreeNode: React.FC<{
   onDragStart?: (fileId: string) => void;
   onDragEnd?: () => void;
   onDrop?: (targetFileId: string) => void;
+  highlightedFileId?: string | null;
 }> = ({ 
   node, 
   level, 
@@ -398,7 +401,8 @@ const FileTreeNode: React.FC<{
   draggedFileId,
   onDragStart,
   onDragEnd,
-  onDrop
+  onDrop,
+  highlightedFileId = null
 }) => {
   // Change isExpanded default to false
   const [isExpanded, setIsExpanded] = useState(false);
@@ -489,6 +493,7 @@ const FileTreeNode: React.FC<{
             ? 'bg-medium-coffee text-light-cream font-semibold border-l-4 border-orange-400'
             : 'hover:bg-cream-beige text-deep-espresso'}
           ${isDragOver ? 'bg-medium-coffee/20 border-2 border-medium-coffee border-dashed' : ''}
+          ${highlightedFileId === node.id ? 'animate-pulse bg-green-100 border-l-4 border-green-400 transform scale-105' : ''}
         `}
         style={{ paddingLeft: `${Math.min(level * 16 + 8, 200)}px` }}
         onClick={handleClick}
@@ -586,6 +591,7 @@ const FileTreeNode: React.FC<{
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onDrop={() => {}}
+              highlightedFileId={highlightedFileId}
             />
           ))}
         </div>
@@ -713,6 +719,7 @@ export default function FileExplorer({
   onFileDelete,
   onFileMove,
   isLoading = false,
+  highlightedFileId = null,
 }: FileExplorerProps) {
   const [error, setError] = useState<string | null>(null);
 
@@ -724,6 +731,11 @@ export default function FileExplorer({
   const [searchTerm, setSearchTerm] = useState('');
   const [searchFilter, setSearchFilter] = useState<SearchFilter>('all');
   const [draggedFileId, setDraggedFileId] = useState<string | undefined>(undefined);
+  
+  // Optimistic creation state
+  const [isCreating, setIsCreating] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const handleFileSelect = (file: FileNode) => {
     if (onFileSelect) {
@@ -758,9 +770,37 @@ export default function FileExplorer({
       alert('Please provide a valid file extension!');
       return;
     }
-    onFileCreate(createParentId, createType, newName.trim());
-    setShowCreateDialog(false);
-    setNewName('');
+    
+    // Set optimistic state
+    setIsCreating(true);
+    setCreateError(null);
+    setCreateSuccess(false);
+    
+    try {
+      // Call the parent's file creation handler
+      await onFileCreate(createParentId, createType, newName.trim());
+      
+      // Show success feedback
+      setCreateSuccess(true);
+      
+      // Close dialog after a brief success animation
+      setTimeout(() => {
+        setShowCreateDialog(false);
+        setNewName('');
+        setIsCreating(false);
+        setCreateSuccess(false);
+      }, 800);
+      
+    } catch (error) {
+      // Handle error
+      setCreateError(error instanceof Error ? error.message : 'Failed to create file');
+      setIsCreating(false);
+      
+      // Auto-clear error after 3 seconds
+      setTimeout(() => {
+        setCreateError(null);
+      }, 3000);
+    }
   };
 
   // UI: Render file tree
@@ -786,6 +826,7 @@ export default function FileExplorer({
         onDragStart={setDraggedFileId}
         onDragEnd={() => setDraggedFileId(undefined)}
         onDrop={() => {}}
+        highlightedFileId={highlightedFileId}
       />
     ));
 
@@ -936,9 +977,44 @@ export default function FileExplorer({
             {createType === 'file' && (
               <p className="text-xs text-brown-900/80 mb-2">Include file extension (e.g. .py, .js, .html, .css)</p>
             )}
+            {createError && (
+              <div className="mb-3 p-2 bg-red-100 border border-red-300 rounded text-red-700 text-sm">
+                {createError}
+              </div>
+            )}
             <div className="flex gap-2 justify-end mt-4">
-              <button onClick={() => setShowCreateDialog(false)} className="px-4 py-1.5 rounded bg-cream-beige hover:bg-white text-deep-espresso font-medium">Cancel</button>
-              <button onClick={handleCreateConfirm} className="px-4 py-1.5 rounded bg-medium-coffee hover:bg-opacity-80 text-white font-semibold shadow">Create</button>
+              <button 
+                onClick={() => setShowCreateDialog(false)} 
+                className="px-4 py-1.5 rounded bg-cream-beige hover:bg-white text-deep-espresso font-medium"
+                disabled={isCreating}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleCreateConfirm} 
+                disabled={isCreating || !newName.trim()}
+                className={`px-4 py-1.5 rounded font-semibold shadow flex items-center gap-2 ${
+                  createSuccess 
+                    ? 'bg-medium-coffee text-white' 
+                    : isCreating 
+                    ? 'bg-medium-coffee text-white cursor-not-allowed' 
+                    : 'bg-medium-coffee hover:bg-opacity-80 text-white'
+                }`}
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : createSuccess ? (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Created!
+                  </>
+                ) : (
+                  'Create'
+                )}
+              </button>
             </div>
           </div>
         </div>

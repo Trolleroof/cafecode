@@ -578,6 +578,39 @@ async function aiExtractCreationIntent(geminiService, instruction, projectFiles)
 }
 
 // Start a new guided project
+// Helper: increment project count using service role (RPC then fallback)
+async function incrementProjectCountService(supabase, userId) {
+  try {
+    const { error: rpcError } = await supabase.rpc('increment_project_count', { user_uuid: userId });
+    if (!rpcError) {
+      // Try to read updated count for return value
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('project_count')
+        .eq('id', userId)
+        .single();
+      return { ok: true, count: profile?.project_count ?? null };
+    }
+    // Fallback: select + update
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('project_count')
+      .eq('id', userId)
+      .single();
+    const next = (profile?.project_count || 0) + 1;
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update({ project_count: next })
+      .eq('id', userId);
+    if (updateErr) {
+      return { ok: false, error: updateErr.message };
+    }
+    return { ok: true, count: next };
+  } catch (e) {
+    return { ok: false, error: e?.message || 'unknown error' };
+  }
+}
+
 router.post("/startProject", async (req, res) => {
   try {
     const { projectDescription, projectFiles, steps: predefinedSteps } = req.body;
@@ -787,8 +820,15 @@ This is NON-NEGOTIABLE - your response will be rejected if you don't return exac
     const stepsList = steps.map((step, idx) => `${idx + 1}. ${step.instruction}`).join('\n');
     const tavusProjectContext = `Project Overview: ${projectDescription}\nSteps:\n${stepsList}`;
 
-    // NOTE: Do NOT increment project count on start.
-    // We count completed projects only when the user clicks Finish in the IDE.
+    // Increment project count on project start (server-side, reliable)
+    try {
+      const incr = await incrementProjectCountService(req.supabase, userId);
+      if (!incr.ok) {
+        console.warn('Failed to increment project_count on start:', incr.error);
+      }
+    } catch (e) {
+      console.warn('Error incrementing project_count on start:', e?.message || e);
+    }
 
     // Send initial chat message
     const welcomeMessage = {
@@ -800,6 +840,24 @@ This is NON-NEGOTIABLE - your response will be rejected if you don't return exac
   } catch (error) {
     console.error("Error starting project:", error);
     res.status(500).json({ error: "Failed to start project" });
+  }
+});
+
+// Explicit endpoint to increment project count (for fallback clients)
+router.post('/incrementProjectCount', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    const result = await incrementProjectCountService(req.supabase, userId);
+    if (!result.ok) {
+      return res.status(500).json({ error: 'Failed to increment project count', details: result.error });
+    }
+    return res.json({ success: true, project_count: result.count });
+  } catch (e) {
+    console.error('incrementProjectCount error:', e);
+    return res.status(500).json({ error: 'Failed to increment project count' });
   }
 });
 

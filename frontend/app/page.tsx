@@ -26,6 +26,7 @@ const MenuBoard = dynamic(() => import('./features/MenuBoard'), { ssr: false });
 export default function Home() {
   const router = useRouter();
   const [loadingButton, setLoadingButton] = useState<null | 'ide'>(null);
+  const [loadingPlan, setLoadingPlan] = useState<null | string>(null);
 
   // Auth state - removed modal, now redirects to login page
 
@@ -186,12 +187,12 @@ export default function Home() {
                           handleStartCoding();
                         }
                       }}
-                      className="px-10 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-b from-medium-coffee to-deep-espresso text-light-cream hover:from-deep-espresso hover:to-dark-charcoal"
+                      className="px-10 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2 bg-medium-coffee text-light-cream hover:bg-deep-espresso border-2 border-deep-espresso"
                       disabled={loadingButton !== null}
                     >
                       {loadingButton === 'ide' ? (
                         <>
-                          <IconRefresh className="h-5 w-5 animate-spin" />
+                          <div className="spinner-coffee h-5 w-5"></div>
                           Loading IDE...
                         </>
                       ) : (
@@ -510,9 +511,12 @@ export default function Home() {
                       <button
                         onClick={() => {
                           try {
+                            setLoadingPlan(plan.name);
                             if (plan.name === 'Cold Brew') {
                               // Open payment modal for Cold Brew tier
                               setShowPaymentModal(true);
+                              // brief visual confirmation
+                              setTimeout(() => setLoadingPlan(null), 500);
                             } else if (plan.name === 'Starter') {
                               // Handle Starter tier (Start Coding Free button)
                               if (!user) {
@@ -523,15 +527,24 @@ export default function Home() {
                             }
                           } catch (error) {
                             console.error('Error handling button click:', error);
+                            setLoadingPlan(null);
                           }
                         }}
-                        className={`w-full py-4 md:py-6 px-6 md:px-8 rounded-2xl font-bold text-lg md:text-xl transition-colors duration-200 ${
+                        disabled={loadingPlan === plan.name}
+                        className={`w-full py-4 md:py-6 px-6 md:px-8 rounded-2xl font-bold text-lg md:text-xl transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed ${
                           plan.name === 'Cold Brew'
                             ? 'bg-medium-coffee text-light-cream hover:bg-deep-espresso shadow-lg'
                             : 'btn-coffee-secondary hover:bg-medium-coffee hover:text-light-cream'
                         }`}
                       >
-                        {plan.cta}
+                        {loadingPlan === plan.name ? (
+                          <>
+                            <div className="spinner-coffee h-5 w-5"></div>
+                            {plan.name === 'Cold Brew' ? 'Loading Checkout...' : 'Preparing IDE...'}
+                          </>
+                        ) : (
+                          plan.cta
+                        )}
                       </button>
                       
                     

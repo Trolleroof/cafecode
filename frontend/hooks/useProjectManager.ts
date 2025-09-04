@@ -109,18 +109,30 @@ export function useProjectManager() {
         throw new Error('Project limit reached. Please upgrade to create unlimited projects.');
       }
 
-      // Update project count in profiles table
-      const { error } = await supabase
-        .from('profiles')
-        .update({ project_count: state.projectCount + 1 })
-        .eq('id', user.id);
-
-      if (error) throw error;
+      // Prefer RPC with SECURITY DEFINER, then backend fallback
+      const { error: rpcError } = await supabase.rpc('increment_project_count', { user_uuid: user.id });
+      if (rpcError) {
+        console.warn('increment_project_count RPC failed; falling back to server endpoint:', rpcError.message);
+        // Call backend endpoint which uses service role
+        const { data: { session } } = await supabase.auth.getSession();
+        const resp = await fetch('/api/guided/incrementProjectCount', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({ reason: 'createProject' }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err?.error || 'Failed to increment project count');
+        }
+      }
 
       // Refresh user data to get updated project count
       await fetchUserData(user.id);
 
-      return 'project-created'; // Placeholder return value
+      return 'project-created';
 
     } catch (error) {
       console.error('Error creating project:', error);

@@ -65,10 +65,10 @@ const Header = () => {
             <div className="animate-warm-glow">
               <img src="/images/logo.png" alt="Cafécode Logo" className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 object-contain rounded-xl" />
             </div>
-            <span className="font-heading text-base sm:text-lg lg:text-xl font-bold text-light-cream hidden sm:block">
+            <span className="font-heading text-base sm:text-lg lg:text-xl font-bold text-white hidden sm:block">
               Cafécode
             </span>
-            <span className="font-heading text-sm font-bold text-light-cream sm:hidden">
+            <span className="font-heading text-sm font-bold text-white sm:hidden">
             Cafécode
             </span>
           </div>
@@ -77,28 +77,28 @@ const Header = () => {
           <nav className="hidden lg:flex items-center space-x-6 xl:space-x-8">
             <button 
               onClick={() => handleNavClick('#how-it-works')}
-              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-base xl:text-lg relative group"
+              className="font-body text-white/90 hover:text-white transition-colors font-medium text-base xl:text-lg relative group"
             >
               How It Works
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button 
               onClick={() => handleNavClick('#features')}
-              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-base xl:text-lg relative group"
+              className="font-body text-white/90 hover:text-white transition-colors font-medium text-base xl:text-lg relative group"
             >
               Our Features
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button 
               onClick={() => handleNavClick('#problemStatement')}
-              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-base xl:text-lg relative group"
+              className="font-body text-white/90 hover:text-white transition-colors font-medium text-base xl:text-lg relative group"
             >
               The Truth
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
             </button>
             <button 
               onClick={() => handleNavClick('#pricing')}
-              className="font-body text-cream-beige hover:text-light-cream transition-colors font-medium text-base xl:text-lg relative group"
+              className="font-body text-white/90 hover:text-white transition-colors font-medium text-base xl:text-lg relative group"
             >
               Menu
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-medium-coffee transition-all duration-300 group-hover:w-full"></span>
@@ -109,14 +109,14 @@ const Header = () => {
           <div className="hidden lg:flex items-center space-x-3 xl:space-x-4">
             {session ? (
               <>
-                <button
+                <button 
                   onClick={handleGoToIDE}
-                  className="btn-coffee-secondary px-6 py-2 text-base shadow-lg flex items-center gap-2 font-medium -ml-4"
+                  className="btn-navbar-cta px-6 py-2 text-base shadow-lg rounded-xl flex items-center gap-2 font-medium -ml-4"
                   disabled={loadingButton === 'ide'}
                 >
                   {loadingButton === 'ide' ? (
                     <>
-                      <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                      <div className="spinner-coffee h-4 w-4"></div>
                       Loading...
                     </>
                   ) : (
@@ -127,7 +127,7 @@ const Header = () => {
                   )}
                 </button>
                 <div className="relative group">
-                  <span className="text-cream-beige text-sm cursor-pointer hover:text-light-cream transition-colors">
+                  <span className="text-white/90 text-sm cursor-pointer hover:text-white transition-colors">
                     {session.user.email}
                   </span>
                   {/* Dropdown */}
@@ -142,14 +142,14 @@ const Header = () => {
                 </div>
               </>
             ) : (
-                <button
-                  onClick={() => {
-                    setLoadingBrewing(true);
-                    router.push('/login');
-                  }}
-                  className="btn-coffee-secondary px-5 py-2 text-base shadow-lg hover:shadow-coffee flex items-center gap-2"
-                  disabled={loadingBrewing}
-                >
+              <button
+                onClick={() => {
+                  setLoadingBrewing(true);
+                  router.push('/login');
+                }}
+                className="btn-navbar-cta px-5 py-2 text-base shadow-lg flex items-center gap-2"
+                disabled={loadingBrewing}
+              >
                 {loadingBrewing ? (
                   <>
                     <ArrowPathIcon className="h-4 w-4 animate-spin" />
@@ -166,9 +166,9 @@ const Header = () => {
           <div className="flex lg:hidden items-center space-x-3">
             {/* Mobile Start Coding Button */}
             {session && (
-              <button
+              <button 
                 onClick={handleGoToIDE}
-                className="btn-coffee-secondary px-4 py-2 text-xs shadow-lg flex items-center gap-2 font-medium"
+                className="btn-navbar-cta px-4 py-2 text-xs shadow-lg rounded-xl flex items-center gap-2 font-medium"
                 disabled={loadingButton === 'ide'}
               >
                 {loadingButton === 'ide' ? (
@@ -191,28 +191,28 @@ const Header = () => {
               aria-label="Toggle menu"
             >
               {isMenuOpen ? (
-                <XMarkIcon className="h-6 w-6 text-cream-beige" />
+                <XMarkIcon className="h-6 w-6 text-white/90" />
               ) : (
-                <Bars3Icon className="h-6 w-6 text-cream-beige" />
+                <Bars3Icon className="h-6 w-6 text-white/90" />
               )}
             </button>
             {session ? (
               <>
-                <span className="text-cream-beige text-xs mr-2">{session.user.email}</span>
+                <span className="text-white/90 text-xs mr-2">{session.user.email}</span>
                 <button onClick={handleSignOut} className="btn-coffee-secondary px-3 py-1 text-xs">Sign Out</button>
               </>
             ) : (
-                <button
-                  onClick={() => {
-                    setLoadingBrewing(true);
-                    router.push('/login');
-                  }}
-                  className="btn-coffee-secondary px-4 py-2 text-xs shadow-lg hover:shadow-coffee flex items-center gap-2"
-                  disabled={loadingBrewing}
-                >
+              <button
+                onClick={() => {
+                  setLoadingBrewing(true);
+                  router.push('/login');
+                }}
+                className="btn-navbar-cta px-4 py-2 text-xs shadow-lg flex items-center gap-2"
+                disabled={loadingBrewing}
+              >
                 {loadingBrewing ? (
                   <>
-                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    <div className="spinner-coffee h-5 w-5"></div>
                     Loading...
                   </>
                 ) : (
@@ -232,25 +232,25 @@ const Header = () => {
           <nav className="flex flex-col space-y-4 pt-4 border-t border-medium-coffee/30">
             <button 
               onClick={() => handleNavClick('#how-it-works')}
-              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
+              className="font-body text-left text-white/90 hover:text-white transition-colors font-medium text-lg py-2"
             >
               How It Works
             </button>
             <button 
               onClick={() => handleNavClick('#features')}
-              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
+              className="font-body text-left text-white/90 hover:text-white transition-colors font-medium text-lg py-2"
             >
               Our Features
             </button>
             <button 
               onClick={() => handleNavClick('#problemStatement')}
-              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
+              className="font-body text-left text-white/90 hover:text-white transition-colors font-medium text-lg py-2"
             >
               The Truth
             </button>
             <button 
               onClick={() => handleNavClick('#pricing')}
-              className="font-body text-left text-cream-beige hover:text-light-cream transition-colors font-medium text-lg py-2"
+              className="font-body text-left text-white/90 hover:text-white transition-colors font-medium text-lg py-2"
             >
               Menu
             </button>

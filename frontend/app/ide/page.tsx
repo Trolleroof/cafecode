@@ -296,6 +296,7 @@ function convertBackendFilesToTree(backendFiles: any[]): FileNode[] {
 function IDEPage() {
   // File management state - Start with empty files array
   const [files, setFiles] = useState<FileNode[]>([]);
+  const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null);
 
   // Folder deletion confirmation state
   const [pendingDeleteFolderId, setPendingDeleteFolderId] = useState<string | null>(null);
@@ -722,7 +723,7 @@ function IDEPage() {
   };
 
   // Optimistic file creation with immediate UI update
-  const handleFileCreate = async (parentId: string | null, type: 'file' | 'folder', name: string) => {
+  const handleFileCreate = async (parentId: string | null, type: 'file' | 'folder', name: string): Promise<void> => {
     const newPath = buildPathFromId(parentId, name);
     
     const optimisticNode: FileNode = {
@@ -763,6 +764,14 @@ function IDEPage() {
       return newFiles;
     });
 
+    // Optimistically select the new file if it's a file (not folder)
+    if (type === 'file') {
+      setSelectedFile(optimisticNode);
+      // Highlight the new file briefly
+      setHighlightedFileId(newPath);
+      setTimeout(() => setHighlightedFileId(null), 2000);
+    }
+
     try {
       await axios.post(`${backendUrl}/v2/file/${encodeURIComponent(newPath)}`, 
         { isFolder: type === 'folder' },
@@ -772,14 +781,14 @@ function IDEPage() {
       console.log(`✅ [CREATE] File created successfully: ${newPath}`);
       // Success - optimistic update is now the source of truth
       
-      // Optionally, we could do a quick refresh to ensure consistency
-      // But for now, let's trust the optimistic update
-      
     } catch (err: any) {
       console.error('❌ [CREATE] Failed to create file:', err);
       // On error, revert the optimistic update
       setFiles(originalFiles);
       setFilesError(`Failed to create ${type}: ${err.response?.data?.error || err.message}`);
+      
+      // Re-throw the error so the FileExplorer can handle it
+      throw new Error(err.response?.data?.error || err.message || 'Failed to create file');
     }
   };
 
@@ -2155,30 +2164,8 @@ function IDEPage() {
       ``
     ]);
 
-    // Increment finished project count in Supabase
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Try RPC first
-        const { error: rpcError } = await supabase.rpc('increment_project_count', { user_uuid: user.id });
-        if (rpcError) {
-          console.warn('increment_project_count RPC failed; falling back to select+update:', rpcError.message);
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('project_count')
-            .eq('id', user.id)
-            .single();
-          const next = (profile?.project_count || 0) + 1;
-          await supabase
-            .from('profiles')
-            .update({ project_count: next })
-            .eq('id', user.id);
-        }
-        await refreshUserData();
-      }
-    } catch (e) {
-      console.error('Failed to increment project count on completion:', e);
-    }
+    // Project count is incremented on start (server-side). Just refresh state here.
+    try { await refreshUserData(); } catch (_) {}
   };
 
 
@@ -2376,6 +2363,7 @@ function IDEPage() {
                 onFileDelete={handleDeleteRequest}
                 onRefresh={handleSmartRefresh}
                 isLoading={isLoadingFiles}
+                highlightedFileId={highlightedFileId}
                 stepProgression={guidedProject && (
                   <GuidedStepPopup
                     instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
