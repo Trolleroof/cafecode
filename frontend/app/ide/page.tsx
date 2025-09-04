@@ -297,6 +297,7 @@ function IDEPage() {
   // File management state - Start with empty files array
   const [files, setFiles] = useState<FileNode[]>([]);
   const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null);
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false);
 
   // Folder deletion confirmation state
   const [pendingDeleteFolderId, setPendingDeleteFolderId] = useState<string | null>(null);
@@ -1732,10 +1733,10 @@ function IDEPage() {
         if (user) {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('project_count, payment_status, has_unlimited_access, subscription_status')
+            .select('project_count, payment_status, has_unlimited_access')
             .eq('id', user.id)
-            .single();
-          const unlimited = profile?.payment_status === 'paid' || profile?.has_unlimited_access === true || profile?.subscription_status === 'active';
+            .maybeSingle();
+          const unlimited = profile?.payment_status === 'paid' || profile?.has_unlimited_access === true;
           const count = profile?.project_count || 0;
           setProjectCount(count);
           setHasUnlimitedAccess(unlimited);
@@ -2126,15 +2127,14 @@ function IDEPage() {
       if (!user) return;
       const { data: profile } = await supabase
         .from('profiles')
-        .select('project_count, payment_status, has_unlimited_access, subscription_status')
+        .select('project_count, payment_status, has_unlimited_access')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       if (profile) {
         setProjectCount(profile.project_count || 0);
         setHasUnlimitedAccess(
           profile.payment_status === 'paid' ||
-          profile.has_unlimited_access === true ||
-          profile.subscription_status === 'active'
+          profile.has_unlimited_access === true
         );
       }
     } catch (e) {
@@ -2284,13 +2284,24 @@ function IDEPage() {
 
   return (
     <ProtectedRoute>
-      <div className={`flex flex-col h-screen bg-light-cream text-dark-charcoal transition-colors duration-300 ${isInSetupPhase ? 'dim-layout' : ''}`}>
+      <div className={`flex flex-col h-screen bg-light-cream text-dark-charcoal transition-colors duration-150 ${isInSetupPhase ? 'dim-layout' : ''}`}>
         {/* Header */}
         <header className="flex items-center justify-between p-4 border-b border-cream-beige bg-light-cream shadow-lg ide-dimmable">
     
                  <div className="flex items-center space-x-1">
-           <button onClick={() => router.push('/')} className="p-2 rounded-full hover:bg-cream-beige">
+           <button 
+            onClick={() => {
+              setIsNavigatingBack(true);
+              router.replace('/');
+            }} 
+            className="p-2 rounded-full hover:bg-cream-beige transition-colors duration-150 disabled:opacity-50"
+            disabled={isNavigatingBack}
+          >
+            {isNavigatingBack ? (
+              <IconLoader2 className="h-5 w-5 text-deep-espresso animate-spin" />
+            ) : (
             <IconArrowLeft className="h-5 w-5 text-deep-espresso" />
+            )}
           </button>
           <div className="w-9 h-9 flex items-center justify-center">
             <Image src="/images/logo-trans.png" alt="Cafécode Logo" width={70} height={70} className="h-9 w-9 object-contain rounded-xl" />

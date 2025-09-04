@@ -35,27 +35,76 @@ export default function Home() {
   const [projectCount, setProjectCount] = useState(0);
   const [hasUnlimitedAccess, setHasUnlimitedAccess] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   
   // Function to refresh user data
   const refreshUserData = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user found, skipping refresh');
+      return;
+    }
+    
+    setIsRefreshing(true);
+    setRefreshError(null);
     
     try {
+      console.log('Refreshing user data for user:', user.id);
+      
+      // Check if Supabase is properly configured
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        throw new Error('Supabase configuration missing. Please check environment variables.');
+      }
+      
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('project_count, payment_status, subscription_status')
+        .select('project_count, payment_status, has_unlimited_access')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
-      if (!error && profile) {
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      
+      if (profile) {
+        console.log('Profile data received:', profile);
         setProjectCount(profile.project_count || 0);
         setHasUnlimitedAccess(
           profile.payment_status === 'paid' || 
-          profile.subscription_status === 'active'
+          profile.has_unlimited_access === true
         );
+      } else {
+        console.log('No profile data received');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error refreshing user data:', error);
+      
+      // Set user-friendly error message
+      let errorMessage = 'Failed to refresh data';
+      if (error?.message) {
+        console.error('Error message:', error.message);
+        if (error.message.includes('apikey') || error.message.includes('API key')) {
+          errorMessage = 'API configuration issue. Please check your setup.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      if (error?.details) {
+        console.error('Error details:', error.details);
+      }
+      if (error?.hint) {
+        console.error('Error hint:', error.hint);
+      }
+      
+      setRefreshError(errorMessage);
+      
+      // Clear error after 5 seconds
+      setTimeout(() => {
+        setRefreshError(null);
+      }, 5000);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -73,7 +122,7 @@ export default function Home() {
               .from('profiles')
               .select('project_count, payment_status, has_unlimited_access')
               .eq('id', user.id)
-              .single();
+              .maybeSingle();
             
             if (!error && profile) {
               setProjectCount(profile.project_count || 0);
@@ -143,6 +192,8 @@ export default function Home() {
                       hasUnlimitedAccess={hasUnlimitedAccess}
                       onUpgradeClick={() => setShowPaymentModal(true)}
                       onRefresh={refreshUserData}
+                      isRefreshing={isRefreshing}
+                      refreshError={refreshError}
                     />
 
                     {/* Status message */}

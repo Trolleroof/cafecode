@@ -8,9 +8,11 @@ interface ProjectCounterProps {
   hasUnlimitedAccess: boolean;
   onUpgradeClick: () => void;
   onRefresh?: () => void;
+  isRefreshing?: boolean;
+  refreshError?: string | null;
 }
 
-export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpgradeClick, onRefresh }: ProjectCounterProps) {
+export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpgradeClick, onRefresh, isRefreshing = false, refreshError = null }: ProjectCounterProps) {
   // Add hydration state to prevent mismatch
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -54,10 +56,12 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
           {onRefresh && (
             <button
               onClick={onRefresh}
-              className="ml-2 p-1 hover:bg-medium-coffee/20 rounded-full transition-colors"
+              disabled={isRefreshing}
+              className="ml-2 p-1 hover:bg-medium-coffee/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Refresh project count"
+              title={refreshError ? `Error: ${refreshError}` : "Refresh project count"}
             >
-              <IconRefresh className="h-4 w-4 text-medium-coffee" />
+              <IconRefresh className={`h-4 w-4 text-medium-coffee ${isRefreshing ? 'animate-spin' : ''} ${refreshError ? 'text-red-500' : ''}`} />
             </button>
           )}
         </div>

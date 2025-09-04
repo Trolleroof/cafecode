@@ -72,7 +72,7 @@ export function useProjectManager() {
         .from('profiles')
         .select('has_unlimited_access, payment_status, project_count')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (profileError && profileError.code !== 'PGRST116') throw profileError;
 
