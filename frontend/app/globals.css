@@ -379,9 +379,13 @@
 
   /* Coffee Shop Navigation */
   .coffee-nav {
-    background-color: rgb(var(--deep-espresso) / 0.95);
+    background: linear-gradient(
+      90deg,
+      rgba(var(--deep-espresso), 0.95) 0%,
+      rgba(var(--medium-coffee), 0.9) 100%
+    );
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgb(var(--medium-coffee) / 0.5);
+    border-bottom: 1px solid rgba(var(--medium-coffee), 0.4);
   }
 }
 
