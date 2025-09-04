@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   File,
   Folder,
@@ -22,7 +22,7 @@ import { FileNode, SearchFilter } from '@/types';
 
 interface FileExplorerProps {
   files: FileNode[];
-  onFileCreate: (parentId: string | null, type: 'file' | 'folder', name: string) => void;
+  onFileCreate: (parentId: string | null, type: 'file' | 'folder', name: string) => void | Promise<void>;
   onFileDelete: (fileId: string) => void;
   onFileMove?: (fileId: string, newParentId: string | null) => void;
   selectedFileId: string | null;
@@ -383,6 +383,8 @@ const FileTreeNode: React.FC<{
   onDragEnd?: () => void;
   onDrop?: (targetFileId: string) => void;
   highlightedFileId?: string | null;
+  // When set, the corresponding folder should auto-expand
+  expandFolderId?: string | null;
 }> = ({ 
   node, 
   level, 
@@ -402,12 +404,22 @@ const FileTreeNode: React.FC<{
   onDragStart,
   onDragEnd,
   onDrop,
-  highlightedFileId = null
+  highlightedFileId = null,
+  expandFolderId = null
 }) => {
   // Change isExpanded default to false
   const [isExpanded, setIsExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Auto-expand when creating inside this folder
+  useEffect(() => {
+    if (!expandFolderId) return;
+    const thisPath = getPathFromId(node.id);
+    if (node.type === 'folder' && (node.id === expandFolderId || thisPath === expandFolderId)) {
+      setIsExpanded(true);
+    }
+  }, [expandFolderId, node.id, node.type]);
 
   // Don't render if we've exceeded max depth
   if (level > maxDepth) {
@@ -517,7 +529,7 @@ const FileTreeNode: React.FC<{
         )}
         
         <span 
-          className="text-sm flex-1 min-w-0 truncate font-mono"
+          className="text-sm flex-shrink min-w-0 truncate font-mono"
           title={node.id}
         >
           {node.name}
@@ -529,31 +541,37 @@ const FileTreeNode: React.FC<{
         </span>
         
         {showActions && (
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {node.type === 'folder' && (
-              <>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCreateFile(node.id, 'file', '');
-                  }}
-                  className="p-1 hover:bg-cream-beige rounded"
-                  title="New File"
-                >
-                  <Plus className="h-3 w-3 text-deep-espresso" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCreateFolder(node.id, 'folder', '');
-                  }}
-                  className="p-1 hover:bg-cream-beige rounded"
-                  title="New Folder"
-                >
-                  <Folder className="h-3 w-3 text-deep-espresso" />
-                </button>
-              </>
-            )}
+          <div className="flex items-center gap-0.5 flex-shrink-0 pl-14">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const path = getPathFromId(node.id);
+                const baseId = node.type === 'folder' ? path : (() => {
+                  const idx = path.lastIndexOf('/');
+                  return idx > -1 ? path.substring(0, idx) : null;
+                })();
+                onCreateFile(baseId, 'file', '');
+              }}
+              className="p-1 hover:bg-cream-beige rounded"
+              title="New File"
+            >
+              <Plus className="h-3 w-3 text-deep-espresso" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const path = getPathFromId(node.id);
+                const baseId = node.type === 'folder' ? path : (() => {
+                  const idx = path.lastIndexOf('/');
+                  return idx > -1 ? path.substring(0, idx) : null;
+                })();
+                onCreateFolder(baseId, 'folder', '');
+              }}
+              className="p-1 hover:bg-cream-beige rounded"
+              title="New Folder"
+            >
+              <Folder className="h-3 w-3 text-deep-espresso" />
+            </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -686,17 +704,19 @@ function findNodeById(id: string, nodes: FileNode[]): FileNode | null {
   return null;
 }
 
-// Helper: Get path from id (id is the path)
-function getPathFromId(id: string, files: FileNode[]): string {
-  // In this new structure, id IS the path already.
-  return id;
+// Helper: Get real path from an id (folder ids may include a prefix before ':')
+function getPathFromId(id: string): string {
+  if (!id) return id;
+  const lastColon = id.lastIndexOf(':');
+  return lastColon >= 0 ? id.substring(lastColon + 1) : id;
 }
 
 // Helper: Build path from parentId and name
-function buildPathFromId(parentId: string | null, name: string, files: FileNode[]): string {
-  // If creating at the root (parentId is null or '.'), just use the name
-  if (!parentId || parentId === '.' || parentId === '/') return name;
-  return parentId + '/' + name;
+function buildPathFromId(parentId: string | null, name: string): string {
+  // Normalize folder ids like "full/file/path:folder/path" to just the folder path
+  const parentPath = parentId ? getPathFromId(parentId) : null;
+  if (!parentPath || parentPath === '.' || parentPath === '/') return name;
+  return parentPath + '/' + name;
 }
 
 // Helper: Get parent id from file id
@@ -736,6 +756,8 @@ export default function FileExplorer({
   const [isCreating, setIsCreating] = useState(false);
   const [createSuccess, setCreateSuccess] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  // Track which folder should auto-expand (normalized path id)
+  const [expandFolderId, setExpandFolderId] = useState<string | null>(null);
 
   const handleFileSelect = (file: FileNode) => {
     if (onFileSelect) {
@@ -762,6 +784,8 @@ export default function FileExplorer({
     setCreateType(type);
     setShowCreateDialog(true);
     setNewName('');
+    // Auto-expand the parent folder (normalize id)
+    setExpandFolderId(parentId ? getPathFromId(parentId) : null);
   };
   
   const handleCreateConfirm = async () => {
@@ -776,31 +800,46 @@ export default function FileExplorer({
     setCreateError(null);
     setCreateSuccess(false);
     
-    try {
-      // Call the parent's file creation handler
-      await onFileCreate(createParentId, createType, newName.trim());
-      
-      // Show success feedback
-      setCreateSuccess(true);
-      
-      // Close dialog after a brief success animation
+    // Fire and forget: let parent perform optimistic update immediately
+    const creationPromise = Promise.resolve(
+      onFileCreate(createParentId, createType, newName.trim())
+    );
+
+    // If creating within a folder (parent specified), close instantly for zero perceived delay
+    if (createParentId) {
+      setShowCreateDialog(false);
+      setNewName('');
+      setIsCreating(false);
+      setCreateSuccess(false);
+      // Clear expand marker after creation UX completes
+      setExpandFolderId(null);
+    } else {
+      // For root creations via header, show a brief spinner then success
+      const SPINNER_MS = 450;
+      const TOTAL_MS = 900;
+      setTimeout(() => {
+        // Transition from spinner to success check
+        setIsCreating(false);
+        setCreateSuccess(true);
+      }, SPINNER_MS);
+
       setTimeout(() => {
         setShowCreateDialog(false);
         setNewName('');
         setIsCreating(false);
         setCreateSuccess(false);
-      }, 800);
-      
-    } catch (error) {
-      // Handle error
-      setCreateError(error instanceof Error ? error.message : 'Failed to create file');
-      setIsCreating(false);
-      
-      // Auto-clear error after 3 seconds
-      setTimeout(() => {
-        setCreateError(null);
-      }, 3000);
+        // Clear expand marker after creation UX completes
+        setExpandFolderId(null);
+      }, TOTAL_MS);
     }
+
+    // Handle async errors non-blockingly (parent will also revert optimistically)
+    creationPromise.catch((error: any) => {
+      const msg = error instanceof Error ? error.message : 'Failed to create';
+      setError(msg);
+      // Clear banner after a moment
+      setTimeout(() => setError(null), 4000);
+    });
   };
 
   // UI: Render file tree
@@ -827,6 +866,7 @@ export default function FileExplorer({
         onDragEnd={() => setDraggedFileId(undefined)}
         onDrop={() => {}}
         highlightedFileId={highlightedFileId}
+        expandFolderId={expandFolderId}
       />
     ));
 
@@ -865,10 +905,22 @@ export default function FileExplorer({
           </button>
           <h3 className="text-sm font-semibold text-deep-espresso">Explorer</h3>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-0.5">
           <button
             onClick={() => {
-              const parentId = selectedFileId ? getParentId(selectedFileId, files) : null;
+              // Header "+":
+              // - If a folder is selected, create inside it
+              // - If a file is selected, create alongside it (in its parent)
+              // - If nothing selected, create at root
+              let parentId: string | null = null;
+              if (selectedFileId) {
+                const selectedNode = findNodeById(selectedFileId, files);
+                if (selectedNode && selectedNode.type === 'folder') {
+                  parentId = selectedFileId;
+                } else {
+                  parentId = getParentId(selectedFileId, files);
+                }
+              }
               handleShowCreate(parentId, 'file');
             }}
             className="p-1 hover:bg-cream-beige rounded"
@@ -878,7 +930,15 @@ export default function FileExplorer({
           </button>
           <button
             onClick={() => {
-              const parentId = selectedFileId ? getParentId(selectedFileId, files) : null;
+              let parentId: string | null = null;
+              if (selectedFileId) {
+                const selectedNode = findNodeById(selectedFileId, files);
+                if (selectedNode && selectedNode.type === 'folder') {
+                  parentId = selectedFileId;
+                } else {
+                  parentId = getParentId(selectedFileId, files);
+                }
+              }
               handleShowCreate(parentId, 'folder');
             }}
             className="p-1 hover:bg-cream-beige rounded"

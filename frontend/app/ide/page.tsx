@@ -432,10 +432,19 @@ function IDEPage() {
     return parts.slice(0, -1).join('/');
   };
 
+  // Normalize a node id to its real path (folder ids may include a prefix before ':')
+  const normalizeIdToPath = (id: string): string => {
+    if (!id) return id;
+    // Some folder nodes have ids like "full/file/path:folder/path". Use the part after the last ':' as the real path.
+    const lastColon = id.lastIndexOf(':');
+    return lastColon >= 0 ? id.substring(lastColon + 1) : id;
+  };
+
   // Helper function to build file path from parent ID and name
   const buildPathFromId = (parentId: string | null, name: string): string => {
-    if (!parentId || parentId === '.') return name;
-    return parentId + '/' + name;
+    const parentPath = parentId ? normalizeIdToPath(parentId) : null;
+    if (!parentPath || parentPath === '.' || parentPath === '/') return name;
+    return parentPath + '/' + name;
   };
 
   // File selection handler
@@ -737,6 +746,8 @@ function IDEPage() {
 
     const originalFiles = files;
 
+    // Log immediately so it appears before any backend logs
+    console.log(`📁 [FILE-EVENTS] Adding new file to tree: ${newPath}`);
 
     setFiles(prev => {
       const existingFile = findNodeById(newPath, prev);
@@ -744,34 +755,26 @@ function IDEPage() {
         console.log(`📁 [OPTIMISTIC] File already exists, skipping optimistic update: ${newPath}`);
         return prev;
       }
-      
-      console.log(`📁 [OPTIMISTIC] Adding file optimistically: ${newPath}`);
+
       console.log(`📁 [OPTIMISTIC] Parent ID: ${parentId}`);
-      console.log(`📁 [OPTIMISTIC] Current files count: ${prev.length}`);
-      
-      const newFiles = JSON.parse(JSON.stringify(prev)); // Deep copy
-      if (parentId === null) {
-        newFiles.push(optimisticNode);
-        console.log(`📁 [OPTIMISTIC] Added to root, new count: ${newFiles.length}`);
-      } else {
-        const parent = findNodeById(parentId, newFiles);
-        if (parent && parent.type === 'folder') {
-          parent.children = parent.children ? [...parent.children, optimisticNode] : [optimisticNode];
-          console.log(`📁 [OPTIMISTIC] Added to parent ${parentId}, children count: ${parent.children.length}`);
-        } else {
-          console.log(`📁 [OPTIMISTIC] Parent not found or not a folder: ${parentId}`);
-        }
+      const parentPath = parentId ? normalizeIdToPath(parentId) : null;
+
+      if (parentPath === null) {
+        // Add to root
+        return [...prev, optimisticNode];
       }
-      return newFiles;
+      // Add inside specified folder using tree helper (avoids cache lookups)
+      return addFileToTree(prev, parentPath, optimisticNode);
     });
 
     // Optimistically select the new file if it's a file (not folder)
     if (type === 'file') {
       setSelectedFile(optimisticNode);
-      // Highlight the new file briefly
-      setHighlightedFileId(newPath);
-      setTimeout(() => setHighlightedFileId(null), 2000);
+      setActiveTab('editor');
     }
+    // Briefly highlight the created node (file or folder)
+    setHighlightedFileId(newPath);
+    setTimeout(() => setHighlightedFileId(null), 2000);
 
     try {
       await axios.post(`${backendUrl}/v2/file/${encodeURIComponent(newPath)}`, 
@@ -816,7 +819,8 @@ function IDEPage() {
     setPendingDeleteFolderName(null);
 
     try {
-      await axios.delete(`${backendUrl}/v2/file/${encodeURIComponent(fileId)}`, { 
+      const deletePath = normalizeIdToPath(fileId);
+      await axios.delete(`${backendUrl}/v2/file/${encodeURIComponent(deletePath)}`, { 
         headers: getAuthHeaders()
       });
       
@@ -1812,6 +1816,25 @@ function IDEPage() {
         body: JSON.stringify({ projectDescription: setupDescription, projectFiles: files, steps: finalSteps })
       });
       const projectResult = await projectResponse.json();
+      if (projectResponse.status === 402 && projectResult?.needsPayment) {
+        // Backend enforced paywall; show payment modal
+        setOutput(prev => [
+          ...prev,
+          '🚫 Free project limit reached.',
+          'You have used your 1 free project.',
+          'Upgrade to unlock unlimited guided projects.',
+          'Opening payment options...'
+        ]);
+        try {
+          const { toast } = await import('sonner');
+          toast.warning('Free project limit reached', {
+            description: 'Upgrade to create unlimited guided projects.',
+          });
+        } catch {}
+        setShowPaymentModal(true);
+        setIsStartingFromSteps(false);
+        return;
+      }
       if (projectResponse.ok && projectResult.projectId && Array.isArray(projectResult.steps)) {
         // Reset step completion tracking for new project
         setCompletedSteps(new Set());
@@ -2164,7 +2187,53 @@ function IDEPage() {
       ``
     ]);
 
-    // Project count is incremented on start (server-side). Just refresh state here.
+    // Increment project count on completion and refresh user data
+    try {
+      if (session?.access_token) {
+        // Try primary endpoint
+        let resp = await fetch('/api/guided/completeProject', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ projectId: guidedProject?.projectId || null }),
+        });
+
+        // Fallback to older endpoint if route not found
+        if (resp.status === 404) {
+          resp = await fetch('/api/guided/incrementProjectCount', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({}),
+          });
+        }
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          setOutput(prev => [
+            ...prev,
+            '⚠️ Could not record project completion to your account.',
+            data?.error ? `   Reason: ${data.error}` : '   Please try refreshing your dashboard.',
+          ]);
+        } else {
+          setOutput(prev => [
+            ...prev,
+            `✅ Project recorded. Total completed projects: ${data?.project_count ?? 'updated'}`,
+          ]);
+        }
+      }
+    } catch (e) {
+      // Non-fatal: continue
+      setOutput(prev => [
+        ...prev,
+        '⚠️ A network error occurred while updating your project count.',
+      ]);
+    }
+
     try { await refreshUserData(); } catch (_) {}
   };
 
@@ -2375,21 +2444,7 @@ function IDEPage() {
                 onRefresh={handleSmartRefresh}
                 isLoading={isLoadingFiles}
                 highlightedFileId={highlightedFileId}
-                stepProgression={guidedProject && (
-                  <GuidedStepPopup
-                    instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
-                    isComplete={isStepCompleted(guidedProject.steps[guidedProject.currentStep]?.id || '')}
-                    onNextStep={handleNextStep}
-                    onPreviousStep={handlePreviousStep}
-                    onCheckStep={handleCheckStep}
-                    stepNumber={guidedProject.currentStep + 1}
-                    totalSteps={guidedProject.steps.length}
-                    isChecking={isCheckingStep}
-                    onFinish={handleFinishProject}
-                    completedSteps={getProjectCompletionStatus().completed}
-                    totalCompleted={getProjectCompletionStatus().total}
-                  />
-                )}
+                stepProgression={null}
               />
             </ResizablePanel>
 
@@ -2422,7 +2477,7 @@ function IDEPage() {
                     </TabsList>
 
                     {selectedFile && (
-                      <div className="flex items-center space-x-2 text-sm text-deep-espresso">
+                      <div className="flex items-center space-x-1 text-sm text-deep-espresso">
                         <div className="w-2 h-2 bg-deep-espresso rounded-full"></div>
                         <span className="font-mono">{selectedFile.name}</span>
                       </div>
@@ -2693,16 +2748,18 @@ function IDEPage() {
                  
                     
                       
-                      {(isInSetupPhase && !isInFollowUpPhase) || isInFollowUpPhase || isGeneratingSteps ? (
-                        <Button
-                          onClick={handleSubmitAndGenerateSteps}
-                          variant="outline"
-                          size="sm"
-                          className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
-                          disabled={isGeneratingSteps}
-                        >
-                          {isGeneratingSteps ? "Generating Steps..." : "Generate Steps"}
-                        </Button>
+                      {(isInSetupPhase && !isInFollowUpPhase) || isInFollowUpPhase ? (
+                        // Show the Generate Steps button only when not actively generating
+                        !isGeneratingSteps && (
+                          <Button
+                            onClick={handleSubmitAndGenerateSteps}
+                            variant="outline"
+                            size="sm"
+                            className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                          >
+                            Generate Steps
+                          </Button>
+                        )
                       ) : (
                         <>
                       <Button
@@ -2884,6 +2941,23 @@ function IDEPage() {
             await refreshUserData();
           }}
         />
+
+        {/* Keep Guided Steps visible globally, independent of Explorer state */}
+        {guidedProject && (
+          <GuidedStepPopup
+            instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
+            isComplete={isStepCompleted(guidedProject.steps[guidedProject.currentStep]?.id || '')}
+            onNextStep={handleNextStep}
+            onPreviousStep={handlePreviousStep}
+            onCheckStep={handleCheckStep}
+            stepNumber={guidedProject.currentStep + 1}
+            totalSteps={guidedProject.steps.length}
+            isChecking={isCheckingStep}
+            onFinish={handleFinishProject}
+            completedSteps={getProjectCompletionStatus().completed}
+            totalCompleted={getProjectCompletionStatus().total}
+          />
+        )}
       </div>
     </ProtectedRoute>
   );

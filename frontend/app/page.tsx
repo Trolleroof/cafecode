@@ -37,6 +37,7 @@ export default function Home() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [isCompletingTest, setIsCompletingTest] = useState(false);
   
   // Function to refresh user data
   const refreshUserData = async () => {
@@ -158,6 +159,58 @@ export default function Home() {
     router.push('/ide');
   };
 
+  // Test helper: mark a project as completed to increment project count
+  const handleTestCompleteProject = async () => {
+    try {
+      setIsCompletingTest(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        router.push('/login');
+        return;
+      }
+
+      // Try primary endpoint
+      let resp = await fetch('/api/guided/completeProject', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ projectId: null }),
+      });
+
+      // Fallback to explicit increment route if not found
+      if (resp.status === 404) {
+        resp = await fetch('/api/guided/incrementProjectCount', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({}),
+        });
+      }
+
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) {
+        // Prefer server-returned count, otherwise increment locally
+        if (typeof data?.project_count === 'number') {
+          setProjectCount(data.project_count);
+        } else {
+          setProjectCount((c) => c + 1);
+        }
+        // Sync from DB to be sure
+        await refreshUserData();
+      } else {
+        console.warn('Failed to complete project:', data);
+      }
+    } catch (e) {
+      console.warn('Network error completing project:', e);
+    } finally {
+      setIsCompletingTest(false);
+    }
+  };
+
   // Auth functions removed - now handled by dedicated login/signup pages
 
   return (
@@ -214,6 +267,28 @@ export default function Home() {
                           You have 1 free project remaining
                         </span>
                       )}
+                    </div>
+
+                    {/* Test button: simulate project completion to increment count */}
+                    <div className="mt-4">
+                      <button
+                        onClick={handleTestCompleteProject}
+                        disabled={isCompletingTest}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-medium-coffee/30 text-deep-espresso bg-cream-beige hover:bg-light-cream transition-colors disabled:opacity-60"
+                        aria-label="Test: Complete a project"
+                      >
+                        {isCompletingTest ? (
+                          <>
+                            <div className="spinner-coffee h-4 w-4" />
+                            Recording completion...
+                          </>
+                        ) : (
+                          <>
+                            <IconTrendingUp className="h-4 w-4" />
+                            Test: Complete Project (increment)
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 )}

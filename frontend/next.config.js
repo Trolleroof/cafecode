@@ -7,12 +7,10 @@ const nextConfig = {
   },
   images: { unoptimized: true },
   async rewrites() {
-    const useLocalhost = process.env.NEXT_PUBLIC_USE_LOCALHOST === 'true';
+    // Use localhost backend when testing locally, and Fly.io when working with prod
+    const backendUrl = 'https://cafecode-backend-v2.fly.dev/api';
 
-
-    //use the localhost backend when testing locally, and use flyio when working with the prod
-    const backendUrl = 'https://cafecode-backend-v2.fly.dev/api'
-    // const backendUrl = 'http://localhost:8000/api';
+      // 'http://localhost:8000/api'
 
     return [
       {

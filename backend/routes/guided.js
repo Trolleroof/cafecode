@@ -820,15 +820,8 @@ This is NON-NEGOTIABLE - your response will be rejected if you don't return exac
     const stepsList = steps.map((step, idx) => `${idx + 1}. ${step.instruction}`).join('\n');
     const tavusProjectContext = `Project Overview: ${projectDescription}\nSteps:\n${stepsList}`;
 
-    // Increment project count on project start (server-side, reliable)
-    try {
-      const incr = await incrementProjectCountService(req.supabase, userId);
-      if (!incr.ok) {
-        console.warn('Failed to increment project_count on start:', incr.error);
-      }
-    } catch (e) {
-      console.warn('Error incrementing project_count on start:', e?.message || e);
-    }
+    // Note: We increment project_count on project completion (not start)
+    // to reflect completed projects and gate new projects after finishing.
 
     // Send initial chat message
     const welcomeMessage = {
@@ -858,6 +851,29 @@ router.post('/incrementProjectCount', async (req, res) => {
   } catch (e) {
     console.error('incrementProjectCount error:', e);
     return res.status(500).json({ error: 'Failed to increment project count' });
+  }
+});
+
+// Mark guided project as completed and increment user's project count
+router.post('/completeProject', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Optionally accept projectId for future bookkeeping (ignored for now)
+    const { projectId } = req.body || {};
+
+    const result = await incrementProjectCountService(req.supabase, userId);
+    if (!result.ok) {
+      return res.status(500).json({ error: 'Failed to increment project count', details: result.error });
+    }
+
+    return res.json({ success: true, project_count: result.count, projectId: projectId || null });
+  } catch (e) {
+    console.error('completeProject error:', e);
+    return res.status(500).json({ error: 'Failed to complete project' });
   }
 });
 

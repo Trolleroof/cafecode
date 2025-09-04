@@ -15,6 +15,8 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [toggleLoading, setToggleLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -59,7 +61,7 @@ export default function AuthPage() {
   };
 
   const handleGoogleAuth = async () => {
-    setLoading(true);
+    setGoogleLoading(true);
     setError('');
     
     try {
@@ -71,16 +73,22 @@ export default function AuthPage() {
       });
     } catch (error: any) {
       setError('Google authentication failed. Please try again.');
-      setLoading(false);
+      setGoogleLoading(false);
     }
   };
 
-  const toggleMode = () => {
-    setIsSignUp(!isSignUp);
+  const toggleMode = async () => {
+    setToggleLoading(true);
     setError('');
+    
+    // Add a small delay for smooth animation
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    setIsSignUp(!isSignUp);
     setName('');
     setEmail('');
     setPassword('');
+    setToggleLoading(false);
   };
 
   return (
@@ -156,7 +164,7 @@ export default function AuthPage() {
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                   >
                     <label htmlFor="name" className="block text-sm font-semibold text-dark-charcoal">
-                      Full Name
+                      Username
                     </label>
                     <input
                       id="name"
@@ -227,7 +235,7 @@ export default function AuthPage() {
               {/* Enhanced Auth Button */}
               <motion.button
                 type="submit"
-                disabled={loading}
+                disabled={loading || googleLoading || toggleLoading}
                 className="w-full bg-gradient-to-r from-medium-coffee to-deep-espresso hover:from-deep-espresso hover:to-medium-coffee text-light-cream py-3 px-6 rounded-2xl font-semibold text-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg hover:shadow-xl focus:ring-4 focus:ring-medium-coffee/30 focus:outline-none"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -235,7 +243,7 @@ export default function AuthPage() {
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-light-cream/30 border-t-light-cream rounded-full animate-spin"></div>
-                    {isSignUp ? 'Creating Account...' : 'Signing In...'}
+                    <span className="animate-pulse">{isSignUp ? 'Creating Account...' : 'Signing In...'}</span>
                   </div>
                 ) : (
                   isSignUp ? 'Create Account' : 'Sign In'
@@ -258,19 +266,28 @@ export default function AuthPage() {
             {/* Enhanced Google Auth */}
             <motion.button
               onClick={handleGoogleAuth}
-              disabled={loading}
+              disabled={loading || googleLoading}
               className="w-full bg-white/80 backdrop-blur-sm border-2 border-medium-coffee/20 text-dark-charcoal py-3 px-6 rounded-2xl font-semibold text-lg hover:bg-white hover:border-medium-coffee/30 hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-4 focus:ring-medium-coffee/20 focus:outline-none"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Image 
-                src="/images/google-logo.png" 
-                alt="Google" 
-                width={20} 
-                height={20} 
-                className="w-5 h-5"
-              />
-              Continue with Google
+              {googleLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-medium-coffee/30 border-t-medium-coffee rounded-full animate-spin"></div>
+                  <span className="animate-pulse">Connecting to Google...</span>
+                </>
+              ) : (
+                <>
+                  <Image 
+                    src="/images/google-logo.png" 
+                    alt="Google" 
+                    width={20} 
+                    height={20} 
+                    className="w-5 h-5"
+                  />
+                  <span>Continue with Google</span>
+                </>
+              )}
             </motion.button>
 
             {/* Toggle Mode Link */}
@@ -284,9 +301,17 @@ export default function AuthPage() {
                 {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
                 <button
                   onClick={toggleMode}
-                  className="text-medium-coffee hover:text-deep-espresso font-semibold transition-colors duration-200 underline decoration-2 underline-offset-4 hover:decoration-medium-coffee/50"
+                  disabled={loading || googleLoading || toggleLoading}
+                  className="text-medium-coffee hover:text-deep-espresso font-semibold transition-colors duration-200 underline decoration-2 underline-offset-4 hover:decoration-medium-coffee/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {isSignUp ? 'Sign in here' : 'Sign up here'}
+                  {toggleLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-medium-coffee/30 border-t-medium-coffee rounded-full animate-spin"></div>
+                      <span className="animate-pulse">Switching...</span>
+                    </>
+                  ) : (
+                    isSignUp ? 'Sign in here' : 'Sign up here'
+                  )}
                 </button>
               </p>
             </motion.div>
