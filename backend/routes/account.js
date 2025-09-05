@@ -44,3 +44,20 @@ router.post('/grantUnlimited', async (req, res) => {
 
 export default router;
 
+// Reset profile: clears payment/unlimited flags and project count
+router.post('/resetProfile', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    const result = await ProfileService.resetProfile(req.supabase, userId);
+    if (!result.ok) {
+      return res.status(500).json({ error: 'Failed to reset profile', details: result.error });
+    }
+    return res.json({ success: true, profile: result.profile });
+  } catch (e) {
+    console.error('account/resetProfile error:', e);
+    return res.status(500).json({ error: 'Failed to reset profile' });
+  }
+});

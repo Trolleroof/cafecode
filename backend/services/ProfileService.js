@@ -71,4 +71,33 @@ export class ProfileService {
       return { ok: false, error: e?.message || 'unknown error' };
     }
   }
+
+  static async resetProfile(supabase, userId) {
+    try {
+      const updates = {
+        project_count: 0,
+        payment_status: 'unpaid',
+        has_unlimited_access: false,
+        stripe_session_id: null,
+        upgraded_at: null,
+        updated_at: new Date().toISOString(),
+      };
+      const { error: updateErr } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId);
+      if (updateErr) {
+        return { ok: false, error: updateErr.message };
+      }
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('project_count, payment_status, has_unlimited_access, upgraded_at')
+        .eq('id', userId)
+        .single();
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, profile };
+    } catch (e) {
+      return { ok: false, error: e?.message || 'unknown error' };
+    }
+  }
 }

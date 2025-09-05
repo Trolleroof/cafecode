@@ -1,18 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { IconCode, IconStar, IconLock, IconRefresh, IconBolt, IconTrendingUp, IconRocket } from '@tabler/icons-react';
+import { IconCode, IconStar, IconLock, IconBolt, IconTrendingUp, IconRocket } from '@tabler/icons-react';
 
 interface ProjectCounterProps {
   projectCount: number;
   hasUnlimitedAccess: boolean;
   onUpgradeClick: () => void;
-  onRefresh?: () => void;
-  isRefreshing?: boolean;
-  refreshError?: string | null;
 }
 
-export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpgradeClick, onRefresh, isRefreshing = false, refreshError = null }: ProjectCounterProps) {
+export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpgradeClick }: ProjectCounterProps) {
   // Add hydration state to prevent mismatch
   const [isHydrated, setIsHydrated] = useState(false);
 
@@ -54,17 +51,6 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {onRefresh && (
-            <button
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label="Refresh project status"
-              title={refreshError ? `Error: ${refreshError}` : 'Refresh status'}
-            >
-              <IconRefresh className={`h-4 w-4 text-gray-500 ${isRefreshing ? 'animate-spin' : ''} ${refreshError ? 'text-red-500' : ''}`} />
-            </button>
-          )}
           {!hasUnlimitedAccess && (
             <button
               onClick={onUpgradeClick}
@@ -91,22 +77,11 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
             <IconCode className="h-5 w-5 text-white" />
           </div>
           <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-dark-charcoal font-bold text-sm">
-                {Math.min(projectCount, FREE_LIMIT)}/{FREE_LIMIT} Free Projects
-              </span>
-              {onRefresh && (
-                <button
-                  onClick={onRefresh}
-                  disabled={isRefreshing}
-                  className="p-1 hover:bg-medium-coffee/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Refresh project count"
-                  title={refreshError ? `Error: ${refreshError}` : "Refresh project count"}
-                >
-                  <IconRefresh className={`h-3 w-3 text-medium-coffee ${isRefreshing ? 'animate-spin' : ''} ${refreshError ? 'text-red-500' : ''}`} />
-                </button>
-              )}
-            </div>
+                         <div className="flex items-center gap-2">
+               <span className="text-dark-charcoal font-bold text-sm">
+                 {Math.min(projectCount, FREE_LIMIT)}/{FREE_LIMIT} Free Projects
+               </span>
+             </div>
             {isAtLimit ? (
               <span className="text-red-600 text-xs font-medium flex items-center gap-1">
                 <IconLock className="h-3 w-3" />

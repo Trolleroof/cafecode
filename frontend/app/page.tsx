@@ -294,6 +294,40 @@ export default function Home() {
                       >
                         Dev: Grant Unlimited Access
                       </button>
+                      {/* Reset Everything (dev utility) */}
+                      {process.env.NODE_ENV !== 'production' && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              if (!confirm('Reset your profile (projects + payment)?')) return;
+                              const { data: { session: s } } = await supabase.auth.getSession();
+                              if (!s?.access_token) return router.push('/login');
+                              const resp = await fetch('/api/account/resetProfile', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${s.access_token}`,
+                                },
+                              });
+                              const data = await resp.json().catch(() => ({}));
+                              if (!resp.ok) {
+                                console.warn('Reset failed:', data);
+                                alert('Failed to reset profile');
+                              } else {
+                                alert('Profile reset. Reloading...');
+                                window.location.reload();
+                              }
+                            } catch (e) {
+                              console.warn('Reset error:', e);
+                              alert('Reset error');
+                            }
+                          }}
+                          className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+                          aria-label="Reset everything"
+                        >
+                          Reset Everything
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

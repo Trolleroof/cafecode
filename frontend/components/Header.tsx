@@ -122,7 +122,7 @@ const Header = () => {
                 )}
                 <button 
                   onClick={handleGoToIDE}
-                  className="btn-navbar-cta px-6 py-2 text-base shadow-lg rounded-xl flex items-center gap-2 font-medium -ml-4"
+                  className="px-6 py-2 text-base shadow-lg rounded-xl flex items-center gap-2 font-medium -ml-4 bg-cream-beige text-deep-espresso border border-medium-coffee/30 hover:bg-medium-coffee hover:text-white transition-colors duration-200"
                   disabled={loadingButton === 'ide'}
                 >
                   {loadingButton === 'ide' ? (
@@ -188,7 +188,7 @@ const Header = () => {
             {session && (
               <button 
                 onClick={handleGoToIDE}
-                className="btn-navbar-cta px-4 py-2 text-xs shadow-lg rounded-xl flex items-center gap-2 font-medium"
+                className="px-4 py-2 text-xs shadow-lg rounded-xl flex items-center gap-2 font-medium bg-cream-beige text-deep-espresso border border-medium-coffee/30 hover:bg-medium-coffee hover:text-white transition-colors duration-200"
                 disabled={loadingButton === 'ide'}
               >
                 {loadingButton === 'ide' ? (
