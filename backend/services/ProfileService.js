@@ -7,8 +7,10 @@ export class ProfileService {
           .from('profiles')
           .select('project_count')
           .eq('id', userId)
-          .single();
-        return { ok: true, count: profile?.project_count ?? null };
+       
+        return { 
+          ok: true, count: profile?.project_count ?? null 
+        };
       }
       // Fallback: select + update
       const { data: profile } = await supabase
@@ -32,21 +34,36 @@ export class ProfileService {
 
   static async grantUnlimitedAccess(supabase, userId) {
     try {
-      const updates = {
+      // Prefer using the same DB function Stripe webhook uses to keep logic consistent
+      const dummySession = `dev_dummy_${Date.now()}`;
+      const { error: rpcError } = await supabase.rpc('update_payment_status', {
+        user_uuid: userId,
+        stripe_session: dummySession,
         payment_status: 'paid',
-        has_unlimited_access: true,
-        updated_at: new Date().toISOString(),
-      };
-      const { error: updateErr } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', userId);
-      if (updateErr) {
-        return { ok: false, error: updateErr.message };
+        amount_cents: 0,
+      });
+
+      if (rpcError) {
+        // Fallback to direct update if RPC is unavailable
+        const updates = {
+          payment_status: 'paid',
+          has_unlimited_access: true,
+          upgraded_at: new Date().toISOString(),
+          stripe_session_id: dummySession,
+          updated_at: new Date().toISOString(),
+        };
+        const { error: updateErr } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId);
+        if (updateErr) {
+          return { ok: false, error: updateErr.message };
+        }
       }
+
       const { data: profile } = await supabase
         .from('profiles')
-        .select('project_count, payment_status, has_unlimited_access')
+        .select('project_count, payment_status, has_unlimited_access, upgraded_at, stripe_session_id')
         .eq('id', userId)
         .single();
       return { ok: true, profile };
@@ -55,4 +72,3 @@ export class ProfileService {
     }
   }
 }
-

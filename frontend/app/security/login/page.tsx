@@ -119,28 +119,28 @@ export default function AuthPage() {
           {/* Subtle gradient overlay for depth */}
           <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-white/60 pointer-events-none"></div>
           
-          <div className="relative z-10 p-8">
+          <div className="relative z-10 p-6">
             {/* Enhanced Logo and Header */}
             <motion.div 
-              className="text-center mb-8"
+              className="text-center mb-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
             >
-              <div className="relative mb-4">
+              <div className="relative mb-3">
                 <Image
                   src="/images/logo-trans.png"
                   alt="Cafécode"
-                  width={80}
-                  height={80}
+                  width={60}
+                  height={60}
                   className="mx-auto"
                 />
               </div>
               
-              <h1 className="text-3xl font-bold text-dark-charcoal mb-2 tracking-tight">
+              <h1 className="text-2xl font-bold text-dark-charcoal mb-1 tracking-tight">
                 {isSignUp ? 'Create Account' : 'Welcome Back'}
               </h1>
-              <p className="text-deep-espresso text-base leading-relaxed max-w-sm mx-auto">
+              <p className="text-deep-espresso text-sm leading-relaxed max-w-sm mx-auto">
                 {isSignUp ? 'Join us to start your coding journey' : 'Sign in to continue your coding journey'}
               </p>
             </motion.div>
@@ -148,7 +148,7 @@ export default function AuthPage() {
             {/* Enhanced Auth Form */}
             <motion.form 
               onSubmit={handleAuth} 
-              className="space-y-5"
+              className="space-y-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
@@ -159,7 +159,7 @@ export default function AuthPage() {
                   <motion.div 
                     className="space-y-2"
                     initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                    animate={{ opacity: 1, height: 'auto', marginBottom: '1.25rem' }}
+                    animate={{ opacity: 1, height: 'auto', marginBottom: '1rem' }}
                     exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                   >
@@ -171,7 +171,7 @@ export default function AuthPage() {
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-medium-coffee/20 rounded-2xl focus:outline-none focus:ring-4 focus:ring-medium-coffee/20 focus:border-medium-coffee transition-all duration-300 bg-white/80 hover:bg-white backdrop-blur-sm placeholder:text-medium-coffee/50"
+                      className="w-full px-3 py-2.5 border-2 border-medium-coffee/20 rounded-xl focus:outline-none focus:ring-4 focus:ring-medium-coffee/20 focus:border-medium-coffee transition-all duration-300 bg-white/80 hover:bg-white backdrop-blur-sm placeholder:text-medium-coffee/50"
                       placeholder="Enter your full name"
                       required={isSignUp}
                     />
@@ -253,7 +253,7 @@ export default function AuthPage() {
 
             {/* Enhanced Divider */}
             <motion.div 
-              className="my-6 flex items-center"
+              className="my-4 flex items-center"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 1.0, ease: "easeOut" }}
@@ -267,7 +267,7 @@ export default function AuthPage() {
             <motion.button
               onClick={handleGoogleAuth}
               disabled={loading || googleLoading}
-              className="w-full bg-white/80 backdrop-blur-sm border-2 border-medium-coffee/20 text-dark-charcoal py-3 px-6 rounded-2xl font-semibold text-lg hover:bg-white hover:border-medium-coffee/30 hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-4 focus:ring-medium-coffee/20 focus:outline-none"
+              className="w-full bg-white/80 backdrop-blur-sm border-2 border-medium-coffee/20 text-dark-charcoal py-2.5 px-4 rounded-xl font-semibold text-base hover:bg-white hover:border-medium-coffee/30 hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-4 focus:ring-medium-coffee/20 focus:outline-none"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -290,23 +290,23 @@ export default function AuthPage() {
               )}
             </motion.button>
 
-            {/* Toggle Mode Link */}
+            {/* Simple Toggle Mode Section */}
             <motion.div 
-              className="text-center mt-8"
+              className="text-center mt-6"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 1.2, ease: "easeOut" }}
             >
-              <p className="text-deep-espresso text-base">
+              <p className="text-deep-espresso text-sm mb-3">
                 {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
                 <button
                   onClick={toggleMode}
                   disabled={loading || googleLoading || toggleLoading}
-                  className="text-medium-coffee hover:text-deep-espresso font-semibold transition-colors duration-200 underline decoration-2 underline-offset-4 hover:decoration-medium-coffee/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="text-medium-coffee hover:text-deep-espresso font-semibold transition-colors duration-200 underline decoration-2 underline-offset-4 hover:decoration-medium-coffee/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {toggleLoading ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-medium-coffee/30 border-t-medium-coffee rounded-full animate-spin"></div>
+                      <div className="spinner-coffee h-4 w-4 inline-block mr-1"></div>
                       <span className="animate-pulse">Switching...</span>
                     </>
                   ) : (
