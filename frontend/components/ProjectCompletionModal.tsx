@@ -11,6 +11,7 @@ interface ProjectCompletionModalProps {
   chatHistory?: any[];
   guidedProject?: any;
   session?: any;
+  recap?: string;
 }
 
 const ProjectCompletionModal: React.FC<ProjectCompletionModalProps> = ({ 
@@ -19,63 +20,24 @@ const ProjectCompletionModal: React.FC<ProjectCompletionModalProps> = ({
   projectFiles = [],
   chatHistory = [],
   guidedProject = null,
-  session = null
+  session = null,
+  recap = ''
 }) => {
   const confettiCanvasRef = useRef<HTMLCanvasElement>(null);
   const [recapText, setRecapText] = useState('');
   const [isRecapLoading, setIsRecapLoading] = useState(false);
 
-  // Call the recap API when modal opens (only if we don't have a recap yet)
+  // Set recap content provided from completeProject route
   useEffect(() => {
-    if (isOpen && !recapText) {
-      console.log('🎯 Modal opened, attempting to fetch recap...');
-      console.log('📁 Project files:', projectFiles);
-      console.log('💬 Chat history length:', chatHistory?.length);
-      console.log('🔑 Session:', !!session?.access_token);
-      
-      setIsRecapLoading(true);
-      (async () => {
-        try {
-          // Try to call the recap API if we have data
-          if (projectFiles.length > 0 || chatHistory.length > 0) {
-            console.log('📡 Calling recap API...');
-            const response = await fetch('/api/recap/recap', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session?.access_token}`
-              },
-              body: JSON.stringify({
-                projectFiles,
-                chatHistory,
-                guidedProject,
-              })
-            });
-            
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error('❌ API Error:', response.status, errorText);
-              throw new Error(`API error: ${response.status}`);
-            }
-            
-            const result = await response.json();
-            console.log('✅ API Success:', result);
-            setRecapText(result.recap || 'Here is a summary of what you learned!');
-          } else {
-            // Fallback content if no project data
-            console.log('📝 No project data, using fallback content');
-            setRecapText('🎉 Congratulations on completing your project!\n\nYou\'ve successfully finished your guided coding journey.\n\nKeep building amazing things!');
-          }
-        } catch (e) {
-          console.error('❌ Recap API call failed:', e);
-          // Fallback content on API failure
-          setRecapText('🎉 Congratulations on completing your project!\n\nYou\'ve successfully finished your guided coding journey.\n\nKeep building amazing things!');
-        } finally {
-          setIsRecapLoading(false);
-        }
-      })();
+    if (isOpen) {
+      setIsRecapLoading(false);
+      if (recap && typeof recap === 'string') {
+        setRecapText(recap);
+      } else {
+        setRecapText('🎉 Congratulations on completing your project!\n\nYou\'ve successfully finished your guided coding journey.\n\nKeep building amazing things!');
+      }
     }
-  }, [isOpen, projectFiles, chatHistory, guidedProject, session]); // Removed recapText from dependencies
+  }, [isOpen, recap]);
 
   // Reset recap text when modal closes
   useEffect(() => {

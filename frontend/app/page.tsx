@@ -169,27 +169,15 @@ export default function Home() {
         return;
       }
 
-      // Try primary endpoint
-      let resp = await fetch('/api/guided/completeProject', {
+      // Call dedicated account endpoint to increment count
+      const resp = await fetch('/api/account/incrementProjectCount', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ projectId: null }),
+        body: JSON.stringify({}),
       });
-
-      // Fallback to explicit increment route if not found
-      if (resp.status === 404) {
-        resp = await fetch('/api/guided/incrementProjectCount', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({}),
-        });
-      }
 
       const data = await resp.json().catch(() => ({}));
       if (resp.ok) {
@@ -208,6 +196,33 @@ export default function Home() {
       console.warn('Network error completing project:', e);
     } finally {
       setIsCompletingTest(false);
+    }
+  };
+
+  // Dev helper: grant unlimited access (paid + unlimited)
+  const handleGrantUnlimited = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        router.push('/login');
+        return;
+      }
+      const resp = await fetch('/api/account/grantUnlimited', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) {
+        await refreshUserData();
+      } else {
+        console.warn('Failed to grant unlimited:', data);
+      }
+    } catch (e) {
+      console.warn('Network error granting unlimited access:', e);
     }
   };
 
@@ -288,6 +303,13 @@ export default function Home() {
                             Test: Complete Project (increment)
                           </>
                         )}
+                      </button>
+                      <button
+                        onClick={handleGrantUnlimited}
+                        className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-medium-coffee/30 text-deep-espresso bg-cream-beige hover:bg-light-cream transition-colors"
+                        aria-label="Dev: Grant unlimited access"
+                      >
+                        Dev: Grant Unlimited Access
                       </button>
                     </div>
                   </div>

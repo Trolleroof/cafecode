@@ -578,38 +578,7 @@ async function aiExtractCreationIntent(geminiService, instruction, projectFiles)
 }
 
 // Start a new guided project
-// Helper: increment project count using service role (RPC then fallback)
-async function incrementProjectCountService(supabase, userId) {
-  try {
-    const { error: rpcError } = await supabase.rpc('increment_project_count', { user_uuid: userId });
-    if (!rpcError) {
-      // Try to read updated count for return value
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('project_count')
-        .eq('id', userId)
-        .single();
-      return { ok: true, count: profile?.project_count ?? null };
-    }
-    // Fallback: select + update
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('project_count')
-      .eq('id', userId)
-      .single();
-    const next = (profile?.project_count || 0) + 1;
-    const { error: updateErr } = await supabase
-      .from('profiles')
-      .update({ project_count: next })
-      .eq('id', userId);
-    if (updateErr) {
-      return { ok: false, error: updateErr.message };
-    }
-    return { ok: true, count: next };
-  } catch (e) {
-    return { ok: false, error: e?.message || 'unknown error' };
-  }
-}
+import { ProfileService } from '../services/ProfileService.js';
 
 router.post("/startProject", async (req, res) => {
   try {
@@ -837,22 +806,7 @@ This is NON-NEGOTIABLE - your response will be rejected if you don't return exac
 });
 
 // Explicit endpoint to increment project count (for fallback clients)
-router.post('/incrementProjectCount', async (req, res) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
-    const result = await incrementProjectCountService(req.supabase, userId);
-    if (!result.ok) {
-      return res.status(500).json({ error: 'Failed to increment project count', details: result.error });
-    }
-    return res.json({ success: true, project_count: result.count });
-  } catch (e) {
-    console.error('incrementProjectCount error:', e);
-    return res.status(500).json({ error: 'Failed to increment project count' });
-  }
-});
+// Note: increment project count moved to /api/account/incrementProjectCount
 
 // Mark guided project as completed and increment user's project count
 router.post('/completeProject', async (req, res) => {
@@ -862,15 +816,72 @@ router.post('/completeProject', async (req, res) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    // Optionally accept projectId for future bookkeeping (ignored for now)
-    const { projectId } = req.body || {};
+    // Accept data for summary generation
+    const { projectId, projectFiles = [], chatHistory = [], guidedProject = null } = req.body || {};
 
-    const result = await incrementProjectCountService(req.supabase, userId);
+    // 1) Increment project count via shared service
+    const result = await ProfileService.incrementProjectCount(req.supabase, userId);
     if (!result.ok) {
       return res.status(500).json({ error: 'Failed to increment project count', details: result.error });
     }
 
-    return res.json({ success: true, project_count: result.count, projectId: projectId || null });
+    // 2) Generate recap summary (this is now the ONLY place that does it)
+    const createProjectContext = (files) => {
+      if (!Array.isArray(files)) return 'No project files available';
+      return files
+        .map(file => `${file.name} (${file.type}): ${file.content ? String(file.content).substring(0, 200) + '...' : 'Empty file'}`)
+        .join('\n');
+    };
+
+    const projectContext = createProjectContext(projectFiles);
+    const chatContext = Array.isArray(chatHistory)
+      ? chatHistory.map(msg => `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n')
+      : '';
+    const stepsContext = guidedProject && guidedProject.steps
+      ? guidedProject.steps.map((s, i) => `Step ${i + 1}: ${s.instruction}`).join('\n')
+      : '';
+    const capabilities = 'The IDE (Cafecode) is web-based. It supports a built-in terminal, code editing, file management, and code execution for supported languages.';
+
+    const numFiles = Array.isArray(projectFiles) ? projectFiles.length : 0;
+    const numSteps = guidedProject?.steps?.length || 0;
+    let desiredRecapPoints = 3;
+    if (numSteps > 5) desiredRecapPoints++;
+    if (numSteps > 10) desiredRecapPoints++;
+    if (numFiles > 5) desiredRecapPoints++;
+    if (numFiles > 10) desiredRecapPoints++;
+    if (numSteps > 15 && numFiles > 15) desiredRecapPoints = 7;
+
+    const prompt = `You are a coding mentor who helps students reflect on what they learned during their project.
+
+Your student just completed a coding project and you want to summarize the specific skills and concepts they learned. Focus ONLY on concrete things they accomplished and learned to do by looking at the Guided steps, which is provided to you as part of the context.
+
+IMPORTANT: Generate approximately ${desiredRecapPoints} bullet points, each with just 1 short sentence. Do NOT use emojis, markdown formatting, or bullet point symbols (- or *). Just write clean, simple text. Focus on what they learned to do, not their future potential or how promising they are.
+
+Project context:
+${projectContext}
+
+Guided steps:
+${stepsContext}
+
+Chat history:
+${chatContext}
+
+IDE capabilities: ${capabilities}
+
+Create approximately ${desiredRecapPoints} bullet points that summarize what you learned to do during this project. Each point should describe a specific skill, concept, or technique you learned. Keep it factual and focused on your learning outcomes.`;
+
+    let recap = '';
+    try {
+      const resultRecap = await req.geminiService.model.generateContent(prompt);
+      const responseText = (await resultRecap.response).text();
+      const bulletListMatch = responseText.match(/([-*] .+\n?)+/g);
+      recap = bulletListMatch ? bulletListMatch[0].trim() : responseText.trim();
+    } catch (e) {
+      console.warn('Recap generation failed, returning fallback:', e?.message);
+      recap = 'Congratulations on completing your project! Review your steps and code to reinforce what you learned.';
+    }
+
+    return res.json({ success: true, project_count: result.count, projectId: projectId || null, recap });
   } catch (e) {
     console.error('completeProject error:', e);
     return res.status(500).json({ error: 'Failed to complete project' });

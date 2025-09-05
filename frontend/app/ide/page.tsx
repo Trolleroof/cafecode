@@ -2143,6 +2143,7 @@ function IDEPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [projectCount, setProjectCount] = useState(0);
   const [hasUnlimitedAccess, setHasUnlimitedAccess] = useState(false);
+  const [completionRecap, setCompletionRecap] = useState('');
 
   const refreshUserData = useCallback(async () => {
     try {
@@ -2187,7 +2188,7 @@ function IDEPage() {
       ``
     ]);
 
-    // Increment project count on completion and refresh user data
+    // Increment project count on completion, generate recap, and refresh user data
     try {
       if (session?.access_token) {
         // Try primary endpoint
@@ -2197,12 +2198,17 @@ function IDEPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ projectId: guidedProject?.projectId || null }),
+          body: JSON.stringify({ 
+            projectId: guidedProject?.projectId || null,
+            projectFiles: files,
+            chatHistory: chatMessages,
+            guidedProject
+          }),
         });
 
         // Fallback to older endpoint if route not found
         if (resp.status === 404) {
-          resp = await fetch('/api/guided/incrementProjectCount', {
+          resp = await fetch('/api/account/incrementProjectCount', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2220,6 +2226,9 @@ function IDEPage() {
             data?.error ? `   Reason: ${data.error}` : '   Please try refreshing your dashboard.',
           ]);
         } else {
+          if (typeof data?.recap === 'string') {
+            setCompletionRecap(data.recap);
+          }
           setOutput(prev => [
             ...prev,
             `✅ Project recorded. Total completed projects: ${data?.project_count ?? 'updated'}`,
@@ -2925,11 +2934,13 @@ function IDEPage() {
           onClose={() => {
             setShowCongrats(false);
             setShowRecap(false);
+            setCompletionRecap('');
           }}
           projectFiles={files}
           chatHistory={chatMessages}
           guidedProject={guidedProject}
           session={session}
+          recap={completionRecap}
         />
 
         <PaymentModal

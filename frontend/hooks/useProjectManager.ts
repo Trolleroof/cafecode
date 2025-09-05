@@ -115,7 +115,7 @@ export function useProjectManager() {
         console.warn('increment_project_count RPC failed; falling back to server endpoint:', rpcError.message);
         // Call backend endpoint which uses service role
         const { data: { session } } = await supabase.auth.getSession();
-        const resp = await fetch('/api/guided/incrementProjectCount', {
+        const resp = await fetch('/api/account/incrementProjectCount', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
