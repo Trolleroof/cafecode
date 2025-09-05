@@ -265,24 +265,7 @@ export default function Home() {
                     />
 
                     {/* Status message */}
-                    <div className="mt-3 text-sm text-medium-coffee">
-                      {hasUnlimitedAccess ? (
-                        <span className="flex items-center gap-2">
-                          <IconStar className="h-4 w-4 text-yellow-500" />
-                          You have unlimited access to create projects!
-                        </span>
-                      ) : projectCount >= 1 ? (
-                        <span className="flex items-center gap-2">
-                          <IconLock className="h-4 w-4 text-red-500" />
-                          You've used your free project. Upgrade to continue coding!
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-2">
-                          <IconCode className="h-4 w-4 text-medium-coffee" />
-                          You have 1 free project remaining
-                        </span>
-                      )}
-                    </div>
+                  
 
                     {/* Test button: simulate project completion to increment count */}
                     <div className="mt-4">

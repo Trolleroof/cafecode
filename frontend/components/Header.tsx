@@ -5,6 +5,7 @@ import { Bars3Icon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline
 import { IconCode } from '@tabler/icons-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '../lib/supabase';
+import { useProjectManager } from '../hooks/useProjectManager';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,6 +14,7 @@ const Header = () => {
   const pathname = usePathname();
   const [session, setSession] = useState<any>(null);
   const [loadingBrewing, setLoadingBrewing] = useState(false);
+  const { projectCount, hasUnlimitedAccess } = useProjectManager();
   // Removed: showAuthModal, authLoading, authError, authEmail, authPassword, pendingRoute
 
   useEffect(() => {
@@ -109,6 +111,15 @@ const Header = () => {
           <div className="hidden lg:flex items-center space-x-3 xl:space-x-4">
             {session ? (
               <>
+                {/* Small project counter for paid users */}
+                {hasUnlimitedAccess && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                    <IconCode className="h-4 w-4 text-white/80" />
+                    <span className="text-white/90 text-sm font-medium">
+                      {projectCount} projects
+                    </span>
+                  </div>
+                )}
                 <button 
                   onClick={handleGoToIDE}
                   className="btn-navbar-cta px-6 py-2 text-base shadow-lg rounded-xl flex items-center gap-2 font-medium -ml-4"
@@ -164,6 +175,15 @@ const Header = () => {
 
           {/* Mobile CTA Button & User Menu */}
           <div className="flex lg:hidden items-center space-x-3">
+            {/* Mobile project counter for paid users */}
+            {session && hasUnlimitedAccess && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                <IconCode className="h-3 w-3 text-white/80" />
+                <span className="text-white/90 text-xs font-medium">
+                  {projectCount}
+                </span>
+              </div>
+            )}
             {/* Mobile Start Coding Button */}
             {session && (
               <button 
