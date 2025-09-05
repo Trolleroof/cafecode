@@ -186,7 +186,6 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           {isChecking ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Checking...
             </>
           ) : isComplete ? (
             <CheckCircle className="h-6 w-6" />

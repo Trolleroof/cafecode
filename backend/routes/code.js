@@ -22,6 +22,11 @@ const analysisSchema = Joi.object({
   projectFiles: Joi.array().items(Joi.object()).optional()
 });
 
+const messageSchema = Joi.object({
+  type: Joi.string().valid('user', 'assistant').required(),
+  content: Joi.string().min(1).max(2000).required()
+});
+
 const fixSchema = Joi.object({
   code: Joi.string().min(1).max(10000).required(),
   language: Joi.string().valid(
@@ -30,7 +35,8 @@ const fixSchema = Joi.object({
   ).required(),
   error_message: Joi.string().min(1).max(1000).required(),
   line_number: Joi.number().integer().min(1).optional(),
-  projectFiles: Joi.array().items(Joi.object()).optional()
+  projectFiles: Joi.array().items(Joi.object()).optional(),
+  chatHistory: Joi.array().items(messageSchema).optional()
 });
 
 const runSchema = Joi.object({
@@ -116,7 +122,7 @@ router.post('/fix',
       const result = await req.geminiService.fixCode(req.validatedBody);
       
       const responseTime = Date.now() - startTime;
-      console.log(`✅ Fix completed in ${responseTime}ms. Applied ${result.fixes_applied.length} fixes with ${result.confidence_score}% confidence`);
+      console.log(`✅ Fix completed in ${responseTime}ms. Applied ${result.fixes_applied.length} fixes.`);
 
       res.json({
         ...result,
@@ -319,7 +325,8 @@ router.get('/docs', (req, res) => {
           language: 'string (required) - Programming language',
           error_message: 'string (required) - The error message to fix',
           line_number: 'number (optional) - Line number where error occurs',
-          projectFiles: 'array (optional) - Array of project files for context'
+          projectFiles: 'array (optional) - Array of project files for context',
+          chatHistory: 'array (optional) - Last N chat messages as [{ type: "user"|"assistant", content: string }]; only the last 5 are used'
         }
       },
       run: {
@@ -352,7 +359,11 @@ router.get('/docs', (req, res) => {
           code: 'function greet(name {\n    console.log("Hello " + name);\n}',
           language: 'javascript',
           error_message: 'SyntaxError: missing ) after parameter list',
-          line_number: 1
+          line_number: 1,
+          chatHistory: [
+            { type: 'user', content: 'I keep getting a missing parenthesis error' },
+            { type: 'assistant', content: 'It often means a bracket is unclosed' }
+          ]
         }
       },
       run: {

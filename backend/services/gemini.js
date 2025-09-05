@@ -94,17 +94,29 @@ Return JSON:
 Focus on syntax errors, logic bugs, performance issues, code style, security vulnerabilities, and readability. Consider the specific technology stack and best practices for that framework.`;
   }
 
-  createFixPrompt(code, language, errorMessage, lineNumber = null, projectFiles = null) {
+  createFixPrompt(code, language, errorMessage, lineNumber = null, projectFiles = null, chatHistory = null) {
     const projectContext = this.createProjectContext(projectFiles);
-    
-    return `Fix this ${language} code with error: ${errorMessage}
 
-Code:
-\`\`\`${language}
+    // Format last five chat messages if present
+    let chatContext = '';
+    if (Array.isArray(chatHistory) && chatHistory.length > 0) {
+      const lastFive = chatHistory.slice(-5);
+      const formatted = lastFive
+        .map(msg => `${msg.type === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+        .join('\n');
+      chatContext = `\n\nRecent Chat (last 5):\n${formatted}`;
+    }
+
+    return `Fix this ${language} code based on the error and recent user conversation context.
+
+Error: ${errorMessage}
+${lineNumber ? `Error at line: ${lineNumber}` : ''}
+${chatContext}
+
+Code:\n\`\`\`${language}
 ${code}
 \`\`\`
 
-${lineNumber ? `Error at line: ${lineNumber}` : ''}
 ${projectContext}
 
 Return JSON:
@@ -261,7 +273,8 @@ Use extremely simple language for complete beginners.`;
         request.language,
         request.error_message,
         request.line_number,
-        request.projectFiles
+        request.projectFiles,
+        request.chatHistory || null
       );
 
       const result = await this.model.generateContent(prompt);
@@ -276,11 +289,30 @@ Use extremely simple language for complete beginners.`;
       const fixData = this.robustJsonParse(cleanResponse);
       const executionTime = (Date.now() - startTime) / 1000;
 
+      // Build a deterministic summary of changes
+      const fixes = Array.isArray(fixData.fixes_applied) ? fixData.fixes_applied : [];
+      const changedLines = fixes
+        .map(f => f && typeof f.line_number === 'number' ? f.line_number : null)
+        .filter(n => Number.isInteger(n));
+      const explanations = fixes
+        .map(f => f && typeof f.explanation === 'string' ? f.explanation.trim() : '')
+        .filter(Boolean);
+      const uniqueLines = [...new Set(changedLines)].sort((a, b) => a - b);
+      const summaryParts = [];
+      summaryParts.push(`Applied ${fixes.length} ${fixes.length === 1 ? 'fix' : 'fixes'}.`);
+      if (uniqueLines.length > 0) summaryParts.push(`Changed lines: ${uniqueLines.join(', ')}.`);
+      if (explanations.length > 0) {
+        const brief = explanations.slice(0, 5).join('; ');
+        summaryParts.push(`Key changes: ${brief}.`);
+      }
+      const summary = summaryParts.join(' ');
+
       return {
         success: true,
         fixed_code: fixData.fixed_code || request.code,
         fixes_applied: fixData.fixes_applied || [],
         explanation: fixData.explanation || 'Code has been fixed',
+        summary: summary || 'No specific changes identified.',
         execution_time: executionTime
       };
 
@@ -293,6 +325,7 @@ Use extremely simple language for complete beginners.`;
         fixed_code: request.code,
         fixes_applied: [],
         explanation: `Failed to fix code: ${error.message}`,
+        summary: 'No changes applied due to an error.',
         execution_time: executionTime
       };
     }

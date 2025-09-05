@@ -295,9 +295,8 @@ export default function Home() {
                         Dev: Grant Unlimited Access
                       </button>
                       {/* Reset Everything (dev utility) */}
-                      {process.env.NODE_ENV !== 'production' && (
-                        <button
-                          onClick={async () => {
+                      <button
+                        onClick={async () => {
                             try {
                               if (!confirm('Reset your profile (projects + payment)?')) return;
                               const { data: { session: s } } = await supabase.auth.getSession();
@@ -327,7 +326,6 @@ export default function Home() {
                         >
                           Reset Everything
                         </button>
-                      )}
                     </div>
                   </div>
                 )}
