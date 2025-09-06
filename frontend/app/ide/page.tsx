@@ -294,6 +294,16 @@ function convertBackendFilesToTree(backendFiles: any[]): FileNode[] {
 }
 
 function IDEPage() {
+  // Detect if the screen is too small for the IDE
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // File management state - Start with empty files array
   const [files, setFiles] = useState<FileNode[]>([]);
   const [highlightedFileId, setHighlightedFileId] = useState<string | null>(null);
@@ -2359,6 +2369,16 @@ function IDEPage() {
       }, 1300); // 1.5 second delay
     }
   };
+
+  if (isMobile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4 text-center">
+        <p className="text-lg font-semibold">
+          The IDE isn't available on phones. Please use a laptop or desktop with a larger screen.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <ProtectedRoute>
