@@ -9,7 +9,16 @@ export class StripeService {
   static async createCheckoutSession(userId) {
     try {
       // Initialize Stripe inside the method to ensure env vars are loaded
-      const stripe = new Stripe({ apiKey: process.env.STRIPE_SECRET_KEY });
+      const key = process.env.STRIPE_SECRET_KEY;
+      if (!key || typeof key !== 'string') {
+        throw new Error('STRIPE_SECRET_KEY is missing');
+      }
+      if (!key.startsWith('sk_')) {
+        throw new Error('STRIPE_SECRET_KEY does not look like a Stripe secret key');
+      }
+      const masked = `${key.slice(0, 7)}…${key.slice(-4)}`;
+      console.log(`Stripe key detected: ${masked}`);
+      const stripe = new Stripe({ apiKey: key });
       
       console.log(`Creating checkout session for user: ${userId}`);
       
