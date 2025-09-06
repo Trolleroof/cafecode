@@ -246,8 +246,8 @@ export default function Home() {
         <Header />
 
             {/* Hero Section */}
-            <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-light-cream w-full py-20">
-              <div className="relative z-10 w-full max-w-[2000px] mx-auto px-6 xl:px-16 2xl:px-32">
+              <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-light-cream w-full py-16 sm:py-20">
+                <div className="relative z-10 w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Project Counter - positioned at top for all screen sizes */}
                 {user && (
                   <div className="mb-10 md:mb-14 w-full max-w-md mx-auto md:mx-0 md:max-w-none">
