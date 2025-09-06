@@ -38,6 +38,7 @@ import javaRoutes from './routes/java.js';
 import filesRoutes from './routes/files.js';
 import filesRoutesV2 from './routes/files-v2.js';
 import stripeRoutes from './routes/stripe.js';
+import adminRoutes from './routes/admin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -245,6 +246,7 @@ app.use('/api/hint', authenticateUser, hintRoutes);
 app.use('/api/translate', authenticateUser, translateRoutes);
 app.use('/api/tavus', authenticateUser, tavusRoutes);
 app.use('/api/stripe', stripeRoutes); // Stripe routes (no auth required for webhooks)
+app.use('/api/admin', authenticateUser, adminRoutes);
 // --- End authentication enforcement ---
 
 // Root endpoint

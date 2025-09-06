@@ -111,18 +111,16 @@ const Header = () => {
           <div className="hidden lg:flex items-center space-x-3 xl:space-x-4">
             {session ? (
               <>
-                {/* Small project counter for paid users */}
-                {hasUnlimitedAccess && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
-                    <IconCode className="h-4 w-4 text-white/80" />
-                    <span className="text-white/90 text-sm font-medium">
-                      {projectCount} projects
-                    </span>
-                  </div>
-                )}
+                {/* Project counter for all logged-in users */}
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                  <IconCode className="h-4 w-4 text-white/80" />
+                  <span className="text-white/90 text-sm font-medium">
+                    {projectCount} projects
+                  </span>
+                </div>
                 <button 
                   onClick={handleGoToIDE}
-                  className="px-6 py-2 text-base shadow-lg rounded-xl flex items-center gap-2 font-medium -ml-4 bg-cream-beige text-deep-espresso border border-medium-coffee/30 hover:bg-medium-coffee hover:text-white transition-colors duration-200"
+                  className="btn-navbar-cta px-5 py-2 text-base shadow-lg flex items-center gap-2"
                   disabled={loadingButton === 'ide'}
                 >
                   {loadingButton === 'ide' ? (
@@ -132,11 +130,11 @@ const Header = () => {
                     </>
                   ) : (
                     <>
-                      <IconCode className="h-4 w-4" />
+                    <IconCode className="h-4 w-4" />
                       Start Coding
-                    </>
-                  )}
-                </button>
+                  </>
+                )}
+              </button>
                 <div className="relative group">
                   <span className="text-white/90 text-sm cursor-pointer hover:text-white transition-colors">
                     {session.user.email}
@@ -175,8 +173,8 @@ const Header = () => {
 
           {/* Mobile CTA Button & User Menu */}
           <div className="flex lg:hidden items-center space-x-3">
-            {/* Mobile project counter for paid users */}
-            {session && hasUnlimitedAccess && (
+            {/* Mobile project counter for all logged-in users */}
+            {session && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
                 <IconCode className="h-3 w-3 text-white/80" />
                 <span className="text-white/90 text-xs font-medium">
@@ -188,7 +186,7 @@ const Header = () => {
             {session && (
               <button 
                 onClick={handleGoToIDE}
-                className="px-4 py-2 text-xs shadow-lg rounded-xl flex items-center gap-2 font-medium bg-cream-beige text-deep-espresso border border-medium-coffee/30 hover:bg-medium-coffee hover:text-white transition-colors duration-200"
+                className="btn-navbar-cta px-4 py-2 text-xs shadow-lg flex items-center gap-2"
                 disabled={loadingButton === 'ide'}
               >
                 {loadingButton === 'ide' ? (

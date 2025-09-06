@@ -246,136 +246,69 @@ export default function Home() {
         <Header />
 
             {/* Hero Section */}
-            <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-light-cream w-full py-24">
-              <div className="relative z-10 w-full max-w-[2000px] mx-auto flex flex-col md:flex-row items-center px-6 xl:px-16 2xl:px-32 gap-12 md:gap-20">
-                {/* Left: Text Content */}
-                <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left max-w-xl space-y-8">
-                {/* Coffee Shop Badge */}
-
-                {/* Project Counter - Show user's project status */}
+            <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-light-cream w-full py-20">
+              <div className="relative z-10 w-full max-w-[2000px] mx-auto px-6 xl:px-16 2xl:px-32">
+                {/* Project Counter - positioned at top for all screen sizes */}
                 {user && (
-                  <div className="mb-8">
+                  <div className="mb-10 md:mb-14 w-full max-w-md mx-auto md:mx-0 md:max-w-none">
                     <ProjectCounter
                       projectCount={projectCount}
                       hasUnlimitedAccess={hasUnlimitedAccess}
                       onUpgradeClick={() => setShowPaymentModal(true)}
-                      onRefresh={refreshUserData}
-                      isRefreshing={isRefreshing}
-                      refreshError={refreshError}
                     />
-
-                    {/* Status message */}
-                  
-
-                    {/* Test button: simulate project completion to increment count */}
-                    <div className="mt-4">
-                      <button
-                        onClick={handleTestCompleteProject}
-                        disabled={isCompletingTest}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-medium-coffee/30 text-deep-espresso bg-cream-beige hover:bg-light-cream transition-colors disabled:opacity-60"
-                        aria-label="Test: Complete a project"
-                      >
-                        {isCompletingTest ? (
-                          <>
-                            <div className="spinner-coffee h-4 w-4" />
-                            Recording completion...
-                          </>
-                        ) : (
-                          <>
-                            <IconTrendingUp className="h-4 w-4" />
-                            Test: Complete Project (increment)
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={handleGrantUnlimited}
-                        className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-medium-coffee/30 text-deep-espresso bg-cream-beige hover:bg-light-cream transition-colors"
-                        aria-label="Dev: Grant unlimited access"
-                      >
-                        Dev: Grant Unlimited Access
-                      </button>
-                      {/* Reset Everything (dev utility) */}
-                      <button
-                        onClick={async () => {
-                            try {
-                              if (!confirm('Reset your profile (projects + payment)?')) return;
-                              const { data: { session: s } } = await supabase.auth.getSession();
-                              if (!s?.access_token) return router.push('/login');
-                              const resp = await fetch('/api/account/resetProfile', {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                  'Authorization': `Bearer ${s.access_token}`,
-                                },
-                              });
-                              const data = await resp.json().catch(() => ({}));
-                              if (!resp.ok) {
-                                console.warn('Reset failed:', data);
-                                alert('Failed to reset profile');
-                              } else {
-                                alert('Profile reset. Reloading...');
-                                window.location.reload();
-                              }
-                            } catch (e) {
-                              console.warn('Reset error:', e);
-                              alert('Reset error');
-                            }
-                          }}
-                          className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
-                          aria-label="Reset everything"
-                        >
-                          Reset Everything
-                        </button>
-                    </div>
                   </div>
                 )}
 
-                {/* Main heading with coffee theme */}
-                  <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-semibold text-dark-charcoal tracking-tight">
-                    <span className="block">Ship Your Code.</span>
-                    <span className="block text-medium-coffee">Sip Your Coffee.</span>
-                  </h1>
-                  {/* Coffee-themed Subheading */}
-                  <p className="text-lg sm:text-xl lg:text-2xl text-medium-coffee max-w-2xl leading-relaxed font-medium">
-                    Actually learn to code projects in the time it takes to sip your morning coffee.
-                    <span className="block mt-6 font-semibold text-dark-charcoal text-base sm:text-lg">The only rule? Novibecoding.</span>
-                  </p>
-                  {/* Hero action buttons */}
-                  <div className="flex gap-6 mt-4">
-                    <button
-                      onClick={() => {
-                        if (!user) {
-                          router.push('/login');
-                        } else {
-                          handleStartCoding();
-                        }
-                      }}
-                      className="px-10 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2 bg-medium-coffee text-light-cream hover:bg-deep-espresso border-2 border-deep-espresso"
-                      disabled={loadingButton !== null}
-                    >
-                      {loadingButton === 'ide' ? (
-                        <>
-                          <div className="spinner-coffee h-5 w-5"></div>
-                          Loading IDE...
-                        </>
-                      ) : (
-                        'Start Coding!'
-                      )}
-                    </button>
+                <div className="grid grid-cols-1 md:grid-cols-12 items-center gap-10 md:gap-16 lg:gap-20 xl:gap-24">
+                  {/* Left: Text Content */}
+                  <div className="md:col-span-5 flex flex-col items-center md:items-start text-center md:text-left max-w-xl md:max-w-3xl space-y-6 md:pr-6 lg:pr-10">
+                    {/* Main heading with coffee theme */}
+                    <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-semibold text-dark-charcoal tracking-tight md:leading-none">
+                      <div className="md:whitespace-nowrap">Ship Your Code.</div>
+                      <div className="text-medium-coffee md:whitespace-nowrap">Sip Your Coffee.</div>
+                    </h1>
+                    
+                    {/* Coffee-themed Subheading */}
+                    <p className="text-lg sm:text-xl lg:text-2xl text-medium-coffee max-w-2xl leading-relaxed font-medium">
+                      Actually learn to code projects in the time it takes to sip your morning coffee.
+                    </p>
 
+                    {/* Hero action buttons */}
+                    <div className="flex gap-6 mt-2 md:mt-4">
+                      <button
+                        onClick={() => {
+                          if (!user) {
+                            router.push('/login');
+                          } else {
+                            handleStartCoding();
+                          }
+                        }}
+                        className="px-10 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2 bg-deep-espresso text-light-cream hover:bg-deep-espresso/90 border-2 border-deep-espresso"
+                        disabled={loadingButton !== null}
+                      >
+                        {loadingButton === 'ide' ? (
+                          <>
+                            <div className="spinner-coffee h-5 w-5"></div>
+                            Loading IDE...
+                          </>
+                        ) : (
+                          'Start Coding!'
+                        )}
+                      </button>
+                    </div>
                   </div>
 
-                </div>
-                {/* Right: Hero Image */}
-                <div className="flex-1 flex justify-center items-center w-full max-w-3xl xl:max-w-5xl 2xl:max-w-6xl mx-auto relative">
-                  <Image
-                    src="/images/demo.png"
-                    alt="demo screen"
-                    width={1600}
-                    height={1100}
-                    className="rounded-3xl shadow-2xl object-contain max-w-full h-auto max-h-[600px] border-4 border-medium-coffee"
-                    style={{ maxWidth: '100%', height: 'auto' }}
-                  />
+                  {/* Right: Hero Image */}
+                  <div className="md:col-span-7 flex justify-center items-center w-full max-w-xl xl:max-w-2xl 2xl:max-w-3xl mx-auto relative md:pl-6 lg:pl-10">
+                    <Image
+                      src="/images/demo.png"
+                      alt="demo screen"
+                      width={1200}
+                      height={800}
+                      className="rounded-2xl shadow-xl object-contain max-w-full h-auto max-h-[320px] sm:max-h-[340px] md:max-h-[360px] lg:max-h-[380px] border-2 border-medium-coffee"
+                      style={{ maxWidth: '100%', height: 'auto' }}
+                    />
+                  </div>
                 </div>
               </div>
             </section>
@@ -585,25 +518,24 @@ export default function Home() {
             </section> */}
 
             {/* Pricing Section - Coffee Menu themed */}
-            <section id="pricing" className="py-20 md:py-24 bg-light-cream relative overflow-hidden">
+            <section id="pricing" className="py-12 md:py-16 bg-light-cream relative overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(163,106,62,0.03),transparent_50%)]"></div>
               
-              <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-16">
-                  <div className="inline-flex items-center space-x-3 bg-deep-espresso/10 rounded-full px-6 py-3 mb-8">
-                    <IconTrendingUp className="h-5 w-5 text-deep-espresso" />
-                    <span className="text-dark-charcoal font-semibold text-sm">Pricing Plans</span>
+              <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="text-center mb-8">
+                  <div className="inline-flex items-center space-x-2 bg-deep-espresso/10 rounded-full px-4 py-2 mb-4">
+                    <span className="text-dark-charcoal font-semibold text-xs">Pricing Plans</span>
                   </div>
                   
-                  <h2 className="font-heading text-5xl sm:text-6xl lg:text-7xl font-black text-dark-charcoal mb-5 leading-tight">
+                  <h2 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-black text-dark-charcoal mb-4 leading-tight">
                     <span className="block bg-gradient-to-r pb-2 from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Our Menu </span>
                   </h2>
-                  <p className="text-lg lg:text-xl text-black max-w-2xl mx-auto leading-relaxed font-medium mb-16">
-                    Here are the options we provide to help you accelerate your coding journey 
+                  <p className="text-xl lg:text-2xl text-black max-w-2xl mx-auto leading-relaxed font-medium mb-12">
+                    Our plans help you accelerate your coding journey 
                   </p>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
                   {[
                     {
                       name: 'Starter',
@@ -639,34 +571,34 @@ export default function Home() {
                   ].map((plan, index) => (
                     <div
                       key={index}
-                      className={`relative p-8 md:p-10 rounded-3xl shadow-lg ${
+                      className={`relative p-6 rounded-2xl shadow-lg ${
                         plan.name === 'Cold Brew'
                           ? 'border-2 border-medium-coffee bg-light-cream'
                           : 'border border-medium-coffee/20 bg-light-cream'
                       }`}
                     >
                       {plan.name === 'Cold Brew' && (
-                        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                          <div className="bg-deep-espresso text-light-cream px-6 py-2 rounded-full text-sm font-semibold shadow-lg border border-medium-coffee/30">
+                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                          <div className="bg-deep-espresso text-light-cream px-4 py-1 rounded-full text-xs font-semibold shadow-lg border border-medium-coffee/30">
                             Premium Access
                           </div>
                         </div>
                       )}
 
-                      <div className="text-center mb-8 md:mb-12">
-                        <h3 className="font-heading text-3xl md:text-4xl font-black text-dark-charcoal mb-4 md:mb-6">{plan.name}</h3>
-                        <div className="mb-6 md:mb-8">
-                          <span className="text-5xl md:text-6xl font-black text-dark-charcoal">{plan.price}</span>
-                          <span className="text-deep-espresso ml-2 md:ml-3 text-xl md:text-2xl">/{plan.period}</span>
+                      <div className="text-center mb-6">
+                        <h3 className="font-heading text-3xl font-black text-dark-charcoal mb-4">{plan.name}</h3>
+                        <div className="mb-4">
+                          <span className="text-5xl font-black text-dark-charcoal">{plan.price}</span>
+                          <span className="text-deep-espresso ml-2 text-xl">/{plan.period}</span>
                         </div>
-                        <p className="text-deep-espresso text-lg md:text-xl">{plan.description}</p>
+                        <p className="text-deep-espresso text-lg">{plan.description}</p>
                       </div>
 
-                      <ul className="space-y-4 md:space-y-6 mb-8 md:mb-12">
+                      <ul className="space-y-3 mb-6">
                         {plan.features.map((feature, featureIndex) => (
                           <li key={featureIndex} className="flex items-start">
-                            <IconCircleCheck className="h-5 w-5 md:h-7 md:w-7 text-medium-coffee mr-3 md:mr-5 flex-shrink-0 mt-0.5" />
-                            <span className="text-dark-charcoal text-base md:text-xl leading-relaxed">{feature}</span>
+                            <IconCircleCheck className="h-5 w-5 text-medium-coffee mr-3 flex-shrink-0 mt-0.5" />
+                            <span className="text-dark-charcoal text-base leading-relaxed">{feature}</span>
                           </li>
                         ))}
                       </ul>
@@ -694,7 +626,7 @@ export default function Home() {
                           }
                         }}
                         disabled={loadingPlan === plan.name}
-                        className={`w-full py-4 md:py-6 px-6 md:px-8 rounded-2xl font-bold text-lg md:text-xl transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed ${
+                        className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
                           plan.name === 'Cold Brew'
                             ? 'bg-medium-coffee text-light-cream hover:bg-deep-espresso shadow-lg'
                             : 'btn-coffee-secondary hover:bg-medium-coffee hover:text-light-cream'
@@ -702,30 +634,28 @@ export default function Home() {
                       >
                         {loadingPlan === plan.name ? (
                           <>
-                            <div className="spinner-coffee h-5 w-5"></div>
-                            {plan.name === 'Cold Brew' ? 'Loading Checkout...' : 'Preparing IDE...'}
+                            <div className="spinner-coffee h-4 w-4"></div>
+                            {plan.name === 'Cold Brew' ? 'Loading...' : 'Preparing...'}
                           </>
                         ) : (
                           plan.cta
                         )}
                       </button>
-                      
-                    
                     </div>
                   ))}
                 </div>
 
-                <div className="text-center mt-16">
-                  <p className="text-deep-espresso mb-8 text-xl">
+                <div className="text-center mt-8">
+                  <p className="text-deep-espresso mb-6 text-lg">
                     Start coding for free, upgrade to Cold Brew for unlimited projects and priority support.
                   </p>
-                  <div className="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-12 text-deep-espresso font-semibold text-lg">
+                  <div className="flex flex-col md:flex-row items-center justify-center space-y-2 md:space-y-0 md:space-x-8 text-deep-espresso font-semibold text-base">
                     <span className="flex items-center">
-                      <IconCircleCheck className="h-6 w-6 text-medium-coffee mr-3" />
+                      <IconCircleCheck className="h-5 w-5 text-medium-coffee mr-2" />
                       Cancel anytime
                     </span>
                     <span className="flex items-center">
-                      <IconCircleCheck className="h-6 w-6 text-medium-coffee mr-3" />
+                      <IconCircleCheck className="h-5 w-5 text-medium-coffee mr-2" />
                       No setup fees
                     </span>
                   </div>

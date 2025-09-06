@@ -35,29 +35,29 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
   const FREE_LIMIT = 3;
   const isNearLimit = projectCount >= FREE_LIMIT - 1 && !hasUnlimitedAccess;
   const isAtLimit = projectCount >= FREE_LIMIT && !hasUnlimitedAccess;
+  const remaining = Math.max(FREE_LIMIT - projectCount, 0);
 
   const TopStatusCard = (
-    <div className="rounded-3xl px-6 py-5 bg-white/95 backdrop-blur-xl shadow-sm border border-gray-100/50 hover:shadow-md transition-all duration-300">
+    <div className="rounded-3xl px-6 py-5 bg-gradient-to-br from-white to-cream-beige/20 backdrop-blur-xl shadow-lg border border-medium-coffee/20 hover:shadow-xl transition-all duration-300">
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="text-lg font-semibold text-dark-charcoal tracking-tight mb-1">
-            {hasUnlimitedAccess ? 'Unlimited Access' : 'Free Plan'}
+            {hasUnlimitedAccess ? '🚀 Pro Developer' : '☕ Free Plan'}
           </div>
-          <div className="text-sm text-gray-600 font-light">
-            {hasUnlimitedAccess 
-              ? 'Create unlimited projects' 
-              : `${projectCount}/${FREE_LIMIT} projects used`
-            }
-          </div>
+          {hasUnlimitedAccess && (
+            <div className="text-sm text-medium-coffee font-medium">
+              Unlimited projects • Premium features
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           {!hasUnlimitedAccess && (
             <button
               onClick={onUpgradeClick}
-              className="px-4 py-2 bg-dark-charcoal text-white rounded-2xl text-sm font-medium hover:bg-gray-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-300/50"
+              className="px-5 py-2.5 bg-gradient-to-r from-medium-coffee to-deep-espresso text-white rounded-2xl text-sm font-semibold hover:from-deep-espresso hover:to-medium-coffee transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-medium-coffee/50 shadow-md hover:shadow-lg transform hover:scale-105"
               aria-label="Upgrade to unlimited projects"
             >
-              Upgrade
+              Upgrade to Pro
             </button>
           )}
         </div>
@@ -65,115 +65,65 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
     </div>
   );
 
-  const LimitCard = (
-    <div className={`backdrop-blur-sm rounded-2xl px-6 py-4 shadow-lg border transition-all duration-300 hover:shadow-xl ${
-      isAtLimit 
-        ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200/50 hover:border-red-300/50' 
-        : 'bg-white/95 border-medium-coffee/30'
-    }`}>
-      <div className="flex items-center justify-between gap-4">
+  // Compact card for free users
+  const CombinedFreeCard = (
+    <div className={`rounded-2xl px-4 py-3 shadow-md border transition-all duration-300 hover:shadow-lg bg-gradient-to-br from-white to-cream-beige/20 border-medium-coffee/20`}>
+      {/* Header row with plan + CTA */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-full ${isAtLimit ? 'bg-gradient-to-br from-red-400 to-orange-500' : 'bg-gradient-to-br from-medium-coffee to-deep-espresso'}`}>
-            <IconCode className="h-5 w-5 text-white" />
-          </div>
-          <div className="flex flex-col">
-                         <div className="flex items-center gap-2">
-               <span className="text-dark-charcoal font-bold text-sm">
-                 {Math.min(projectCount, FREE_LIMIT)}/{FREE_LIMIT} Free Projects
-               </span>
-             </div>
-            {isAtLimit ? (
-              <span className="text-red-600 text-xs font-medium flex items-center gap-1">
-                <IconLock className="h-3 w-3" />
-                You've used your free projects!
-              </span>
-            ) : (
-              <span className="text-medium-coffee text-xs">{FREE_LIMIT - projectCount} free {FREE_LIMIT - projectCount === 1 ? 'project' : 'projects'} remaining</span>
-            )}
+          <div className="flex items-center gap-2">
+            <IconCode className="h-4 w-4 text-medium-coffee" />
+            <span className="text-dark-charcoal font-semibold text-sm">
+              {Math.min(projectCount, FREE_LIMIT)}/{FREE_LIMIT}
+            </span>
+            <span className="px-1.5 py-0.5 bg-medium-coffee/10 text-medium-coffee text-xs font-semibold rounded-full">
+              FREE
+            </span>
           </div>
         </div>
-        
-        {isAtLimit && (
-          <button
-            onClick={onUpgradeClick}
-            className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-2 rounded-xl hover:from-red-600 hover:to-orange-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
-            aria-label="Upgrade to unlimited projects"
-          >
-            <IconBolt className="h-4 w-4" />
-            <span className="font-semibold text-sm">Upgrade Now</span>
-          </button>
-        )}
+        <button
+          onClick={onUpgradeClick}
+          className="px-3 py-1.5 bg-gradient-to-r from-medium-coffee to-deep-espresso text-white rounded-xl text-xs font-semibold hover:from-deep-espresso hover:to-medium-coffee transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-medium-coffee/50 shadow-sm hover:shadow-md"
+          aria-label="Upgrade to unlimited projects"
+        >
+          Upgrade to Pro
+        </button>
       </div>
-      
-      {/* Progress bar and messaging */}
-      <div className="mt-3">
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className={`h-2 rounded-full transition-all duration-500 ${
-              projectCount >= FREE_LIMIT 
-                ? 'bg-gradient-to-r from-red-500 to-orange-500' 
-                : 'bg-gradient-to-r from-medium-coffee to-deep-espresso'
-            }`}
-            style={{ width: `${Math.min((projectCount / FREE_LIMIT) * 100, 100)}%` }}
-            aria-label={`Project progress: ${projectCount} out of ${FREE_LIMIT} free projects used`}
-          />
+
+      {/* Sales-friendly hint under header for free users */}
+      {!isAtLimit && (
+        <div className="mt-1 text-[11px] sm:text-xs text-medium-coffee/90 font-medium">
+          {remaining} {remaining === 1 ? 'project' : 'projects'} left on Free plan — unlock unlimited with Pro.
         </div>
-        
-        {isAtLimit ? (
-          <div className="mt-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-200">
-            <div className="flex items-start gap-3">
-              <div className="p-1 bg-red-100 rounded-full">
-                <IconTrendingUp className="h-4 w-4 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-red-800 font-semibold text-sm mb-1">Ready to level up your coding?</h4>
-                <p className="text-red-700 text-xs mb-2">
-                  You've completed your free projects! Unlock unlimited guided projects, advanced features, and faster builds for just <strong>$4.99</strong>.
-                </p>
-                <div className="flex items-center gap-1 text-red-600 text-xs font-medium">
-                  <IconRocket className="h-3 w-3" />
-                  <span>Join 1,000+ developers building faster</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-2 text-center">
-            <p className="text-medium-coffee text-xs">
-              Build your free projects, then upgrade for unlimited access
+      )}
+
+      {/* Progress bar */}
+      <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+        <div
+          className={`h-1.5 rounded-full transition-all duration-700 bg-gradient-to-r from-medium-coffee to-deep-espresso`}
+          style={{ width: `${Math.min((projectCount / FREE_LIMIT) * 100, 100)}%` }}
+          aria-label={`Project progress: ${projectCount} of ${FREE_LIMIT} used`}
+        />
+      </div>
+
+      {/* Contextual helper text - only show when at limit */}
+      {isAtLimit && (
+        <div className="mt-2 p-2 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200/50">
+          <div className="flex items-center gap-2">
+            <IconTrendingUp className="h-3 w-3 text-orange-600" />
+            <p className="text-orange-800 text-xs">
+              Free limit reached. <span className="font-semibold">Upgrade for unlimited projects.</span>
             </p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 
-  const TotalProjectsCard = (
-    <div className="mt-3 rounded-3xl px-6 py-5 bg-white/95 backdrop-blur-xl shadow-sm border border-gray-100/50">
-      <div className="text-center">
-        <div className="text-4xl font-bold text-dark-charcoal mb-1 tracking-tight">
-          {projectCount}
-        </div>
-        <div className="text-sm font-medium text-gray-600 tracking-wide uppercase">
-          {projectCount === 1 ? 'Project Created' : 'Projects Created'}
-        </div>
-       
-      </div>
-    </div>
-  );
+
 
   
-  // For paid users, only show the status card
-  if (hasUnlimitedAccess) {
-    return TopStatusCard;
-  }
-
-  // For free users, show the full counter
-  return (
-    <div>
-      {TopStatusCard}
-      <div className="mt-3">{LimitCard}</div>
-      {TotalProjectsCard}
-    </div>
-  );
+  // For paid users, show a single status card; for free users, show the combined card
+  if (hasUnlimitedAccess) return TopStatusCard;
+  return CombinedFreeCard;
 }
