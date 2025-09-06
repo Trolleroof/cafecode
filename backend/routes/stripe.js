@@ -83,7 +83,7 @@ router.get('/session/:sessionId', async (req, res) => {
  * @desc Handles Stripe webhook events
  * @access Public (Stripe calls this)
  */
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   
   if (!sig) {

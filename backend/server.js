@@ -154,9 +154,19 @@ app.use(limiter);
 // Mount this BEFORE the JSON/body parsers
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 
-// Body parsing middleware (applies to all other routes)
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing middleware (skip Stripe webhook to preserve raw body)
+const jsonParser = express.json({ limit: '10mb' });
+const urlencodedParser = express.urlencoded({ extended: true, limit: '10mb' });
+
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') return next();
+  jsonParser(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') return next();
+  urlencodedParser(req, res, next);
+});
 
 // Request logging middleware
 app.use((req, res, next) => {
