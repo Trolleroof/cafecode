@@ -1750,7 +1750,7 @@ function IDEPage() {
               ...prev,
               '🚫 Free project limit reached.',
               'You have used your 1 free project.',
-              'Upgrade to unlock unlimited guided projects.',
+              'Upgrade to Cold Brew to unlock unlimited guided projects for life.',
               'Opening payment options...'
             ]);
             // Small toast notification for quick feedback
@@ -1822,7 +1822,7 @@ function IDEPage() {
           ...prev,
           '🚫 Free project limit reached.',
           'You have used your 1 free project.',
-          'Upgrade to unlock unlimited guided projects.',
+          'Upgrade to Cold Brew to unlock unlimited guided projects for life.',
           'Opening payment options...'
         ]);
         try {

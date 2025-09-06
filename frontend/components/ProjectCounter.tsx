@@ -93,7 +93,7 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
       {/* Sales-friendly hint under header for free users */}
       {!isAtLimit && (
         <div className="mt-1 text-[11px] sm:text-xs text-medium-coffee/90 font-medium">
-          {remaining} {remaining === 1 ? 'project' : 'projects'} left on Free plan — unlock unlimited with Pro.
+          {remaining} {remaining === 1 ? 'project' : 'projects'} remaining on Free plan — unlock projects for life with Cold Brew.
         </div>
       )}
 
