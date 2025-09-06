@@ -364,7 +364,7 @@ export default function Home() {
                     <span className="block bg-gradient-to-r from-medium-coffee to-deep-espresso bg-clip-text text-transparent"> Perfect Code</span>
                   </h2>
                   <p className="text-2xl lg:text-3xl text-deep-espresso max-w-4xl mx-auto leading-relaxed font-medium pb-4">
-                    Start your coding journey with the same care and attention as brewing the perfect cup of coffee.
+                    Start your coding journey with the same care and attention as brewing the perfect cup of coffee—CafeCode scaffolds projects, refactors code, and pours in guidance while you learn.
                   </p>
                 </div>
 
@@ -373,21 +373,21 @@ export default function Home() {
                     {
                       icon: IconPencil,
                       title: 'Grind Your Skills',
-                      description: 'Work on coding tasks that matter to you, and receive guidance that helps you make real progress on your programs. Like selecting the perfect coffee beans.',
+                      description: 'Kick off new ideas from templates or your own repos and let CafeCode scaffold files, suggest completions, and track your progress like selecting and grinding the perfect beans.',
                       image: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=600',
                       color: 'from-medium-coffee to-deep-espresso'
                     },
                     {
                       icon: IconMessage,
                       title: 'Extract Knowledge',
-                      description: 'Stuck on something? Our AI barista provides contextual hints and applies small code fixes to help you understand what you code quicker.',
+                      description: 'Ask our AI barista for hints, best practices, or debugging help. It explains errors, refactors code, and generates snippets so you can extract knowledge faster.',
                       image: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=600',
                       color: 'from-deep-espresso to-medium-coffee'
                     },
                     {
                       icon: IconCircleCheck,
                       title: 'Serve Excellence',
-                      description: 'Learn and practice the most common IDE features and tools to get the job. Perfect your craft.',
+                      description: 'Run tests, lint, commit, and deploy without leaving CafeCode. Practice real IDE workflows and serve up polished projects with confidence.',
                       image: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=600',
                       color: 'from-medium-coffee to-cream-beige'
                     }
