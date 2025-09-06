@@ -43,6 +43,10 @@ export class StripeService {
         metadata: {
           userId: userId, // Additional metadata for tracking
         },
+        // Ensure downstream PaymentIntent also contains the userId for webhook fallbacks
+        payment_intent_data: {
+          metadata: { userId }
+        },
         // Optional: customize the checkout page
         billing_address_collection: 'auto',
         // customer_email: 'user@example.com', // You can get this from your user data later
@@ -101,13 +105,24 @@ export class StripeService {
    */
   static constructWebhookEvent(body, signature) {
     try {
-      // Initialize Stripe inside the method to ensure env vars are loaded
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-      
+      // Initialize Stripe and verify required env vars
+      const key = process.env.STRIPE_SECRET_KEY;
+      const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+      if (!key) throw new Error('Missing STRIPE_SECRET_KEY');
+      if (!webhookSecret) throw new Error('Missing STRIPE_WEBHOOK_SECRET');
+      const stripe = new Stripe(key);
+
+      const isBuffer = Buffer.isBuffer(body);
+      if (!isBuffer) {
+        console.warn('[Stripe] Webhook body is not a Buffer. Type:', typeof body);
+      }
+      // Prefer raw string per Stripe docs (Buffer is also accepted)
+      const payload = isBuffer ? body.toString('utf8') : body;
+
       return stripe.webhooks.constructEvent(
-        body, 
-        signature, 
-        process.env.STRIPE_WEBHOOK_SECRET
+        payload,
+        signature,
+        webhookSecret
       );
     } catch (error) {
       console.error('Webhook signature verification failed:', error.message);

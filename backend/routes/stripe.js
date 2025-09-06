@@ -4,11 +4,18 @@ import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+// Initialize Supabase client (use service role for server-side updates)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.warn('[Stripe Routes] Supabase environment missing:', {
+    supabaseUrl: !!supabaseUrl,
+    hasServiceKey: !!supabaseServiceKey,
+  });
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 /**
  * @route POST /api/stripe/checkout
@@ -95,6 +102,14 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   try {
           // Handle the event
       switch (event.type) {
+        case 'payment_intent.created': {
+          const pi = event.data.object;
+          console.log(`[Stripe] payment_intent.created: ${pi.id}`);
+          if (pi.metadata?.userId) {
+            console.log(`[Stripe] PI created for user: ${pi.metadata.userId}`);
+          }
+          break;
+        }
         case 'checkout.session.completed':
           const session = event.data.object;
           console.log(`Payment completed for session: ${session.id}`);
@@ -123,8 +138,50 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           break;
         
       case 'payment_intent.succeeded':
-        const paymentIntent = event.data.object;
-        console.log(`Payment succeeded: ${paymentIntent.id}`);
+        {
+          const paymentIntent = event.data.object;
+          console.log(`Payment succeeded: ${paymentIntent.id}`);
+          try {
+            // If metadata contains userId, update profile as a fallback path
+            const userId = paymentIntent.metadata?.userId;
+            if (userId) {
+              const amount = paymentIntent.amount_received || paymentIntent.amount || 0;
+              const { error } = await supabase.rpc('update_payment_status', {
+                user_uuid: userId,
+                stripe_session: paymentIntent.id, // fallback to PI id if no session id
+                payment_status: 'paid',
+                amount_cents: amount
+              });
+              if (error) {
+                console.error('[Stripe] DB update on PI succeeded failed:', error);
+              } else {
+                console.log('[Stripe] User payment status updated via PI succeeded');
+              }
+            } else {
+              // Attempt to locate Checkout Session to extract client_reference_id
+              try {
+                const stripeKey = process.env.STRIPE_SECRET_KEY;
+                const Stripe = (await import('stripe')).default;
+                const stripe = new Stripe(stripeKey);
+                const list = await stripe.checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
+                const found = list?.data?.[0];
+                if (found?.client_reference_id) {
+                  const { error } = await supabase.rpc('update_payment_status', {
+                    user_uuid: found.client_reference_id,
+                    stripe_session: found.id,
+                    payment_status: 'paid',
+                    amount_cents: found.amount_total || paymentIntent.amount_received || 0
+                  });
+                  if (error) console.error('[Stripe] DB update via session lookup failed:', error);
+                }
+              } catch (e) {
+                console.warn('[Stripe] Could not backfill user from PI -> Session lookup:', e.message);
+              }
+            }
+          } catch (e) {
+            console.error('[Stripe] PI succeeded handler error:', e);
+          }
+        }
         break;
         
       case 'payment_intent.payment_failed':
