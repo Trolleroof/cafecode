@@ -104,8 +104,8 @@ export function useProjectManager() {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // Check if user can create more projects - updated to use 1 free project limit
-      if (state.projectCount >= 1 && !state.hasUnlimitedAccess) {
+      // Check if user can create more projects - updated to use 3 free project limit
+      if (state.projectCount >= 3 && !state.hasUnlimitedAccess) {
         throw new Error('Project limit reached. Please upgrade to create unlimited projects.');
       }
 

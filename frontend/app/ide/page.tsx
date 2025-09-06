@@ -1749,7 +1749,7 @@ function IDEPage() {
             setOutput(prev => [
               ...prev,
               '🚫 Free project limit reached.',
-              'You have used your 1 free project.',
+              'You have used your 3 free projects.',
               'Upgrade to Cold Brew to unlock unlimited guided projects for life.',
               'Opening payment options...'
             ]);

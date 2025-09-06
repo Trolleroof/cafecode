@@ -71,14 +71,19 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
       {/* Header row with plan + CTA */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <IconCode className="h-4 w-4 text-medium-coffee" />
             <span className="text-dark-charcoal font-semibold text-sm">
               {Math.min(projectCount, FREE_LIMIT)}/{FREE_LIMIT}
             </span>
+            <span className="text-dark-charcoal font-semibold text-sm">
+                Projects
+              </span>
+              <div className="pl-3 pb-2">
             <span className="px-1.5 py-0.5 bg-medium-coffee/10 text-medium-coffee text-xs font-semibold rounded-full">
-              FREE
+              FREE PLAN
             </span>
+            </div>
           </div>
         </div>
         <button
@@ -92,8 +97,8 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
 
       {/* Sales-friendly hint under header for free users */}
       {!isAtLimit && (
-        <div className="mt-1 text-[11px] sm:text-xs text-medium-coffee/90 font-medium">
-          {remaining} {remaining === 1 ? 'project' : 'projects'} remaining on Free plan — unlock projects for life with Cold Brew.
+        <div className="mt-1 text-[11px] sm:text-xs text-medium-coffee/90 font-large">
+          {remaining} {remaining === 1 ? 'project' : 'projects'} remaining on Free plan — unlock unlimited projects for life with Cold Brew.
         </div>
       )}
 

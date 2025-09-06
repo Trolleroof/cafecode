@@ -73,7 +73,7 @@ export default function PaymentModal({ isOpen, onClose, projectCount, onPaymentS
           </h2>
           
           <p className="text-deep-espresso mb-6 text-base">
-                            You've used <span className="font-bold text-medium-coffee">{projectCount}</span> out of 1 free project.
+                            You've used <span className="font-bold text-medium-coffee">{projectCount}</span> out of 3 free projects.
           </p>
           
           <div className="mb-6">

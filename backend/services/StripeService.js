@@ -9,7 +9,7 @@ export class StripeService {
   static async createCheckoutSession(userId) {
     try {
       // Initialize Stripe inside the method to ensure env vars are loaded
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const stripe = new Stripe({ apiKey: process.env.STRIPE_SECRET_KEY });
       
       console.log(`Creating checkout session for user: ${userId}`);
       
@@ -56,7 +56,7 @@ export class StripeService {
   static async verifyPayment(paymentIntentId) {
     try {
       // Initialize Stripe inside the method to ensure env vars are loaded
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const stripe = new Stripe({ apiKey: process.env.STRIPE_SECRET_KEY });
       
       const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
       return paymentIntent.status === 'succeeded';
@@ -74,7 +74,7 @@ export class StripeService {
   static async getSessionDetails(sessionId) {
     try {
       // Initialize Stripe inside the method to ensure env vars are loaded
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const stripe = new Stripe({ apiKey: process.env.STRIPE_SECRET_KEY });
       
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       return session;
@@ -93,7 +93,7 @@ export class StripeService {
   static constructWebhookEvent(body, signature) {
     try {
       // Initialize Stripe inside the method to ensure env vars are loaded
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+      const stripe = new Stripe({ apiKey: process.env.STRIPE_SECRET_KEY });
       
       return stripe.webhooks.constructEvent(
         body, 

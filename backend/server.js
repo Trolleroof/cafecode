@@ -14,8 +14,8 @@ import { createClient } from '@supabase/supabase-js';
 import { UserWorkspaceManager } from './services/UserWorkspaceManager.js';
 import { fileSystemIndexer } from './services/FileSystemIndexer.js';
 
-// Load environment variables FIRST
-dotenv.config();
+// Load environment variables FIRST (ensure we load backend/.env regardless of cwd)
+dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 // Initialize Supabase client
 const supabase = createClient(
