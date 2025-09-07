@@ -373,21 +373,21 @@ export default function Home() {
                     {
                       icon: IconPencil,
                       title: 'Grind Your Skills',
-                      description: 'Kick off new ideas from templates or your own repos and let CafeCode scaffold files, suggest completions, and track your progress like selecting and grinding the perfect beans.',
+                      description: 'Kick off new ideas from templates or your own repos and let CafeCode scaffold files, suggest completions, and track your progress.',
                       image: 'https://images.pexels.com/photos/574071/pexels-photo-574071.jpeg?auto=compress&cs=tinysrgb&w=600',
                       color: 'from-medium-coffee to-deep-espresso'
                     },
                     {
                       icon: IconMessage,
                       title: 'Extract Knowledge',
-                      description: 'Ask our AI barista for hints, best practices, or debugging help. It explains errors, refactors code, and generates snippets so you can extract knowledge faster.',
+                      description: 'Ask Codey, our assistant, for hints, best practices, or debugging help. It explains errors, refactors code, and generates snippets so you can extract knowledge faster.',
                       image: 'https://images.pexels.com/photos/8386440/pexels-photo-8386440.jpeg?auto=compress&cs=tinysrgb&w=600',
                       color: 'from-deep-espresso to-medium-coffee'
                     },
                     {
                       icon: IconCircleCheck,
-                      title: 'Serve Excellence',
-                      description: 'Run tests, lint, commit, and deploy without leaving CafeCode. Practice real IDE workflows and serve up polished projects with confidence.',
+                      title: 'Build Real Projects',
+                      description: 'Create complete, working applications from start to finish. Build towards a portfolio of real projects that showcase your coding skills.',
                       image: 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=600',
                       color: 'from-medium-coffee to-cream-beige'
                     }

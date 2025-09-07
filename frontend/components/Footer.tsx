@@ -27,7 +27,7 @@ const Footer = () => {
                 <ChatBubbleLeftRightIcon className="h-6 w-6" />
               </Link>
               
-              <Link href="mailto:contact@cafecode.dev" className="text-cream-beige hover:text-medium-coffee transition-colors">
+              <Link href="nikhil@soloscalesolutions.dev" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <EnvelopeIcon className="h-6 w-6" />
               </Link>
             </div>

@@ -102,40 +102,72 @@ router.post('/webhook', async (req, res) => {
   try {
           // Handle the event
       switch (event.type) {
-        case 'payment_intent.created': {
-          const pi = event.data.object;
-          console.log(`[Stripe] payment_intent.created: ${pi.id}`);
-          if (pi.metadata?.userId) {
-            console.log(`[Stripe] PI created for user: ${pi.metadata.userId}`);
-          }
-          break;
-        }
-        case 'checkout.session.completed':
+       
+        case 'checkout.session.completed': {
           const session = event.data.object;
-          console.log(`Payment completed for session: ${session.id}`);
-          console.log(`User ID: ${session.client_reference_id}`);
-          console.log(`Amount: ${session.amount_total} cents`);
-          
-          // Update user profile in database using the new function
+          const userId = session.client_reference_id;
+          console.log('Payment completed for user');
+  
+
+          // Primary path: RPC function updates profiles + payment_history
+          let rpcSucceeded = false;
           try {
-            // Call the database function to update payment status
             const { error } = await supabase.rpc('update_payment_status', {
-              user_uuid: session.client_reference_id,
+              user_uuid: userId,
               stripe_session: session.id,
               payment_status: 'paid',
               amount_cents: session.amount_total
             });
-            
             if (error) {
-              console.error('Database update error:', error);
+              console.error('[Stripe] RPC update_payment_status error:', error);
             } else {
-              console.log('User payment status updated successfully');
+              rpcSucceeded = true;
+              console.log('[Stripe] RPC update_payment_status succeeded');
             }
-          } catch (error) {
-            console.error('Error updating user payment status:', error);
+          } catch (err) {
+            console.error('[Stripe] RPC call threw:', err);
           }
-          
+
+          // Fallback path: direct updates using service role
+          if (!rpcSucceeded && userId) {
+            try {
+              const updates = {
+                has_unlimited_access: true,
+                payment_status: 'paid',
+                stripe_session_id: session.id,
+                upgraded_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+              const { error: upErr } = await supabase
+                .from('profiles')
+                .update(updates)
+                .eq('id', userId);
+              if (upErr) {
+                console.error('[Stripe] Fallback profile update failed:', upErr);
+              } else {
+                console.log('[Stripe] Fallback profile update succeeded');
+              }
+
+              const { error: histErr } = await supabase
+                .from('payment_history')
+                .insert({
+                  user_id: userId,
+                  stripe_session_id: session.id,
+                  amount: session.amount_total,
+                  status: 'paid'
+                });
+              if (histErr) {
+                console.warn('[Stripe] Fallback payment_history insert failed:', histErr);
+              } else {
+                console.log('[Stripe] Fallback payment_history insert succeeded');
+              }
+            } catch (err) {
+              console.error('[Stripe] Fallback DB updates threw:', err);
+            }
+          }
+
           break;
+        }
         
       case 'payment_intent.succeeded':
         {
