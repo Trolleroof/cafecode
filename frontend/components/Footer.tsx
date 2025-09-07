@@ -23,13 +23,13 @@ const Footer = () => {
               <Link href="/" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <GlobeAltIcon className="h-6 w-6" />
               </Link>
-              <Link href="/ide" className="text-cream-beige hover:text-medium-coffee transition-colors">
+              <Link href="/#how-it-works" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <ChatBubbleLeftRightIcon className="h-6 w-6" />
               </Link>
               
-              <Link href="nikhil@soloscalesolutions.dev" className="text-cream-beige hover:text-medium-coffee transition-colors">
+              <a href="mailto:nikhil@soloscalesolutions.dev" className="text-cream-beige hover:text-medium-coffee transition-colors">
                 <EnvelopeIcon className="h-6 w-6" />
-              </Link>
+              </a>
             </div>
           </div>
 
@@ -38,6 +38,7 @@ const Footer = () => {
             <h3 className="font-heading text-lg font-semibold mb-6 text-medium-coffee">Our Blend</h3>
             <ul className="space-y-4">
               <li><Link href="/#features" className="text-cream-beige hover:text-light-cream transition-colors">Features</Link></li>
+              <li><Link href="/#pricing" className="text-cream-beige hover:text-light-cream transition-colors">Menu & Pricing</Link></li>
               <li><Link href="/ide" className="text-cream-beige hover:text-light-cream transition-colors">Code Editor</Link></li>
             </ul>
           </div>
@@ -46,10 +47,10 @@ const Footer = () => {
           <div>
             <h3 className="font-heading text-lg font-semibold mb-6 text-medium-coffee">Café Support</h3>
             <ul className="space-y-4">
-              <li><Link href="/docs" className="text-cream-beige hover:text-light-cream transition-colors">Documentation</Link></li>
-              <li><Link href="/tutorials" className="text-cream-beige hover:text-light-cream transition-colors">Tutorials</Link></li>
-              <li><Link href="/community" className="text-cream-beige hover:text-light-cream transition-colors">Community</Link></li>
-              <li><Link href="/contact" className="text-cream-beige hover:text-light-cream transition-colors">Contact</Link></li>
+              <li><Link href="/#how-it-works" className="text-cream-beige hover:text-light-cream transition-colors">How It Works</Link></li>
+              <li><Link href="/#problemStatement" className="text-cream-beige hover:text-light-cream transition-colors">The Truth</Link></li>
+              <li><Link href="/#pricing" className="text-cream-beige hover:text-light-cream transition-colors">Pricing</Link></li>
+              <li><Link href="/login" className="text-cream-beige hover:text-light-cream transition-colors">Login</Link></li>
             </ul>
           </div>
         </div>
@@ -59,9 +60,10 @@ const Footer = () => {
             © 2025 Cafécode. All rights reserved. Brewed with ❤️ for developers.
           </p>
           <div className="flex space-x-6 mt-4 md:mt-0">
-            <Link href="/privacy" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Terms of Service</Link>
-            <Link href="/cookies" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Cookie Policy</Link>
+            <Link href="/#features" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Features</Link>
+            <Link href="/#pricing" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Menu</Link>
+            <Link href="/ide" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Start Coding</Link>
+            <Link href="/login" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Login</Link>
           </div>
         </div>
       </div>

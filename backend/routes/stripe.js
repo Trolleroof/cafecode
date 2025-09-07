@@ -100,7 +100,7 @@ router.post('/webhook', async (req, res) => {
   }
 
   try {
-          // Handle the event
+      // Handle the event
       switch (event.type) {
        
         case 'checkout.session.completed': {
@@ -129,6 +129,7 @@ router.post('/webhook', async (req, res) => {
           }
 
           // Fallback path: direct updates using service role
+          let fallbackSucceeded = false;
           if (!rpcSucceeded && userId) {
             try {
               const updates = {
@@ -146,6 +147,7 @@ router.post('/webhook', async (req, res) => {
                 console.error('[Stripe] Fallback profile update failed:', upErr);
               } else {
                 console.log('[Stripe] Fallback profile update succeeded');
+                fallbackSucceeded = true;
               }
 
               const { error: histErr } = await supabase
@@ -164,6 +166,12 @@ router.post('/webhook', async (req, res) => {
             } catch (err) {
               console.error('[Stripe] Fallback DB updates threw:', err);
             }
+          }
+
+          // If neither RPC nor fallback succeeded, signal failure so Stripe retries
+          if (!rpcSucceeded && !fallbackSucceeded) {
+            console.error('[Stripe] No DB path updated the user. Returning 500 to trigger retry.');
+            return res.status(500).json({ error: 'Failed to persist payment' });
           }
 
           break;
@@ -186,6 +194,7 @@ router.post('/webhook', async (req, res) => {
               });
               if (error) {
                 console.error('[Stripe] DB update on PI succeeded failed:', error);
+                return res.status(500).json({ error: 'Failed to persist PI payment' });
               } else {
                 console.log('[Stripe] User payment status updated via PI succeeded');
               }
@@ -204,7 +213,10 @@ router.post('/webhook', async (req, res) => {
                     payment_status: 'paid',
                     amount_cents: found.amount_total || paymentIntent.amount_received || 0
                   });
-                  if (error) console.error('[Stripe] DB update via session lookup failed:', error);
+                  if (error) {
+                    console.error('[Stripe] DB update via session lookup failed:', error);
+                    return res.status(500).json({ error: 'Failed to persist PI->Session payment' });
+                  }
                 }
               } catch (e) {
                 console.warn('[Stripe] Could not backfill user from PI -> Session lookup:', e.message);
@@ -212,13 +224,36 @@ router.post('/webhook', async (req, res) => {
             }
           } catch (e) {
             console.error('[Stripe] PI succeeded handler error:', e);
+            return res.status(500).json({ error: 'PI succeeded handler error' });
           }
         }
         break;
         
       case 'payment_intent.payment_failed':
-        const failedPayment = event.data.object;
-        console.log(`Payment failed: ${failedPayment.id}`);
+        {
+          const failedPayment = event.data.object;
+          console.log(`Payment failed: ${failedPayment.id}`);
+          try {
+            const userId = failedPayment.metadata?.userId;
+            if (userId) {
+              const { error } = await supabase.rpc('update_payment_status', {
+                user_uuid: userId,
+                stripe_session: failedPayment.id,
+                payment_status: 'unpaid',
+                amount_cents: failedPayment.amount || 0
+              });
+              if (error) {
+                console.warn('[Stripe] Could not mark user unpaid via RPC:', error.message);
+                await supabase
+                  .from('profiles')
+                  .update({ payment_status: 'unpaid', has_unlimited_access: false, updated_at: new Date().toISOString() })
+                  .eq('id', userId);
+              }
+            }
+          } catch (e) {
+            console.warn('[Stripe] payment_intent.payment_failed handler error:', e.message);
+          }
+        }
         break;
         
       default:
