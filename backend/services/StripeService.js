@@ -116,7 +116,18 @@ export class StripeService {
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
       if (!key) throw new Error('Missing STRIPE_SECRET_KEY');
       if (!webhookSecret) throw new Error('Missing STRIPE_WEBHOOK_SECRET');
+      if (!webhookSecret.startsWith('whsec_')) {
+        throw new Error('STRIPE_WEBHOOK_SECRET must start with whsec_');
+      }
       const stripe = new Stripe(key);
+
+      // Log which endpoint secret is being used (masked)
+      try {
+        const maskedSecret = `${webhookSecret.slice(0, 7)}…${webhookSecret.slice(-4)}`;
+        console.log(`[Stripe] Using webhook endpoint secret: ${maskedSecret}`);
+      } catch (_) {
+        // no-op if masking fails
+      }
 
       const isBuffer = Buffer.isBuffer(body);
       if (!isBuffer) {
