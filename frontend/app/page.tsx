@@ -11,7 +11,7 @@ import {
   IconCircleCheck,
   IconTrendingUp,
 } from '@tabler/icons-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -25,6 +25,7 @@ const MenuBoard = dynamic(() => import('./features/MenuBoard'), { ssr: false });
 
 export default function Home() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loadingButton, setLoadingButton] = useState<null | 'ide'>(null);
   const [loadingPlan, setLoadingPlan] = useState<null | string>(null);
 
@@ -38,6 +39,7 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isCompletingTest, setIsCompletingTest] = useState(false);
+  const devMode = (process.env.NODE_ENV !== 'production') || (searchParams?.get('dev') === '1');
   
   // Function to refresh user data
   const refreshUserData = async () => {
@@ -295,6 +297,15 @@ export default function Home() {
                           'Start Coding!'
                         )}
                       </button>
+                      {devMode && (
+                        <button
+                          onClick={handleGrantUnlimited}
+                          className="px-6 py-4 text-lg xl:text-xl font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2 btn-coffee-secondary"
+                          type="button"
+                        >
+                          Grant Unlimited (Dev)
+                        </button>
+                      )}
                     </div>
                   </div>
 
