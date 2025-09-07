@@ -37,8 +37,14 @@ export class StripeService {
           quantity: 1,
         }],
         mode: 'payment', // One-time payment (not subscription)
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/ide?payment=canceled`,
+        // Include payment status flag so frontend can detect successful return
+        // success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        // cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/ide?payment=canceled`,
+
+        //GLOBAL VERSION
+        success_url: 'http://trycafecode.xyz/payment-success?payment=success&session_id={CHECKOUT_SESSION_ID}',
+        cancel_url: 'http://trycafecode.xyz/ide?payment=canceled',
+        
         client_reference_id: userId, // This helps you track which user made the payment
         metadata: {
           userId: userId, // Additional metadata for tracking
