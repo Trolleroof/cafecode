@@ -152,7 +152,8 @@ export function useProjectManager() {
 
     try {
       // Prefer RPC with SECURITY DEFINER, then backend fallback
-      const { error: rpcError } = await supabase.rpc('grant_unlimited_access');
+      // For no-arg RPCs, pass an empty object to avoid 400s
+      const { error: rpcError } = await supabase.rpc('grant_unlimited_access', {});
       if (rpcError) {
         console.warn('grant_unlimited_access RPC failed; falling back to server endpoint:', rpcError.message);
         // Call backend endpoint which uses service role

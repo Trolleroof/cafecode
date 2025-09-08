@@ -215,9 +215,7 @@ export default function Home() {
 
       // Use frontend RPC approach (tries RPC first, falls back to backend API)
       await frontendGrantUnlimited();
-      
-      console.log('Successfully granted unlimited access via frontend RPC');
-      await refreshUserData();
+        await refreshUserData();
       
       // Show success message briefly
       setTimeout(() => {

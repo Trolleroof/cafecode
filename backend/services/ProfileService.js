@@ -40,12 +40,8 @@ export class ProfileService {
       // Prefer using the same DB function Stripe webhook uses to keep logic consistent
       const dummySession = `dev_dummy_${Date.now()}`;
       console.log("GRANTING UNLIMITED ACCESS");
-      const { error: rpcError } = await supabase.rpc('grant_unlimited_access', {
-        user_uuid: userId,
-        stripe_session: dummySession,
-        payment_status: 'paid',
-        amount_cents: 0,
-      });
+      // Function has no parameters; PostgREST requires an empty object body
+      const { error: rpcError } = await supabase.rpc('grant_unlimited_access', {});
 
       if (rpcError) {
         // Fallback to direct update if RPC is unavailable
