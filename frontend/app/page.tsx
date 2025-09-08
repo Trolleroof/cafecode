@@ -39,7 +39,6 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [isCompletingTest, setIsCompletingTest] = useState(false);
-  const devMode = (process.env.NODE_ENV !== 'production') || (searchParams?.get('dev') === '1');
   
   // Function to refresh user data
   const refreshUserData = async () => {
@@ -327,16 +326,7 @@ export default function Home() {
                         </button>
                       )}
                       
-                      {/* Dev mode button (only in dev) */}
-                      {devMode && (
-                        <button
-                          onClick={handleGrantUnlimited}
-                          className="px-6 py-4 text-lg xl:text-xl font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2 btn-coffee-secondary"
-                          type="button"
-                        >
-                          Grant Unlimited (Dev)
-                        </button>
-                      )}
+                      {/* Removed Dev-only duplicate button to avoid duplicates */}
                     </div>
                   </div>
 

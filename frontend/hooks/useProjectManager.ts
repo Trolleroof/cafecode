@@ -77,7 +77,7 @@ export function useProjectManager() {
       if (profileError && profileError.code !== 'PGRST116') throw profileError;
 
       const projectCount = profile?.project_count || 0;
-      const hasUnlimitedAccess = profile?.has_unlimited_access || false;
+      const hasUnlimitedAccess = (profile?.payment_status === 'paid') || (profile?.has_unlimited_access === true);
 
       setState({
         projectCount,

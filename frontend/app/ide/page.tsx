@@ -2167,8 +2167,7 @@ function IDEPage() {
       if (profile) {
         setProjectCount(profile.project_count || 0);
         setHasUnlimitedAccess(
-          profile.payment_status === 'paid' ||
-          profile.has_unlimited_access === true
+          profile.payment_status === 'paid' || profile.has_unlimited_access === true
         );
       }
     } catch (e) {

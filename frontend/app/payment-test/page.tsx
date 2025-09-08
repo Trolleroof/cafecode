@@ -10,6 +10,7 @@ export default function PaymentTestPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [grantingAccess, setGrantingAccess] = useState(false);
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
@@ -23,6 +24,33 @@ export default function PaymentTestPage() {
       alert(error instanceof Error ? error.message : 'Failed to create project');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleGrantUnlimitedAccess = async () => {
+    setGrantingAccess(true);
+    try {
+      const response = await fetch('/api/admin/grant-unlimited-access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to grant unlimited access');
+      }
+
+      alert(data.message || 'Unlimited access granted successfully!');
+      // Refresh the user data to reflect the changes
+      await refreshData();
+    } catch (error) {
+      console.error('Error granting unlimited access:', error);
+      alert(error instanceof Error ? error.message : 'Failed to grant unlimited access');
+    } finally {
+      setGrantingAccess(false);
     }
   };
 
@@ -104,7 +132,7 @@ export default function PaymentTestPage() {
         {/* Actions */}
         <div className="bg-white rounded-lg p-6 shadow-lg">
           <h2 className="text-xl font-semibold text-dark-charcoal mb-4">Actions</h2>
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <button
               onClick={() => setShowPaymentModal(true)}
               className="btn-coffee-primary px-6 py-2"
@@ -116,6 +144,13 @@ export default function PaymentTestPage() {
               className="btn-coffee-secondary px-6 py-2"
             >
               Refresh Data
+            </button>
+            <button
+              onClick={handleGrantUnlimitedAccess}
+              disabled={grantingAccess}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {grantingAccess ? 'Granting...' : 'Grant Unlimited Access'}
             </button>
           </div>
         </div>
