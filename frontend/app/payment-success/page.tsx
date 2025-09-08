@@ -158,7 +158,7 @@ export default function PaymentSuccessPage() {
             <div className="w-full bg-light-coffee rounded-full h-2">
               <div 
                 className="bg-gradient-to-r from-medium-coffee to-deep-espresso h-2 rounded-full transition-all duration-1000 ease-linear"
-                style={{ width: `${((30 - countdown) / 30) * 100}%` }}
+                style={{ width: `${((5 - countdown) / 5) * 100}%` }}
               ></div>
             </div>
           </div>

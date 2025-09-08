@@ -26,7 +26,7 @@ const MenuBoard = dynamic(() => import('./features/MenuBoard'), { ssr: false });
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loadingButton, setLoadingButton] = useState<null | 'ide'>(null);
+  const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'unlimited'>(null);
   const [loadingPlan, setLoadingPlan] = useState<null | string>(null);
 
   // Auth state - removed modal, now redirects to login page
@@ -201,9 +201,10 @@ export default function Home() {
     }
   };
 
-  // Dev helper: grant unlimited access (paid + unlimited)
+  // Grant unlimited access (paid + unlimited)
   const handleGrantUnlimited = async () => {
     try {
+      setLoadingButton('unlimited');
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         router.push('/login');
@@ -220,11 +221,17 @@ export default function Home() {
       const data = await resp.json().catch(() => ({}));
       if (resp.ok) {
         await refreshUserData();
+        // Show success message briefly
+        setTimeout(() => {
+          setLoadingButton(null);
+        }, 1000);
       } else {
         console.warn('Failed to grant unlimited:', data);
+        setLoadingButton(null);
       }
     } catch (e) {
       console.warn('Network error granting unlimited access:', e);
+      setLoadingButton(null);
     }
   };
 
@@ -276,7 +283,7 @@ export default function Home() {
                     </p>
 
                     {/* Hero action buttons */}
-                    <div className="flex gap-6 mt-2 md:mt-4">
+                    <div className="flex flex-col sm:flex-row gap-4 mt-2 md:mt-4">
                       <button
                         onClick={() => {
                           if (!user) {
@@ -297,6 +304,30 @@ export default function Home() {
                           'Start Coding!'
                         )}
                       </button>
+                      
+                      {/* Grant Unlimited Access Button - Always visible for authenticated users */}
+                      {user && !hasUnlimitedAccess && (
+                        <button
+                          onClick={handleGrantUnlimited}
+                          className="px-8 py-4 text-lg xl:text-xl font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream hover:from-deep-espresso hover:to-medium-coffee shadow-lg hover:shadow-xl border-2 border-medium-coffee disabled:opacity-60 disabled:cursor-not-allowed"
+                          type="button"
+                          disabled={loadingButton !== null}
+                        >
+                          {loadingButton === 'unlimited' ? (
+                            <>
+                              <div className="spinner-coffee h-5 w-5"></div>
+                              Granting Access...
+                            </>
+                          ) : (
+                            <>
+                              <IconStar className="h-5 w-5" />
+                              Get Unlimited Access
+                            </>
+                          )}
+                        </button>
+                      )}
+                      
+                      {/* Dev mode button (only in dev) */}
                       {devMode && (
                         <button
                           onClick={handleGrantUnlimited}
