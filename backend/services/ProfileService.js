@@ -3,13 +3,16 @@ export class ProfileService {
     try {
       const { error: rpcError } = await supabase.rpc('increment_project_count', { user_uuid: userId });
       if (!rpcError) {
+        // Fetch the updated count reliably as a single row
         const { data: profile } = await supabase
           .from('profiles')
           .select('project_count')
           .eq('id', userId)
-       
-        return { 
-          ok: true, count: profile?.project_count ?? null 
+          .single();
+
+        return {
+          ok: true,
+          count: profile?.project_count ?? null,
         };
       }
       // Fallback: select + update

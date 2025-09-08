@@ -19,6 +19,8 @@
 */
 
 -- Create profiles table
+
+
 CREATE TABLE IF NOT EXISTS profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email text,
@@ -32,6 +34,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   upgraded_at timestamptz,
   project_count integer DEFAULT 0
 );
+
+
 
 -- Enable RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -59,6 +63,7 @@ CREATE POLICY "Users can insert own profile"
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger AS $$
 BEGIN
+
   INSERT INTO public.profiles (id, email, username)
   VALUES (
     new.id,
