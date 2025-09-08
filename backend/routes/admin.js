@@ -1,4 +1,5 @@
 import express from 'express';
+import { ProfileService } from '../services/ProfileService.js';
 
 const router = express.Router();
 
@@ -43,32 +44,27 @@ router.post('/grant-unlimited-access', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Call the database function to grant unlimited access
-    const { data, error } = await supabase.rpc('grant_unlimited_access');
-
-    if (error) {
-      console.error('Error granting unlimited access:', error);
-      return res.status(500).json({ error: error.message });
+    // Use the same service logic as /api/account/grantUnlimited for consistency
+    const result = await ProfileService.grantUnlimitedAccess(supabase, user.id);
+    if (!result.ok) {
+      console.error('Error granting unlimited access:', result.error);
+      return res.status(500).json({ error: result.error || 'Failed to grant unlimited access' });
     }
 
-    if (!data || data.length === 0) {
-      return res.status(404).json({ error: 'User profile not found' });
-    }
-
-    const profile = data[0];
-    return res.json({ 
-      success: true, 
+    const profile = result.profile;
+    return res.json({
+      success: true,
       message: 'Unlimited access granted successfully!',
       profile: {
-        id: profile.id,
-        email: profile.email,
-        username: profile.username,
-        hasUnlimitedAccess: profile.has_unlimited_access,
-        paymentStatus: profile.payment_status,
-        stripeSessionId: profile.stripe_session_id,
-        upgradedAt: profile.upgraded_at,
-        projectCount: profile.project_count
-      }
+        id: user.id,
+        email: profile?.email || null,
+        username: profile?.username || null,
+        hasUnlimitedAccess: profile?.has_unlimited_access === true || profile?.payment_status === 'paid',
+        paymentStatus: profile?.payment_status || 'paid',
+        stripeSessionId: profile?.stripe_session_id || null,
+        upgradedAt: profile?.upgraded_at || null,
+        projectCount: profile?.project_count ?? null,
+      },
     });
   } catch (e) {
     console.error('Error in grant-unlimited-access:', e);
@@ -77,4 +73,3 @@ router.post('/grant-unlimited-access', async (req, res) => {
 });
 
 export default router;
-

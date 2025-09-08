@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { supabase } from '../../lib/supabase';
 import { useProjectManager } from '../../hooks/useProjectManager';
 import PaymentModal from '../../components/PaymentModal';
 import ProjectCounter from '../../components/ProjectCounter';
@@ -30,10 +31,15 @@ export default function PaymentTestPage() {
   const handleGrantUnlimitedAccess = async () => {
     setGrantingAccess(true);
     try {
+      // Include Supabase access token for backend auth
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
       const response = await fetch('/api/admin/grant-unlimited-access', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
 
