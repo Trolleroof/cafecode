@@ -24,9 +24,6 @@ router.post('/incrementProjectCount', async (req, res) => {
 // Grant paid + unlimited access (dev utility)
 router.post('/grantUnlimited', async (req, res) => {
   try {
-    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_PAYMENT !== 'true') {
-      return res.status(403).json({ error: 'Disabled in production' });
-    }
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
@@ -35,7 +32,7 @@ router.post('/grantUnlimited', async (req, res) => {
     if (!result.ok) {
       return res.status(500).json({ error: 'Failed to update profile', details: result.error });
     }
-    return res.json({ success: true, profile: result.profile });
+    return res.json({ success: true, message: 'TESTINT Good', profile: result.profile });
   } catch (e) {
     console.error('account/grantUnlimited error:', e);
     return res.status(500).json({ error: 'Failed to grant unlimited access' });

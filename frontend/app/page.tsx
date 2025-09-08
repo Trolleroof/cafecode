@@ -219,6 +219,7 @@ export default function Home() {
       });
       const data = await resp.json().catch(() => ({}));
       if (resp.ok) {
+        console.log('Successfully granted unlimited access:', data);
         await refreshUserData();
         // Show success message briefly
         setTimeout(() => {

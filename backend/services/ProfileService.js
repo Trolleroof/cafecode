@@ -39,7 +39,7 @@ export class ProfileService {
     try {
       // Prefer using the same DB function Stripe webhook uses to keep logic consistent
       const dummySession = `dev_dummy_${Date.now()}`;
-      const { error: rpcError } = await supabase.rpc('update_payment_status', {
+      const { error: rpcError } = await supabase.rpc('grant_unlimited_access', {
         user_uuid: userId,
         stripe_session: dummySession,
         payment_status: 'paid',
