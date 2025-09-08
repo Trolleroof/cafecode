@@ -20,6 +20,7 @@ import dynamic from 'next/dynamic';
 import { supabase } from '../lib/supabase';
 import PaymentModal from '@/components/PaymentModal';
 import ProjectCounter from '@/components/ProjectCounter';
+import { useProjectManager } from '@/hooks/useProjectManager';
 
 const MenuBoard = dynamic(() => import('./features/MenuBoard'), { ssr: false });
 
@@ -28,6 +29,9 @@ export default function Home() {
   const searchParams = useSearchParams();
   const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'unlimited'>(null);
   const [loadingPlan, setLoadingPlan] = useState<null | string>(null);
+  
+  // Use project manager hook for frontend RPC calls
+  const { grantUnlimitedAccess: frontendGrantUnlimited } = useProjectManager();
 
   // Auth state - removed modal, now redirects to login page
 
@@ -161,7 +165,7 @@ export default function Home() {
   };
 
   // Test helper: mark a project as completed to increment project count
-  const handleTestCompleteProject = async () => {
+  const handleTestCompleteProject = async (): Promise<void> => {
     try {
       setIsCompletingTest(true);
       const { data: { session } } = await supabase.auth.getSession();
@@ -188,8 +192,7 @@ export default function Home() {
         } else {
           setProjectCount((c) => c + 1);
         }
-        // Sync from DB to be sure
-        await refreshUserData();
+        // No need for refreshUserData() - we already have the updated count
       } else {
         console.warn('Failed to complete project:', data);
       }
@@ -200,37 +203,28 @@ export default function Home() {
     }
   };
 
-  // Grant unlimited access (paid + unlimited)
+  // Grant unlimited access (paid + unlimited) - now uses frontend RPC with backend fallback
   const handleGrantUnlimited = async () => {
     try {
       setLoadingButton('unlimited');
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
+      
+      if (!user) {
         router.push('/login');
         return;
       }
-      const resp = await fetch('/api/account/grantUnlimited', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({}),
-      });
-      const data = await resp.json().catch(() => ({}));
-      if (resp.ok) {
-        console.log('Successfully granted unlimited access:', data);
-        await refreshUserData();
-        // Show success message briefly
-        setTimeout(() => {
-          setLoadingButton(null);
-        }, 1000);
-      } else {
-        console.warn('Failed to grant unlimited:', data);
+
+      // Use frontend RPC approach (tries RPC first, falls back to backend API)
+      await frontendGrantUnlimited();
+      
+      console.log('Successfully granted unlimited access via frontend RPC');
+      await refreshUserData();
+      
+      // Show success message briefly
+      setTimeout(() => {
         setLoadingButton(null);
-      }
+      }, 1000);
     } catch (e) {
-      console.warn('Network error granting unlimited access:', e);
+      console.warn('Error granting unlimited access:', e);
       setLoadingButton(null);
     }
   };
@@ -304,6 +298,25 @@ export default function Home() {
                           'Start Coding!'
                         )}
                       </button>
+                      
+                      {/* Test Project Increment Button - Only visible for authenticated users */}
+                      {user && (
+                        <button
+                          onClick={handleTestCompleteProject}
+                          className="px-8 py-4 text-lg xl:text-xl font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2 btn-coffee-secondary hover:bg-medium-coffee hover:text-light-cream border-2 border-medium-coffee disabled:opacity-60 disabled:cursor-not-allowed"
+                          type="button"
+                          disabled={isCompletingTest || loadingButton !== null}
+                        >
+                          {isCompletingTest ? (
+                            <>
+                              <div className="spinner-coffee h-5 w-5"></div>
+                              Incrementing...
+                            </>
+                          ) : (
+                            'Test Increment Count'
+                          )}
+                        </button>
+                      )}
                       
                       {/* Grant Unlimited Access Button - Always visible for authenticated users */}
                       {user && !hasUnlimitedAccess && (

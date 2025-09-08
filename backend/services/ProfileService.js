@@ -39,6 +39,7 @@ export class ProfileService {
     try {
       // Prefer using the same DB function Stripe webhook uses to keep logic consistent
       const dummySession = `dev_dummy_${Date.now()}`;
+      console.log("GRANTING UNLIMITED ACCESS");
       const { error: rpcError } = await supabase.rpc('grant_unlimited_access', {
         user_uuid: userId,
         stripe_session: dummySession,

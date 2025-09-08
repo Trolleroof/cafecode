@@ -145,6 +145,41 @@ export function useProjectManager() {
     }
   };
 
+  const grantUnlimitedAccess = async (): Promise<void> => {
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      // Prefer RPC with SECURITY DEFINER, then backend fallback
+      const { error: rpcError } = await supabase.rpc('grant_unlimited_access');
+      if (rpcError) {
+        console.warn('grant_unlimited_access RPC failed; falling back to server endpoint:', rpcError.message);
+        // Call backend endpoint which uses service role
+        const { data: { session } } = await supabase.auth.getSession();
+        const resp = await fetch('/api/account/grantUnlimited', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({}),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err?.error || 'Failed to grant unlimited access');
+        }
+      }
+
+      // Refresh user data to get updated access status
+      await fetchUserData(user.id);
+
+    } catch (error) {
+      console.error('Error granting unlimited access:', error);
+      throw error;
+    }
+  };
+
   const refreshData = () => {
     if (user) {
       fetchUserData(user.id);
@@ -155,6 +190,7 @@ export function useProjectManager() {
     ...state,
     user,
     createProject,
+    grantUnlimitedAccess,
     refreshData,
   };
 }

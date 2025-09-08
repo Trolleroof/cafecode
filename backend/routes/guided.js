@@ -805,9 +805,6 @@ This is NON-NEGOTIABLE - your response will be rejected if you don't return exac
   }
 });
 
-// Explicit endpoint to increment project count (for fallback clients)
-// Note: increment project count moved to /api/account/incrementProjectCount
-
 // Mark guided project as completed and increment user's project count
 router.post('/completeProject', async (req, res) => {
   try {
