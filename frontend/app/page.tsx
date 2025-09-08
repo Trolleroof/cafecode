@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   IconCode,
-  IconStar,
   IconRefresh,
   IconLock,
   IconPencil,
@@ -27,7 +26,7 @@ const MenuBoard = dynamic(() => import('./features/MenuBoard'), { ssr: false });
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loadingButton, setLoadingButton] = useState<null | 'ide' | 'unlimited'>(null);
+  const [loadingButton, setLoadingButton] = useState<null | 'ide'>(null);
   const [loadingPlan, setLoadingPlan] = useState<null | string>(null);
   
   // Use project manager hook for frontend RPC calls
@@ -42,7 +41,6 @@ export default function Home() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
-  const [isCompletingTest, setIsCompletingTest] = useState(false);
   
   // Function to refresh user data
   const refreshUserData = async () => {
@@ -155,6 +153,68 @@ export default function Home() {
     initializeUser();
   }, []);
 
+  // Listen for project count changes (e.g., when user completes projects in IDE)
+  useEffect(() => {
+    if (!user) return;
+
+    // Set up real-time subscription to profiles table
+    const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Profile updated:', payload);
+          const newData = payload.new;
+          if (newData) {
+            const newProjectCount = newData.project_count || 0;
+            const newHasUnlimitedAccess = newData.payment_status === 'paid' || newData.has_unlimited_access === true;
+            
+            setProjectCount(newProjectCount);
+            setHasUnlimitedAccess(newHasUnlimitedAccess);
+          }
+        }
+      )
+      .subscribe();
+
+    // Fallback: periodic refresh every 10 seconds as backup
+    const refreshInterval = setInterval(async () => {
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('project_count, payment_status, has_unlimited_access')
+          .eq('id', user.id)
+          .maybeSingle();
+        
+        if (!error && profile) {
+          const newProjectCount = profile.project_count || 0;
+          const newHasUnlimitedAccess = profile.payment_status === 'paid' || profile.has_unlimited_access === true;
+          
+          // Only update if values actually changed to avoid unnecessary re-renders
+          if (newProjectCount !== projectCount) {
+            setProjectCount(newProjectCount);
+          }
+          if (newHasUnlimitedAccess !== hasUnlimitedAccess) {
+            setHasUnlimitedAccess(newHasUnlimitedAccess);
+          }
+        }
+      } catch (error) {
+        // Silently fail - this is just a background refresh
+        console.debug('Background refresh failed:', error);
+      }
+    }, 10000); // Check every 10 seconds as backup
+
+    return () => {
+      clearInterval(refreshInterval);
+      supabase.removeChannel(channel);
+    };
+  }, [user, projectCount, hasUnlimitedAccess]);
+
   const handleStartCoding = () => {
     if (!user) {
       router.push('/login');
@@ -164,68 +224,8 @@ export default function Home() {
     router.push('/ide');
   };
 
-  // Test helper: mark a project as completed to increment project count
-  const handleTestCompleteProject = async (): Promise<void> => {
-    try {
-      setIsCompletingTest(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        router.push('/login');
-        return;
-      }
 
-      // Call dedicated account endpoint to increment count
-      const resp = await fetch('/api/account/incrementProjectCount', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({}),
-      });
-
-      const data = await resp.json().catch(() => ({}));
-      if (resp.ok) {
-        // Prefer server-returned count, otherwise increment locally
-        if (typeof data?.project_count === 'number') {
-          setProjectCount(data.project_count);
-        } else {
-          setProjectCount((c) => c + 1);
-        }
-        // No need for refreshUserData() - we already have the updated count
-      } else {
-        console.warn('Failed to complete project:', data);
-      }
-    } catch (e) {
-      console.warn('Network error completing project:', e);
-    } finally {
-      setIsCompletingTest(false);
-    }
-  };
-
-  // Grant unlimited access (paid + unlimited) - now uses frontend RPC with backend fallback
-  const handleGrantUnlimited = async () => {
-    try {
-      setLoadingButton('unlimited');
-      
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      // Use frontend RPC approach (tries RPC first, falls back to backend API)
-      await frontendGrantUnlimited();
-        await refreshUserData();
-      
-      // Show success message briefly
-      setTimeout(() => {
-        setLoadingButton(null);
-      }, 1000);
-    } catch (e) {
-      console.warn('Error granting unlimited access:', e);
-      setLoadingButton(null);
-    }
-  };
+  // Removed dev-only grant unlimited handler. Stripe handles upgrades.
 
   // Auth functions removed - now handled by dedicated login/signup pages
 
@@ -297,46 +297,7 @@ export default function Home() {
                         )}
                       </button>
                       
-                      {/* Test Project Increment Button - Only visible for authenticated users */}
-                      {user && (
-                        <button
-                          onClick={handleTestCompleteProject}
-                          className="px-8 py-4 text-lg xl:text-xl font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2 btn-coffee-secondary hover:bg-medium-coffee hover:text-light-cream border-2 border-medium-coffee disabled:opacity-60 disabled:cursor-not-allowed"
-                          type="button"
-                          disabled={isCompletingTest || loadingButton !== null}
-                        >
-                          {isCompletingTest ? (
-                            <>
-                              <div className="spinner-coffee h-5 w-5"></div>
-                              Incrementing...
-                            </>
-                          ) : (
-                            'Test Increment Count'
-                          )}
-                        </button>
-                      )}
-                      
-                      {/* Grant Unlimited Access Button - Always visible for authenticated users */}
-                      {user && !hasUnlimitedAccess && (
-                        <button
-                          onClick={handleGrantUnlimited}
-                          className="px-8 py-4 text-lg xl:text-xl font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream hover:from-deep-espresso hover:to-medium-coffee shadow-lg hover:shadow-xl border-2 border-medium-coffee disabled:opacity-60 disabled:cursor-not-allowed"
-                          type="button"
-                          disabled={loadingButton !== null}
-                        >
-                          {loadingButton === 'unlimited' ? (
-                            <>
-                              <div className="spinner-coffee h-5 w-5"></div>
-                              Granting Access...
-                            </>
-                          ) : (
-                            <>
-                              <IconStar className="h-5 w-5" />
-                              Get Unlimited Access
-                            </>
-                          )}
-                        </button>
-                      )}
+                      {/* Unlimited button removed; use Payment modal via ProjectCounter */}
                       
                       {/* Removed Dev-only duplicate button to avoid duplicates */}
                     </div>

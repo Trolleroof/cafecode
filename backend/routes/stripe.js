@@ -109,20 +109,19 @@ router.post('/webhook', async (req, res) => {
           console.log('Payment completed for user');
   
 
-          // Primary path: RPC function updates profiles + payment_history
+          // Primary path: RPC function updates profiles consistently
           let rpcSucceeded = false;
           try {
-            const { error } = await supabase.rpc('update_payment_status', {
-              user_uuid: userId,
+            const { error } = await supabase.rpc('grant_unlimited_access_by_id', {
+              target_user: userId,
               stripe_session: session.id,
-              payment_status: 'paid',
-              amount_cents: session.amount_total
+              amount_cents: session.amount_total,
             });
             if (error) {
-              console.error('[Stripe] RPC update_payment_status error:', error);
+              console.error('[Stripe] RPC grant_unlimited_access_by_id error:', error);
             } else {
               rpcSucceeded = true;
-              console.log('[Stripe] RPC update_payment_status succeeded');
+              console.log('[Stripe] RPC grant_unlimited_access_by_id succeeded');
             }
           } catch (err) {
             console.error('[Stripe] RPC call threw:', err);
@@ -150,19 +149,7 @@ router.post('/webhook', async (req, res) => {
                 fallbackSucceeded = true;
               }
 
-              const { error: histErr } = await supabase
-                .from('payment_history')
-                .insert({
-                  user_id: userId,
-                  stripe_session_id: session.id,
-                  amount: session.amount_total,
-                  status: 'paid'
-                });
-              if (histErr) {
-                console.warn('[Stripe] Fallback payment_history insert failed:', histErr);
-              } else {
-                console.log('[Stripe] Fallback payment_history insert succeeded');
-              }
+              // Optional: record in payment_history if such a table exists
             } catch (err) {
               console.error('[Stripe] Fallback DB updates threw:', err);
             }
@@ -186,17 +173,16 @@ router.post('/webhook', async (req, res) => {
             const userId = paymentIntent.metadata?.userId;
             if (userId) {
               const amount = paymentIntent.amount_received || paymentIntent.amount || 0;
-              const { error } = await supabase.rpc('update_payment_status', {
-                user_uuid: userId,
+              const { error } = await supabase.rpc('grant_unlimited_access_by_id', {
+                target_user: userId,
                 stripe_session: paymentIntent.id, // fallback to PI id if no session id
-                payment_status: 'paid',
-                amount_cents: amount
+                amount_cents: amount,
               });
               if (error) {
-                console.error('[Stripe] DB update on PI succeeded failed:', error);
+                console.error('[Stripe] DB grant via PI succeeded path failed:', error);
                 return res.status(500).json({ error: 'Failed to persist PI payment' });
               } else {
-                console.log('[Stripe] User payment status updated via PI succeeded');
+                console.log('[Stripe] User access granted via PI succeeded');
               }
             } else {
               // Attempt to locate Checkout Session to extract client_reference_id
@@ -207,14 +193,13 @@ router.post('/webhook', async (req, res) => {
                 const list = await stripe.checkout.sessions.list({ payment_intent: paymentIntent.id, limit: 1 });
                 const found = list?.data?.[0];
                 if (found?.client_reference_id) {
-                  const { error } = await supabase.rpc('update_payment_status', {
-                    user_uuid: found.client_reference_id,
+                  const { error } = await supabase.rpc('grant_unlimited_access_by_id', {
+                    target_user: found.client_reference_id,
                     stripe_session: found.id,
-                    payment_status: 'paid',
-                    amount_cents: found.amount_total || paymentIntent.amount_received || 0
+                    amount_cents: found.amount_total || paymentIntent.amount_received || 0,
                   });
                   if (error) {
-                    console.error('[Stripe] DB update via session lookup failed:', error);
+                    console.error('[Stripe] DB grant via session lookup failed:', error);
                     return res.status(500).json({ error: 'Failed to persist PI->Session payment' });
                   }
                 }
@@ -236,19 +221,10 @@ router.post('/webhook', async (req, res) => {
           try {
             const userId = failedPayment.metadata?.userId;
             if (userId) {
-              const { error } = await supabase.rpc('update_payment_status', {
-                user_uuid: userId,
-                stripe_session: failedPayment.id,
-                payment_status: 'unpaid',
-                amount_cents: failedPayment.amount || 0
-              });
-              if (error) {
-                console.warn('[Stripe] Could not mark user unpaid via RPC:', error.message);
-                await supabase
-                  .from('profiles')
-                  .update({ payment_status: 'unpaid', has_unlimited_access: false, updated_at: new Date().toISOString() })
-                  .eq('id', userId);
-              }
+              await supabase
+                .from('profiles')
+                .update({ payment_status: 'unpaid', has_unlimited_access: false, updated_at: new Date().toISOString() })
+                .eq('id', userId);
             }
           } catch (e) {
             console.warn('[Stripe] payment_intent.payment_failed handler error:', e.message);
