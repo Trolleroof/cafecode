@@ -372,6 +372,7 @@ function IDEPage() {
   const [activeTab, setActiveTab] = useState('editor');
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [showVideoWarning, setShowVideoWarning] = useState(false);
+  const [videoNotice, setVideoNotice] = useState<string>('');
   const router = useRouter();
   const { session } = useAuth();
 
@@ -1461,6 +1462,38 @@ function IDEPage() {
         const newCode = result.fixed_code;
         const lines = newCode.split('\n');
         let i = 0;
+        // Helper: Summarize code changes deterministically from diff/fixes
+        const summarizeChanges = (diff: string | undefined, fixes: any[] | undefined, fileName: string) => {
+          const bullets: string[] = [];
+          if (diff && typeof diff === 'string') {
+            const lines = diff.split('\n');
+            const added = lines.filter(l => l.startsWith('+') && !l.startsWith('+++')).length;
+            const removed = lines.filter(l => l.startsWith('-') && !l.startsWith('---')).length;
+            const hunks = lines.filter(l => l.startsWith('@@')).length;
+            let file = fileName;
+            const plusPlus = lines.find(l => l.startsWith('+++'));
+            if (plusPlus) {
+              const m = plusPlus.match(/\+\+\+\s+[ab]\/(.*)$/);
+              if (m && m[1]) file = m[1];
+            }
+            bullets.push(`Updated ${file} (${added} added, ${removed} removed, ${hunks} hunk${hunks === 1 ? '' : 's'})`);
+          } else {
+            bullets.push(`Updated ${fileName}`);
+          }
+          if (Array.isArray(fixes) && fixes.length) {
+            const topFixes = fixes.slice(0, 6).map((f: any, idx: number) => {
+              const ln = typeof f?.line_number === 'number' ? `line ${f.line_number}: ` : '';
+              const desc = typeof f?.description === 'string' && f.description.trim().length > 0
+                ? f.description.trim()
+                : (typeof f?.change === 'string' ? f.change : 'Applied a targeted fix');
+              return `- ${ln}${desc}`;
+            });
+            bullets.push('Fixes applied:');
+            bullets.push(...topFixes);
+          }
+          return bullets.join('\n');
+        };
+
         const animate = () => {
           if (i < lines.length) {
             setSelectedFile({ ...selectedFile, content: lines.slice(0, i + 1).join('\n') });
@@ -1472,58 +1505,10 @@ function IDEPage() {
             setHighlightedLines(fixedLines);
             setIsEditorReadOnly(false);
             
-            // Get a summary of the changes from Gemini after animation completes
-            (async () => {
-              try {
-                const summaryResponse = await fetch('/api/guided/simple-chat', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session?.access_token}`
-                  },
-                  body: JSON.stringify({ 
-                    history: [{ 
-                      type: 'user', 
-                      content: `Summarize the code changes that were made. Here are the details: ${result.diff}. Please provide a clear, concise summary of what was fixed in bullet points.`, 
-                      timestamp: new Date() 
-                    }],
-                    projectFiles: files,
-                    guidedProject: guidedProject,
-                    currentCode: selectedFile.content,
-                    currentLanguage: selectedFile.language
-                  })
-                });
-                
-                if (summaryResponse.ok) {
-                  const summaryResult = await summaryResponse.json();
-                  if (summaryResult.response) {
-                    setChatMessages(prev => [...prev, {
-                      type: 'assistant',
-                      content: `Here are the changes:\n\n${summaryResult.response.content}`
-                    }]);
-                  } else {
-                    // Fallback to simple message if Gemini response is empty
-                    setChatMessages(prev => [...prev, {
-                      type: 'assistant',
-                      content: `Here are the changes:\n\n**• Code has been fixed and improved**`
-                    }]);
-                  }
-                } else {
-                  // Fallback if Gemini call fails
-                  setChatMessages(prev => [...prev, {
-                    type: 'assistant',
-                    content: `Here are the changes:\n\n**• Code has been fixed and improved**`
-                  }]);
-                }
-              } catch (summaryError) {
-                console.error('Error getting change summary:', summaryError);
-                // Fallback if Gemini call fails
-                setChatMessages(prev => [...prev, {
-                  type: 'assistant',
-                  content: `Here are the changes:\n\n**• Code has been fixed and improved**`
-                }]);
-              }
-            })();
+            // Summarize deterministically from diff/fixes and post to chat
+            const summaryText = summarizeChanges(result.diff, result.fixes_applied, selectedFile.name);
+            const formatted = `Here are the changes:\n\n${summaryText}`;
+            setChatMessages(prev => [...prev, { type: 'assistant', content: formatted, timestamp: new Date() }]);
           }
         };
         animate();
@@ -2490,15 +2475,15 @@ function IDEPage() {
                 }} className="flex-1 flex flex-col">
                   <div className="flex items-center justify-between px-4 py-2 border-b border-cream-beige bg-cream-beige">
                     <TabsList className="bg-light-cream border border-cream-beige">
-                      <TabsTrigger value="editor" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
+                      <TabsTrigger value="editor" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
                         <IconCode className="mr-2 h-4 w-4" />
                         Editor
                       </TabsTrigger>
-                      <TabsTrigger value="preview" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
+                      <TabsTrigger value="preview" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
                         <IconPlayerPlay className="mr-2 h-4 w-4" />
                         Preview
                       </TabsTrigger>
-                      <TabsTrigger value="terminal" className="data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
+                      <TabsTrigger value="terminal" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
                         <IconTerminal className="mr-2 h-4 w-4" />
                         Terminal
                       </TabsTrigger>
@@ -2643,7 +2628,7 @@ function IDEPage() {
                       <IconSparkles className="h-4 w-4 text-light-cream" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-deep-espresso">AI Assistant</h3>
+                      <h3 className="font-semibold text-deep-espresso">Cody</h3>
                     </div>
                   </div>
                   <ToggleGroup
@@ -2651,12 +2636,11 @@ function IDEPage() {
                     value={isVoiceMode ? 'voice' : 'text'}
                     onValueChange={(value) => {
                       if (value === 'voice') {
-                        if (!guidedProject) {
-                          setShowVideoWarning(true);
-                          setTimeout(() => setShowVideoWarning(false), 2500);
-                          return;
-                        }
-                        setIsVoiceMode(true);
+                        // Temporarily disable video assistant; show coming soon notice
+                        setVideoNotice('🎥 Video assistant is coming soon.');
+                        setShowVideoWarning(true);
+                        setTimeout(() => setShowVideoWarning(false), 2500);
+                        return; // Do not enable voice mode yet
                       } else if (value === 'text') {
                         setIsVoiceMode(false);
                       }
@@ -2673,7 +2657,7 @@ function IDEPage() {
                 </div>
                 {showVideoWarning && (
                   <div className="bg-red-100 text-red-700 text-center py-2 px-4 text-sm font-semibold">
-                    Please start a project before accessing the video assistant.
+                    {videoNotice || 'Feature is coming soon.'}
                   </div>
                 )}
                 
@@ -2871,9 +2855,9 @@ function IDEPage() {
           />
         )}
 
-        {/* Project setup loading popup - when transitioning from steps to actual project */}
+        {/* Project setup loading popup - only when not showing the steps modal */}
         <ProjectSetupLoader 
-          isOpen={isStartingFromSteps}
+          isOpen={isStartingFromSteps && !showStepsPreviewModal}
           title="Setting Up Your Project"
           description="Creating guided steps and preparing your workspace..."
           progress={90}
@@ -2960,6 +2944,7 @@ function IDEPage() {
           guidedProject={guidedProject}
           session={session}
           recap={completionRecap}
+          hasUnlimitedAccess={hasUnlimitedAccess}
         />
 
         <PaymentModal
@@ -2972,20 +2957,20 @@ function IDEPage() {
           }}
         />
 
-        {/* Keep Guided Steps visible globally, independent of Explorer state */}
-        {guidedProject && (
+        {/* Show guided steps only after project is created */}
+        {(guidedProject !== null) && (
           <GuidedStepPopup
-            instruction={guidedProject.steps[guidedProject.currentStep]?.instruction}
-            isComplete={isStepCompleted(guidedProject.steps[guidedProject.currentStep]?.id || '')}
+            instruction={guidedProject ? (guidedProject.steps[guidedProject.currentStep]?.instruction) : ''}
+            isComplete={guidedProject ? isStepCompleted(guidedProject.steps[guidedProject.currentStep]?.id || '') : false}
             onNextStep={handleNextStep}
             onPreviousStep={handlePreviousStep}
             onCheckStep={handleCheckStep}
-            stepNumber={guidedProject.currentStep + 1}
-            totalSteps={guidedProject.steps.length}
+            stepNumber={guidedProject ? (guidedProject.currentStep + 1) : 0}
+            totalSteps={guidedProject ? guidedProject.steps.length : 0}
             isChecking={isCheckingStep}
             onFinish={handleFinishProject}
-            completedSteps={getProjectCompletionStatus().completed}
-            totalCompleted={getProjectCompletionStatus().total}
+            completedSteps={guidedProject ? getProjectCompletionStatus().completed : 0}
+            totalCompleted={guidedProject ? getProjectCompletionStatus().total : 0}
           />
         )}
       </div>

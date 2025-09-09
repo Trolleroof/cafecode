@@ -12,6 +12,7 @@ interface ProjectCompletionModalProps {
   guidedProject?: any;
   session?: any;
   recap?: string;
+  hasUnlimitedAccess?: boolean;
 }
 
 const ProjectCompletionModal: React.FC<ProjectCompletionModalProps> = ({ 
@@ -21,11 +22,50 @@ const ProjectCompletionModal: React.FC<ProjectCompletionModalProps> = ({
   chatHistory = [],
   guidedProject = null,
   session = null,
-  recap = ''
+  recap = '',
+  hasUnlimitedAccess = false,
 }) => {
   const confettiCanvasRef = useRef<HTMLCanvasElement>(null);
   const [recapText, setRecapText] = useState('');
   const [isRecapLoading, setIsRecapLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownload = async () => {
+    try {
+      setDownloadError(null);
+      setIsDownloading(true);
+      const resp = await fetch(`/api/files/download-zip?path=.`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+        },
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        setDownloadError(err?.error || 'Failed to download project');
+        setIsDownloading(false);
+        return;
+      }
+      // Extract filename from header if present
+      const disp = resp.headers.get('Content-Disposition') || '';
+      const m = disp.match(/filename\s*=\s*"?([^";]+)"?/i);
+      const filename = m?.[1] || 'project.zip';
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setDownloadError(e?.message || 'Failed to download project');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // Set recap content provided from completeProject route
   useEffect(() => {
@@ -174,13 +214,29 @@ const ProjectCompletionModal: React.FC<ProjectCompletionModalProps> = ({
             )}
           </div>
           
-          {/* Action Button */}
-          <button
-            className="px-8 sm:px-10 lg:px-12 py-3 sm:py-4 lg:py-5 rounded-2xl bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream font-semibold text-base sm:text-lg lg:text-xl hover:from-deep-espresso hover:to-medium-coffee transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-medium-coffee focus:ring-offset-4 shadow-2xl"
-            onClick={onClose}
-          >
-            Close
-          </button>
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-center">
+            {hasUnlimitedAccess && (
+              <button
+                className="px-6 sm:px-8 py-3 sm:py-4 rounded-2xl bg-cream-beige text-deep-espresso font-semibold text-sm sm:text-base border border-medium-coffee/30 hover:bg-light-cream transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                onClick={handleDownload}
+                disabled={isDownloading || !session?.access_token}
+                title={!session?.access_token ? 'Sign in required' : 'Download your project as ZIP'}
+              >
+                {isDownloading ? 'Preparing ZIP…' : 'Download Project (.zip)'}
+              </button>
+            )}
+            <button
+              className="px-8 sm:px-10 lg:px-12 py-3 sm:py-4 lg:py-5 rounded-2xl bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream font-semibold text-base sm:text-lg lg:text-xl hover:from-deep-espresso hover:to-medium-coffee transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-medium-coffee focus:ring-offset-4 shadow-2xl"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+
+          {downloadError && (
+            <p className="mt-3 text-sm text-red-600">{downloadError}</p>
+          )}
         </div>
       </div>
     </div>

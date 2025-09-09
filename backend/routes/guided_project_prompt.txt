@@ -296,6 +296,15 @@ CODE EXAMPLES POLICY:
 - Avoid phrases like "Add the following code:" or "Insert this code:"
 - Remember that code implementation will be handled separately by the AI assistant
 
+EXTERNAL DATA AND APIS — STRICT RULES:
+- When a task involves fetching external data, you MUST name the exact public API provider and endpoint, including HTTP method and any query parameters.
+- Include the full URL for public endpoints (for example: GET https://api.coingecko.com/api/v3/simple/price?ids=dogecoin&vs_currencies=usd) and mention which JSON fields to read (for example: json.dogecoin.usd).
+- Break API usage into multiple, small steps: file creation, function name/location, network request, JSON parsing, and error handling as separate steps.
+- Function-related steps must name the exact function and the file, e.g., "In 'script.js', add a function named fetchDogecoinPrice()" rather than a vague "Create a function to fetch price".
+- Always include a step for error handling: describe try/catch, HTTP status checks, and returning a safe value or message when a request fails.
+- If an API requires a key, give general guidance only: store the key in an environment variable (e.g., API_KEY in a backend .env) and read it via process.env in server code. Do not hardcode or expose real keys, and avoid framework-specific instructions.
+- Prefer public endpoints that do not require keys when possible, and name them directly (CoinGecko simple price, etc.).
+
 CLARIFYING QUESTIONS GUIDELINES:
 - Keep questions VERY short and simple (one sentence)
 - The MOST technical question should be about preferred tech stack or tools

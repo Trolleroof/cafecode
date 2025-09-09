@@ -5,6 +5,7 @@ import fs from 'fs';
 import mime from 'mime-types';
 import multer from 'multer';
 import { Cache, SimpleCache } from '../services/Cache.js';
+import archiver from 'archiver';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -398,6 +399,64 @@ router.get('/raw', async (req, res) => {
   } catch (err) {
     console.error('Raw file stream error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Download a ZIP of a directory (premium users only)
+router.get('/download-zip', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const relPath = (req.query.path || '.').toString();
+
+    // Check premium status
+    const { data: profile, error } = await req.supabase
+      .from('profiles')
+      .select('payment_status, has_unlimited_access')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) {
+      console.error('Download premium check error:', error.message);
+      return res.status(500).json({ error: 'Failed to verify account status' });
+    }
+    const isPremium = profile?.payment_status === 'paid' || profile?.has_unlimited_access === true;
+    if (!isPremium) {
+      return res.status(403).json({ error: 'Premium required to download projects' });
+    }
+
+    // Resolve path and validate
+    const absPath = UserFileService.resolveUserPath(userId, relPath);
+    if (!fs.existsSync(absPath)) {
+      return res.status(404).json({ error: 'Path not found' });
+    }
+    const stat = fs.statSync(absPath);
+    if (!stat.isDirectory()) {
+      return res.status(400).json({ error: 'Path must be a directory' });
+    }
+
+    // Prepare stream headers
+    const safeName = (relPath === '.' ? 'project' : relPath.replace(/\/+$/, '').split('/').pop()) || 'project';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `${safeName}-${timestamp}.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Build archive
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('warning', (err) => {
+      console.warn('ZIP warning:', err.message);
+    });
+    archive.on('error', (err) => {
+      console.error('ZIP error:', err.message);
+      try { res.status(500).end(); } catch (_) {}
+    });
+
+    archive.pipe(res);
+    // Add contents of directory, but do not nest extra folder level
+    archive.directory(absPath + '/', false);
+    await archive.finalize();
+  } catch (err) {
+    console.error('Download zip error:', err);
+    res.status(500).json({ error: err.message || 'Failed to create ZIP' });
   }
 });
 

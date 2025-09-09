@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   File,
   Folder,
@@ -39,16 +39,16 @@ const getFileIcon = (fileName: string) => {
   // Handle special filenames without extensions
   const lowerFileName = fileName.toLowerCase();
   if (lowerFileName === 'dockerfile' || lowerFileName.startsWith('dockerfile.')) {
-    return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
+    return <FileCode2 className="h-4 w-4 text-blue-400 flex-shrink-0" />;
   }
   if (lowerFileName === 'makefile' || lowerFileName === 'gnumakefile') {
-    return <FileCode2 className="h-5 w-5 text-gray-500 flex-shrink-0" />;
+    return <FileCode2 className="h-4 w-4 text-gray-500 flex-shrink-0" />;
   }
   if (lowerFileName === '.gitignore' || lowerFileName === '.gitattributes') {
-    return <FileText className="h-5 w-5 text-orange-600 flex-shrink-0" />;
+    return <FileText className="h-4 w-4 text-orange-600 flex-shrink-0" />;
   }
   if (lowerFileName.startsWith('.env')) {
-    return <FileText className="h-5 w-5 text-yellow-600 flex-shrink-0" />;
+    return <FileText className="h-4 w-4 text-yellow-600 flex-shrink-0" />;
   }
 
   const extension = fileName.split('.').pop()?.toLowerCase();
@@ -57,144 +57,144 @@ const getFileIcon = (fileName: string) => {
     case 'py':
     case 'pyw':
     case 'pyi':
-      return <Code className="h-5 w-5 text-green-600 flex-shrink-0" />;
+      return <Code className="h-4 w-4 text-green-600 flex-shrink-0" />;
     
     // JavaScript/TypeScript
     case 'js':
     case 'mjs':
     case 'cjs':
-      return <FileCode2 className="h-5 w-5 text-yellow-400 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-yellow-400 flex-shrink-0" />;
     case 'jsx':
-      return <FileCode2 className="h-5 w-5 text-yellow-500 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-yellow-500 flex-shrink-0" />;
     case 'ts':
     case 'mts':
     case 'cts':
-      return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-blue-400 flex-shrink-0" />;
     case 'tsx':
-      return <FileCode2 className="h-5 w-5 text-blue-500 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-blue-500 flex-shrink-0" />;
     
     // Java/Kotlin/Scala
     case 'java':
     case 'jar':
-      return <FileCode2 className="h-5 w-5 text-red-600 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-red-600 flex-shrink-0" />;
     case 'kt':
     case 'kts':
-      return <FileCode2 className="h-5 w-5 text-pink-400 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-pink-400 flex-shrink-0" />;
     case 'scala':
     case 'sc':
-      return <FileCode2 className="h-5 w-5 text-red-700 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-red-700 flex-shrink-0" />;
     
     // C/C++/C#
     case 'c':
     case 'h':
-      return <FileCode2 className="h-5 w-5 text-indigo-500 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-indigo-500 flex-shrink-0" />;
     case 'cpp':
     case 'cc':
     case 'cxx':
     case 'hpp':
     case 'hh':
     case 'hxx':
-      return <FileCode2 className="h-5 w-5 text-indigo-600 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-indigo-600 flex-shrink-0" />;
     case 'cs':
     case 'csx':
-      return <FileCode2 className="h-5 w-5 text-purple-500 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-purple-500 flex-shrink-0" />;
     
     // Go/Rust
     case 'go':
     case 'mod':
     case 'sum':
-      return <FileCode2 className="h-5 w-5 text-cyan-600 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-cyan-600 flex-shrink-0" />;
     case 'rs':
-      return <FileCode2 className="h-5 w-5 text-orange-700 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-orange-700 flex-shrink-0" />;
     
     // Ruby/PHP/Perl
     case 'rb':
     case 'rake':
     case 'gemspec':
-      return <FileCode2 className="h-5 w-5 text-pink-500 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-pink-500 flex-shrink-0" />;
     case 'php':
     case 'phtml':
-      return <FileCode2 className="h-5 w-5 text-indigo-400 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-indigo-400 flex-shrink-0" />;
     case 'pl':
     case 'pm':
-      return <FileCode2 className="h-5 w-5 text-pink-700 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-pink-700 flex-shrink-0" />;
     
     // Web Technologies
     case 'html':
     case 'htm':
     case 'xhtml':
-      return <Globe className="h-5 w-5 text-orange-500 flex-shrink-0" />;
+      return <Globe className="h-4 w-4 text-orange-500 flex-shrink-0" />;
     case 'css':
-      return <Palette className="h-5 w-5 text-blue-500 flex-shrink-0" />;
+      return <Palette className="h-4 w-4 text-blue-500 flex-shrink-0" />;
     case 'scss':
     case 'sass':
-      return <Palette className="h-5 w-5 text-pink-400 flex-shrink-0" />;
+      return <Palette className="h-4 w-4 text-pink-400 flex-shrink-0" />;
     case 'less':
-      return <Palette className="h-5 w-5 text-blue-300 flex-shrink-0" />;
+      return <Palette className="h-4 w-4 text-blue-300 flex-shrink-0" />;
     case 'vue':
-      return <FileCode2 className="h-5 w-5 text-green-500 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-green-500 flex-shrink-0" />;
     case 'svelte':
-      return <FileCode2 className="h-5 w-5 text-orange-600 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-orange-600 flex-shrink-0" />;
     
     // Data/Config Files
     case 'json':
     case 'jsonc':
     case 'json5':
-      return <FileText className="h-5 w-5 text-amber-500 flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-amber-500 flex-shrink-0" />;
     case 'xml':
     case 'xsl':
     case 'xslt':
-      return <FileText className="h-5 w-5 text-purple-400 flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-purple-400 flex-shrink-0" />;
     case 'yaml':
     case 'yml':
-      return <FileText className="h-5 w-5 text-yellow-700 flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-yellow-700 flex-shrink-0" />;
     case 'toml':
-      return <FileText className="h-5 w-5 text-green-700 flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-green-700 flex-shrink-0" />;
     case 'ini':
     case 'cfg':
     case 'conf':
     case 'config':
-      return <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />;
     
     // Shell/Scripts
     case 'sh':
     case 'bash':
     case 'zsh':
     case 'fish':
-      return <FileCode2 className="h-5 w-5 text-gray-600 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-gray-600 flex-shrink-0" />;
     case 'bat':
     case 'cmd':
     case 'ps1':
-      return <FileCode2 className="h-5 w-5 text-gray-700 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-gray-700 flex-shrink-0" />;
     
     // Documentation
     case 'md':
     case 'mdx':
     case 'markdown':
-      return <FileText className="h-5 w-5 text-gray-500 flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />;
     case 'rst':
     case 'txt':
-      return <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />;
     
     // Other Languages
     case 'swift':
-      return <FileCode2 className="h-5 w-5 text-orange-400 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-orange-400 flex-shrink-0" />;
     case 'r':
     case 'rmd':
-      return <FileCode2 className="h-5 w-5 text-blue-400 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-blue-400 flex-shrink-0" />;
     case 'sql':
-      return <FileCode2 className="h-5 w-5 text-blue-700 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-blue-700 flex-shrink-0" />;
     case 'lua':
-      return <FileCode2 className="h-5 w-5 text-indigo-700 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-indigo-700 flex-shrink-0" />;
     case 'dart':
-      return <FileCode2 className="h-5 w-5 text-cyan-700 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-cyan-700 flex-shrink-0" />;
     case 'coffee':
     case 'litcoffee':
-      return <FileCode2 className="h-5 w-5 text-yellow-700 flex-shrink-0" />;
+      return <FileCode2 className="h-4 w-4 text-yellow-700 flex-shrink-0" />;
     
     // Default
     default:
-      return <FileText className="h-5 w-5 text-gray-400 flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />;
   }
 };
 
@@ -499,8 +499,8 @@ const FileTreeNode: React.FC<{
     <div>
       <div
         className={`
-          flex items-center gap-2 px-2 py-1 cursor-pointer rounded group relative
-          transition-colors duration-150 my-0.5
+          flex items-center gap-1 px-2 pr-16 h-6 cursor-pointer rounded group relative
+          transition-colors duration-150 my-1.5
           ${selectedFileId === node.id
             ? 'bg-medium-coffee text-light-cream font-semibold border-l-4 border-orange-400'
             : 'hover:bg-cream-beige text-deep-espresso'}
@@ -520,12 +520,14 @@ const FileTreeNode: React.FC<{
       >
         {node.type === 'folder' ? (
           isExpanded ? (
-            <FolderOpen className="h-5 w-5 text-orange-400 flex-shrink-0" />
+            <FolderOpen className={`h-4 w-4 flex-shrink-0 ${selectedFileId === node.id ? 'text-orange-200' : 'text-orange-400'}`} />
           ) : (
-            <Folder className="h-5 w-5 text-orange-400 flex-shrink-0" />
+            <Folder className={`h-4 w-4 flex-shrink-0 ${selectedFileId === node.id ? 'text-orange-200' : 'text-orange-400'}`} />
           )
         ) : (
-          getFileIcon(node.name)
+          <div className={`${selectedFileId === node.id ? 'opacity-70' : ''}`}>
+            {getFileIcon(node.name)}
+          </div>
         )}
         
         <span 
@@ -540,9 +542,17 @@ const FileTreeNode: React.FC<{
           )}
         </span>
         
-        {showActions && (
-          <div className="flex items-center gap-0.5 flex-shrink-0 pl-14">
-            <button
+        {/* Actions: always render; reveal on hover, positioned at row end */}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+          {(() => {
+            const isSelected = selectedFileId === node.id;
+            const btnBase = isSelected
+              ? 'p-1 rounded transition-all duration-200 bg-white/10 hover:bg-white/20'
+              : 'p-1 rounded transition-all duration-200 hover:bg-cream-beige';
+            const iconClass = isSelected ? 'h-4 w-4 text-light-cream' : 'h-4 w-4 text-deep-espresso';
+            return (
+              <>
+                <button
               onClick={(e) => {
                 e.stopPropagation();
                 const path = getPathFromId(node.id);
@@ -552,12 +562,12 @@ const FileTreeNode: React.FC<{
                 })();
                 onCreateFile(baseId, 'file', '');
               }}
-              className="p-1 hover:bg-cream-beige rounded"
+              className={`${btnBase}`}
               title="New File"
             >
-              <Plus className="h-3 w-3 text-deep-espresso" />
+              <Plus className={iconClass} />
             </button>
-            <button
+                <button
               onClick={(e) => {
                 e.stopPropagation();
                 const path = getPathFromId(node.id);
@@ -567,23 +577,25 @@ const FileTreeNode: React.FC<{
                 })();
                 onCreateFolder(baseId, 'folder', '');
               }}
-              className="p-1 hover:bg-cream-beige rounded"
+              className={`${btnBase}`}
               title="New Folder"
             >
-              <Folder className="h-3 w-3 text-deep-espresso" />
+              <Folder className={iconClass} />
             </button>
-            <button
+                <button
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(node.id);
               }}
-              className="p-1 hover:bg-deep-espresso rounded"
+              className={`${btnBase}`}
               title="Delete"
             >
-              <Trash2 className="h-3 w-3 text-deep-espresso" />
+              <Trash2 className={iconClass} />
             </button>
-          </div>
-        )}
+              </>
+            );
+          })()}
+        </div>
       </div>
       
       {node.type === 'folder' && isExpanded && node.children && (
@@ -742,6 +754,9 @@ export default function FileExplorer({
   highlightedFileId = null,
 }: FileExplorerProps) {
   const [error, setError] = useState<string | null>(null);
+  // Preserve horizontal scroll when selecting files
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollLeftRef = useRef(0);
 
   // UI: Create file/folder dialog
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -760,10 +775,21 @@ export default function FileExplorer({
   const [expandFolderId, setExpandFolderId] = useState<string | null>(null);
 
   const handleFileSelect = (file: FileNode) => {
+    // Save horizontal scroll before selection triggers rerender
+    if (scrollContainerRef.current) {
+      lastScrollLeftRef.current = scrollContainerRef.current.scrollLeft;
+    }
     if (onFileSelect) {
       onFileSelect(file);
     }
   };
+
+  // Restore horizontal scroll position after selectedFileId changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = lastScrollLeftRef.current;
+    }
+  }, [selectedFileId]);
 
   const handleRefresh = () => {
     if (onRefresh) {
@@ -988,7 +1014,7 @@ export default function FileExplorer({
       )}
       
       {/* File Tree */}
-      <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-4">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-auto min-h-0 pt-1">
         <div className="min-w-max">
           {isLoading ? (
             // Inline skeleton loaders instead of blocking modal

@@ -31,7 +31,6 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
     );
   }
 
-  // Use 3-project free limit
   const FREE_LIMIT = 3;
   const isNearLimit = projectCount >= FREE_LIMIT - 1 && !hasUnlimitedAccess;
   const isAtLimit = projectCount >= FREE_LIMIT && !hasUnlimitedAccess;
@@ -42,11 +41,11 @@ export default function ProjectCounter({ projectCount, hasUnlimitedAccess, onUpg
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="text-lg font-semibold text-dark-charcoal tracking-tight mb-1">
-            {hasUnlimitedAccess ? '🚀 Pro Developer' : '☕ Free Plan'}
+            {hasUnlimitedAccess ? '☕ Cold Brew Plan' : '☕ Free Plan'}
           </div>
           {hasUnlimitedAccess && (
             <div className="text-sm text-medium-coffee font-medium">
-              Unlimited projects • Premium features
+              Unlimited projects
             </div>
           )}
         </div>

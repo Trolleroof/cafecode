@@ -227,12 +227,7 @@ export default function StepsPreviewModal({
 
   if (!isOpen) return null;
 
-  const handleInstructionChange = (index: number, value: string) => {
-    const updated = [...localSteps];
-    updated[index] = { ...updated[index], instruction: value };
-    setLocalSteps(updated);
-    onStepsChange(updateStepIds(updated));
-  };
+  // Removed handleInstructionChange - steps are now read-only
 
   const handleAddStep = (index?: number) => {
     const newStep = { id: '', instruction: '', lineRanges: [1, 3] };
@@ -348,39 +343,36 @@ export default function StepsPreviewModal({
           {!isSubmitting && localSteps.map((step, index) => (
             <div key={step.id}>
               <div
-                className={`border border-[#7A5A43] rounded-2xl p-4 bg-[#7A5A43] shadow-md cursor-move transition-all duration-200 ${
+                className={`border border-[#7A5A43] rounded-2xl p-4 bg-[#7A5A43] shadow-md transition-all duration-200 ${
                   getStepTransform(index)
                 } ${
                   deletingStepIndex === index ? 'animate-delete' : ''
                 }`}
-                draggable
-                onDragStart={(e) => handleDragStart(e, index)}
                 onMouseEnter={() => setHoveredIndex(index)}
                 onMouseLeave={() => setHoveredIndex(null)}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <IconGripVertical className="text-[#F9EFE6] cursor-move" />
+                    <IconGripVertical className="text-gray-400 cursor-not-allowed" />
                     <div className="w-9 h-9 rounded-full bg-[#4A3A2A] text-[#F9EFE6] font-bold flex items-center justify-center shadow">{index + 1}</div>
                     <span className="text-[16px] text-[#F9EFE6] font-medium">Step {index + 1}</span>
                   </div>
-                  <button onClick={() => handleDeleteStepWithAnimation(index)} className="text-[#F9EFE6] text-sm font-semibold hover:text-[#FFB3B3] transition-colors">
+                  <button 
+                    disabled 
+                    className="text-gray-400 text-sm font-semibold cursor-not-allowed opacity-50"
+                    title="Steps are read-only"
+                  >
                     <IconTrash size={18} />
                   </button>
                 </div>
-                <textarea
-                  value={step.instruction}
-                  onChange={(e) => handleInstructionChange(index, e.target.value)}
-                  placeholder="Describe the step instruction"
-                  className="w-full bg-white text-[#2F2A25] border border-[#4A3A2A] rounded-lg px-3 py-2 text-[15px] leading-6 focus:outline-none focus:ring-2 focus:ring-[#4A3A2A] placeholder-[#8F8070]"
-                  rows={3}
-                />
+                <div
+                  className="w-full bg-gray-50 text-[#2F2A25] border border-[#4A3A2A] rounded-lg px-3 py-2 text-[15px] leading-6 min-h-[72px] flex items-start"
+                >
+                  {step.instruction}
+                </div>
               </div>
               <div
                 className="relative h-8 flex items-center justify-center"
-                onDragOver={(e) => { e.preventDefault(); setDropIndex(index + 1); }}
-                onDragLeave={() => setDropIndex(null)}
-                onDrop={(e) => handleDrop(e, index + 1)}
                 onMouseEnter={() => setHoveredIndex(index)}
                 onMouseLeave={() => setHoveredIndex(null)}
               >
@@ -392,8 +384,9 @@ export default function StepsPreviewModal({
                 }`}>
                   <div className="h-px w-full bg-[#7A5A43]/30 relative">
                     <button
-                      onClick={() => handleAddStepWithAnimation(index + 1)}
-                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#FDF8F3] p-1.5 rounded-full text-[#7A5A43] shadow-md z-10 hover:scale-110 transition-transform border border-[#7A5A43]/20"
+                      disabled
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-200 p-1.5 rounded-full text-gray-400 shadow-md z-10 cursor-not-allowed opacity-50"
+                      title="Steps are read-only"
                     >
                       <IconPlus size={14} />
                     </button>

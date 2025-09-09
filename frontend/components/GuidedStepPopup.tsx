@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from './ui/button';
 import { CheckCircle, ArrowLeft, ArrowRight, Search, Loader2, Lock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -85,17 +86,18 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
     };
   }, [dragging]);
 
-  return (
+  const popup = (
     <div
       ref={popupRef}
       style={{
-        position: 'absolute',
+        position: 'fixed',
         left: position.x,
         top: position.y,
         width: 380,
         maxWidth: '95vw',
         minHeight: 260,
-        zIndex: 1050,
+        zIndex: 2147483647, // ensure above any overlay
+        pointerEvents: 'auto',
         background: 'rgba(247, 236, 220, 0.95)',
         borderRadius: '0.75rem',
         boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
@@ -106,6 +108,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         justifyContent: 'space-between',
         animation: 'fade-in 0.3s',
         cursor: dragging ? 'grabbing' : 'default',
+        transform: 'translateZ(0)'
       }}
       className="guided-step-popup animate-fade-in"
     >
@@ -121,7 +124,10 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
       </div>
       {/* Progress Bar */}
       <div className="w-full h-2 bg-[#e7dbc7] rounded-full mb-4 overflow-hidden relative">
-        <div className="h-full bg-medium-coffee/70 transition-all duration-500" style={{ width: `${(stepNumber/totalSteps)*100}%` }} />
+        <div
+          className="h-full bg-medium-coffee/70 transition-all duration-500"
+          style={{ width: `${(totalSteps > 0 ? (stepNumber / totalSteps) * 100 : 0)}%` }}
+        />
       </div>
       
       {/* Step Completion Summary */}
@@ -175,10 +181,10 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           Back
         </Button>
 
-        {/* Check Step Button */}
+        {/* Primary action: check step or move on when complete */}
         <Button
-          onClick={onCheckStep}
-          variant={isComplete ? "default" : "default"}
+          onClick={isComplete ? onNextStep : onCheckStep}
+          variant="default"
           size="sm"
           className={`flex-1 ${isComplete ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-medium-coffee hover:bg-deep-espresso text-light-cream'} transition-all duration-200 rounded-lg text-base font-bold py-3 px-4 flex items-center justify-center shadow-md hover:shadow-lg`}
           disabled={isChecking}
@@ -186,13 +192,17 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           {isChecking ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              Checking...
             </>
           ) : isComplete ? (
-            <CheckCircle className="h-6 w-6" />
+            <>
+              <CheckCircle className="h-5 w-5 mr-2" />
+              Move to Next Step
+            </>
           ) : (
             <>
               <Search className={`h-5 w-5 mr-2 ${!isComplete ? 'animate-pulse' : ''}`} />
-              Check
+              Check Step
             </>
           )}
         </Button>
@@ -215,12 +225,15 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
             disabled={!isComplete}
           >
             <ArrowRight className="h-5 w-5 mr-2" />
-            Next
+            {isComplete ? 'Next' : 'Complete Step First'}
           </Button>
         )}
       </div>
     </div>
   );
+
+  // Render via portal to avoid being hidden by parent stacking contexts/overlays
+  return typeof document !== 'undefined' ? createPortal(popup, document.body) : popup;
 };
 
 export default GuidedStepPopup;
