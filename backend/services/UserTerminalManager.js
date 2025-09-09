@@ -48,7 +48,6 @@ export class UserTerminalManager {
       npm_config_progress: 'false', // Reduce terminal overhead
       npm_config_audit: 'false', // Skip audit for speed
       npm_config_fund: 'false', // Skip funding messages
-      npm_config_cache_min: '86400',
       // Always set a registry (defaults to npmjs if not provided)
       npm_config_registry: process.env.NPM_REGISTRY || 'https://registry.npmjs.org',
     };
@@ -70,9 +69,7 @@ export class UserTerminalManager {
       ptyProcess.write('npm config set audit false\n');
       ptyProcess.write('npm config set fund false\n');
       ptyProcess.write('npm config set progress false\n');
-      if (process.env.NPM_CACHE_MIN) {
-        ptyProcess.write(`npm config set cache-min ${process.env.NPM_CACHE_MIN}\n`);
-      }
+      // Skip deprecated 'cache-min' to avoid noisy warnings
       // Set registry explicitly for this terminal session (use default if env not set)
       ptyProcess.write(`npm config set registry ${process.env.NPM_REGISTRY || 'https://registry.npmjs.org'}\n`);
       

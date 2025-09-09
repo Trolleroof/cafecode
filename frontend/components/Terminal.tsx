@@ -24,6 +24,10 @@ type TerminalTab = {
   resizeObserver?: ResizeObserver;
   isAttached: boolean;
   onDataDispose?: { dispose: () => void } | null;
+  // Bootstrapping state to hide noisy setup output
+  isBootstrapping: boolean;
+  bootBuffer?: string;
+  bootTimer?: ReturnType<typeof setTimeout> | null;
 };
 
 const createTerminalId = () => `term_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -79,7 +83,10 @@ const Terminal: React.FC = () => {
       fit: null, 
       ws: null,
       isAttached: false,
-      onDataDispose: null
+      onDataDispose: null,
+      isBootstrapping: true,
+      bootBuffer: '',
+      bootTimer: null
     };
     
     setTabs(prev => [...prev, newTab]);
@@ -176,12 +183,35 @@ const Terminal: React.FC = () => {
               // Send size immediately after connection
               const size = fitAddon.proposeDimensions() || dims;
               try { ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows })); } catch {}
-              // Clear any previous reconnect message
-              term.writeln('\r\n🖧 Terminal connected.');
+            };
+
+            const detectPrompt = (text: string) => {
+              // Detect a PS1 '$ ' prompt, allow CR/LF variations
+              return /[\r\n]\$\s$/.test(text) || /\n\$\s/.test(text) || /\r\$\s/.test(text) || text.trimEnd().endsWith('$');
             };
 
             ws.onmessage = (event) => {
-              term.write(event.data);
+              const data = typeof event.data === 'string' ? event.data : '';
+              const current = tabs.find(t => t.id === tabId);
+              const booting = current?.isBootstrapping;
+              if (booting) {
+                // Accumulate until we see a prompt, then finish bootstrap
+                const buf = (current?.bootBuffer || '') + data;
+                // Update buffer in state
+                setTabs(prev => prev.map(t => t.id === tabId ? { ...t, bootBuffer: buf } : t));
+                if (detectPrompt(buf)) {
+                  // Finish bootstrapping: clear terminal and ask shell to print a fresh prompt
+                  term.clear();
+                  try { ws.send('\n'); } catch {}
+                  const bootTimer = current?.bootTimer;
+                  if (bootTimer) {
+                    try { clearTimeout(bootTimer); } catch {}
+                  }
+                  setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isBootstrapping: false, bootBuffer: '', bootTimer: null } : t));
+                }
+                return;
+              }
+              term.write(data);
               term.scrollToBottom();
             };
 
@@ -223,7 +253,11 @@ const Terminal: React.FC = () => {
                   term.scrollToBottom();
                 }
               });
-              return { ...t, ws, onDataDispose: disposable };
+              // Start a bootstrap timeout fail-safe (show terminal after a delay even if no prompt detected)
+              const timer = setTimeout(() => {
+                setTabs(prev2 => prev2.map(tt => tt.id === tabId ? { ...tt, isBootstrapping: false, bootBuffer: '' } : tt));
+              }, 5000);
+              return { ...t, ws, onDataDispose: disposable, isBootstrapping: true, bootBuffer: '', bootTimer: timer };
             }));
           };
 
@@ -251,54 +285,15 @@ const Terminal: React.FC = () => {
     }
   }, [session?.access_token, tabs, isInitializing]);
 
-  // Re-open sockets for tabs that are attached but have no active ws (e.g., after token refresh)
-  useEffect(() => {
-    if (!session?.access_token || tabs.length === 0) return;
-    tabs.forEach(tab => {
-      if (!tab.xterm || tab.ws) return; // Need an xterm and no active ws
-      // Trigger a reconnect by simulating a small handler that will be set in attachXterm
-      // Here we duplicate the minimal logic to re-open
-      const token = session.access_token;
-      const ws = new WebSocket(`${WS_BASE_URL}?access_token=${encodeURIComponent(token)}&terminal_id=${tab.id}`);
-
-      ws.onopen = () => {
-        reconnectAttemptsRef.current.set(tab.id, 0);
-        if (tab.fit) {
-          const dims = tab.fit.proposeDimensions() || { cols: 80, rows: 24 };
-          try { ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows })); } catch {}
-        }
-        tab.xterm?.clear();
-      };
-      ws.onmessage = (event) => tab.xterm?.write(event.data);
-      ws.onclose = (event) => {
-        const existing = reconnectTimersRef.current.get(tab.id);
-        if (existing) clearTimeout(existing);
-        const currentToken = session?.access_token;
-        if (event.code !== 1000 && currentToken) {
-          const prev = reconnectAttemptsRef.current.get(tab.id) || 0;
-          const next = Math.min(prev + 1, 5);
-          reconnectAttemptsRef.current.set(tab.id, next);
-          const delay = Math.min(30000, 2000 * Math.pow(2, next - 1));
-          const timer = setTimeout(() => {
-            // Force ws to null, effect will pick it up again on next run
-            setTabs(prevTabs => prevTabs.map(t => t.id === tab.id ? { ...t, ws: null } : t));
-          }, delay);
-          reconnectTimersRef.current.set(tab.id, timer);
-        }
-      };
-      // Wire input, replace previous handler
-      try { tab.onDataDispose?.dispose(); } catch {}
-      const disposable = tab.xterm.onData((data) => {
-        if (ws.readyState === 1) ws.send(data);
-      });
-      setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, ws, onDataDispose: disposable } : t));
-    });
-  }, [session?.access_token, tabs]);
+  // Removed auto-reopen effect that could race with initial attach and create duplicate connections
 
   const closeTab = useCallback((tabId: string) => {
     setTabs(prev => {
       const tab = prev.find(t => t.id === tabId);
       if (tab) {
+        if (tab.bootTimer) {
+          try { clearTimeout(tab.bootTimer); } catch {}
+        }
         const timer = reconnectTimersRef.current.get(tabId);
         if (timer) {
           clearTimeout(timer);
@@ -408,7 +403,7 @@ const Terminal: React.FC = () => {
       {/* Active terminal surface */}
       <div ref={containerRef} style={{ width: '100%', height: 'calc(100% - 36px)' }}>
         {tabs.map(tab => (
-          <div key={tab.id} style={{ display: activeId === tab.id ? 'block' : 'none', width: '100%', height: '100%' }}>
+          <div key={tab.id} style={{ display: activeId === tab.id ? 'block' : 'none', width: '100%', height: '100%', position: 'relative' }}>
             <div 
               ref={(node) => {
                 // Only attach xterm if it hasn't been attached yet and node exists
@@ -418,6 +413,14 @@ const Terminal: React.FC = () => {
               }} 
               style={{ width: '100%', height: '100%', paddingBottom: '20px' }} 
             />
+            {tab.isBootstrapping && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-gray-200" style={{ pointerEvents: 'none', zIndex: 10 }}>
+                <div className="flex items-center gap-3">
+                  <div className="h-5 w-5 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" />
+                  <span>Preparing terminal…</span>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
