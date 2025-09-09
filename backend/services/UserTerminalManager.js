@@ -6,27 +6,18 @@ import path from 'path';
 export class UserTerminalManager {
   // Map of userId -> Map of terminalId -> PTY process
   static userIdToTerminals = new Map();
-  // Add caching for faster terminal creation
-  static terminalCache = new Map();
-  static cacheTimeout = 30000; // 30 seconds
 
   static startTerminal(userId, shell = 'bash', cols = 80, rows = 34, terminalId = null) {
-    // Check cache first
-    const cacheKey = `${userId}_${cols}_${rows}`;
-    const cached = UserTerminalManager.terminalCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < UserTerminalManager.cacheTimeout) {
-      // Return cached terminal with new ID
-      const newTerminalId = terminalId || `term_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const terminalsForUser = UserTerminalManager.userIdToTerminals.get(userId) || new Map();
-      terminalsForUser.set(newTerminalId, cached.pty);
-      return { id: newTerminalId, pty: cached.pty };
-    }
-
     // Ensure map for user exists
     if (!UserTerminalManager.userIdToTerminals.has(userId)) {
       UserTerminalManager.userIdToTerminals.set(userId, new Map());
     }
     const terminalsForUser = UserTerminalManager.userIdToTerminals.get(userId);
+
+    // If a terminalId is provided and exists, reuse that specific PTY (reconnect case)
+    if (terminalId && terminalsForUser.has(terminalId)) {
+      return { id: terminalId, pty: terminalsForUser.get(terminalId) };
+    }
 
     // Generate terminalId if not provided
     if (!terminalId) {
@@ -89,12 +80,6 @@ export class UserTerminalManager {
     }, 50); 
     
     terminalsForUser.set(terminalId, ptyProcess);
-    
-    // Cache the terminal for reuse
-    UserTerminalManager.terminalCache.set(cacheKey, {
-      pty: ptyProcess,
-      timestamp: Date.now()
-    });
     
     return { id: terminalId, pty: ptyProcess };
   }
