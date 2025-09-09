@@ -631,7 +631,9 @@ router.post("/startProject", async (req, res) => {
       // Look for numeric patterns: "4 steps", "four steps", "4", "four", etc.
       const numericMatch = description.match(/(\d+)\s*steps?/i);
       if (numericMatch) {
-        return parseInt(numericMatch[1]);
+        const num = parseInt(numericMatch[1]);
+        // Enforce minimum of 2 steps
+        return Math.max(2, num);
       }
       
       // Look for written number patterns: "four steps", "ten steps", etc.
@@ -644,7 +646,8 @@ router.post("/startProject", async (req, res) => {
       
       for (const [word, number] of Object.entries(writtenNumbers)) {
         if (description.toLowerCase().includes(`${word} steps`)) {
-          return number;
+          // Enforce minimum of 2 steps
+          return Math.max(2, number);
         }
       }
       
@@ -652,14 +655,14 @@ router.post("/startProject", async (req, res) => {
       const standaloneMatch = description.match(/\b(\d{1,2})\b/);
       if (standaloneMatch) {
         const num = parseInt(standaloneMatch[1]);
-        // Only use if it's a reasonable step count (1-50)
-        if (num >= 1 && num <= 50) {
+        // Only use if it's a reasonable step count (2-50)
+        if (num >= 2 && num <= 50) {
           return num;
         }
       }
       
-      // Default to 12 steps if no specific count found
-      return 12;
+      // Return null to indicate AI should determine step count
+      return null;
     };
 
     const requestedStepCount = parseStepCount(projectDescription);
@@ -678,11 +681,24 @@ router.post("/startProject", async (req, res) => {
     // Enhanced prompt for guided projects with step count enforcement
     let prompt = guidedProjectPrompt.replace('${projectDescription}', projectDescription).replace('${projectContext}', projectContext);
     
-    // Add explicit step count requirement to the prompt
-    prompt += `\n\n🚨 CRITICAL STEP COUNT REQUIREMENT 🚨
+    // Add step count requirement to the prompt
+    if (requestedStepCount !== null) {
+      // User specified a step count
+      prompt += `\n\n🚨 CRITICAL STEP COUNT REQUIREMENT 🚨
 You MUST return EXACTLY ${requestedStepCount} steps. No more, no fewer.
 If you cannot complete the task in ${requestedStepCount} steps, you must break it down differently or combine steps to match the exact count.
 This is NON-NEGOTIABLE - your response will be rejected if you don't return exactly ${requestedStepCount} steps.`;
+    } else {
+      // AI should determine appropriate step count
+      prompt += `\n\n🚨 STEP COUNT REQUIREMENT 🚨
+You must determine the appropriate number of steps for this project. Consider the complexity and scope of the task.
+- Minimum: 2 steps
+- Maximum: 50 steps
+- Choose a number that provides clear, manageable steps for a beginner
+- Make steps granular and detailed - err on the side of more, smaller steps rather than fewer, complex ones
+- Each step should be achievable in 2-3 lines of code maximum
+- Return exactly the number of steps you determine is appropriate for this project.`;
+    }
 
     // Check if this is a React project and provide special response
     // const isReactProject = /react|react\.js|reactjs/i.test(projectDescription);
