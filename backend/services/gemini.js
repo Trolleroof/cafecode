@@ -480,7 +480,7 @@ Return JSON:
 }
 
 Guidelines:
-- Break the solution into around 20 logical coding steps for comprehensive learning
+- Break the solution into EXACTLY 20 logical coding steps for comprehensive learning
 - Each step must require the user to write or modify code
 - Do NOT include any conceptual, planning, or thinking steps
 - Do NOT provide hints or explanations
