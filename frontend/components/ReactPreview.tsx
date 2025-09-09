@@ -6,8 +6,15 @@ interface ReactPreviewProps {
   port?: number;
 }
 
-// Backend base for preview proxy. Matches Terminal WS backend host.
-const BACKEND_HTTP_BASE = 'https://cafecode-backend-v2.fly.dev';
+// Backend base for preview proxy. Keep in sync with Terminal's WS base logic.
+const BACKEND_HTTP_BASE = (() => {
+  const explicit = process.env.NEXT_PUBLIC_BACKEND_HTTP_BASE;
+  if (explicit && explicit.trim()) return explicit.replace(/\/$/, '');
+  const useLocal = process.env.NEXT_PUBLIC_USE_LOCALHOST === 'true';
+  const protocol = useLocal ? 'http' : 'https';
+  const host = useLocal ? 'localhost:8000' : 'cafecode-backend-v2.fly.dev';
+  return `${protocol}://${host}`;
+})();
 
 type PreviewStatus = 'checking' | 'ready' | 'unreachable';
 

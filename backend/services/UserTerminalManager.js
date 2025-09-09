@@ -85,6 +85,9 @@ export class UserTerminalManager {
       ptyProcess.write(`cd "${cwd}"\n`);
       ptyProcess.write('export PS1="$ "\n');
       
+      // Enable Corepack so pnpm/yarn are available in this shell
+      ptyProcess.write('corepack enable >/dev/null 2>&1 || true\n');
+      
       ptyProcess.write('npm config set prefer-offline true\n');
       ptyProcess.write('npm config set audit false\n');
       ptyProcess.write('npm config set fund false\n');
