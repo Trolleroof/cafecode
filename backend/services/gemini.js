@@ -480,16 +480,15 @@ Return JSON:
 }
 
 Guidelines:
-- Break the solution into 4-8 logical coding steps
+- Break the solution into around 20 logical coding steps for comprehensive learning
 - Each step must require the user to write or modify code
 - Do NOT include any conceptual, planning, or thinking steps
 - Do NOT provide hints or explanations
 - Each step should be a direct coding instruction
 - The titleSlug should be a URL-friendly version of the title (lowercase, hyphens instead of spaces)
 - Include 2-3 example test cases in the exampleTestcases field
-- Do NOT use markdown, HTML, or formatting characters (like **, *, backtick, or >) in any field. Only return valid JSON.`;
+- Do NOT use markdown, HTML, or formatting characters (like **, *, backtick, or >) in any field. Only return valid JSON.`;       const result = await this.model.generateContent(prompt); //// Demo version: fixed to around 20 steps for comprehensive learning
 
-      const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const responseText = response.text();
 
