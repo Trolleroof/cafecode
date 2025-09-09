@@ -54,6 +54,12 @@ export class UserTerminalManager {
       NODE_OPTIONS: '--max-old-space-size=4096', // Increase memory for faster npm operations
       npm_config_cache: path.join(cwd, '.npm-cache'), // Local npm cache
       npm_config_prefer_offline: 'true', // Use offline cache when possible
+      npm_config_progress: 'false', // Reduce terminal overhead
+      npm_config_audit: 'false', // Skip audit for speed
+      npm_config_fund: 'false', // Skip funding messages
+      npm_config_cache_min: '86400',
+      // Always set a registry (defaults to npmjs if not provided)
+      npm_config_registry: process.env.NPM_REGISTRY || 'https://registry.npmjs.org',
     };
     
     const ptyProcess = pty.spawn('bash', ['-i'], {
@@ -72,6 +78,12 @@ export class UserTerminalManager {
       ptyProcess.write('npm config set prefer-offline true\n');
       ptyProcess.write('npm config set audit false\n');
       ptyProcess.write('npm config set fund false\n');
+      ptyProcess.write('npm config set progress false\n');
+      if (process.env.NPM_CACHE_MIN) {
+        ptyProcess.write(`npm config set cache-min ${process.env.NPM_CACHE_MIN}\n`);
+      }
+      // Set registry explicitly for this terminal session (use default if env not set)
+      ptyProcess.write(`npm config set registry ${process.env.NPM_REGISTRY || 'https://registry.npmjs.org'}\n`);
       
       ptyProcess.write('clear\n');
     }, 50); 

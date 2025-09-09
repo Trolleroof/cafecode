@@ -1,11 +1,20 @@
 ***STRICT FORMAT REQUIREMENT:***
 YOUR RESPONSE MUST BE A VALID JSON ARRAY OF STEPS, WRAPPED IN [ ] BRACKETS. DO NOT RETURN A SEQUENCE OF OBJECTS. DO NOT INCLUDE ANY EXTRA TEXT, EXPLANATIONS, OR MARKDOWN BEFORE OR AFTER THE ARRAY. ONLY RETURN THE JSON ARRAY. IF YOU DO NOT FOLLOW THIS, YOUR RESPONSE WILL BE REJECTED.
 
-🚨 MANDATORY: EVERY STEP MUST HAVE SPECIFIC NAMES 🚨
+🚨 MANDATORY: EVERY STEP MUST HAVE SPECIFIC NAMES + BE VERIFIABLE 🚨
 - Folder steps: "Create a folder called 'EXACT-NAME'"
 - File steps: "Create a file called 'EXACT-NAME.EXTENSION'"
 - Generic steps like "Create a folder" or "Create a file" WILL BE REJECTED
 - The system validates this automatically and will fail if you don't follow this rule
+
+VERIFIABLE, ARTIFACT-BASED STEPS (STRICT):
+- Every step must produce something we can check without guessing:
+  - Create or edit a specific file or folder with the exact name in single quotes
+  - Or add text content that can be matched exactly (e.g., add an <h1> that says 'My Todo App')
+  - Or add a function/class with an exact name (e.g., create a function called 'calculateTotal')
+- Avoid vague steps like "set up project" or "install React" as a standalone step.
+- If you mention installing tools or frameworks, immediately follow with steps that create specific files we can detect by name.
+- Prefer explicit file creation over global scaffolding commands so completion can be checked.
 
 🚨 CRITICAL STEP COUNT ENFORCEMENT 🚨
 - You MUST return EXACTLY the number of steps specified by the user
@@ -83,7 +92,7 @@ ${projectContext}
 
 TECHNOLOGY DETECTION AND SUPPORT:
 - If the user mentions React, React.js, or ReactJS in their coding task description, create steps for a React application.
-- For React applications, start with creating the main App.jsx component and index.html.
+- For React applications, DO NOT use global scaffolding commands like "npx create-react-app" as a step. Instead, create explicit files we can verify by name. Start with creating a folder like 'react-app', then create 'public/index.html' and 'src/App.jsx' (or 'src/App.tsx' for TypeScript), and 'src/index.jsx'. Use exact file names in single quotes.
 - If the user mentions Vue, Vue.js, or VueJS, create steps for a Vue application
 - If the user mentions Angular, create steps for an Angular application
 - If the user mentions Next.js, create steps for a Next.js application
@@ -159,8 +168,8 @@ STEP CREATION RULES:
 - Emphasize that steps should be much smaller and more numerous than typical guides, and each step should be easy for a beginner to follow.
 - Do NOT use markdown formatting, asterisks, bold, or italics in the step instructions. Only use plain text
 - IMPORTANT: Use the built-in terminal to install tools and libraries rather than manually creating configuration files
-- For Node.js applications: run "npm init -y" followed by "npm install express" in the terminal to set up the application
-- For React applications: Use "npx create-react-app your-app-name" in the terminal (replace 'your-app-name' with the actual app name)
+- For Node.js applications: you may run "npm init -y" followed by "npm install express" in the terminal, but follow these with verifiable file steps like creating 'server.js' and 'routes/health.js'.
+- For React applications: DO NOT instruct to run "npx create-react-app". Instead, create verifiable files and folders (e.g., 'public/index.html', 'src/App.jsx', 'src/index.jsx') and describe the exact text to add that we can check.
 - For Python applications: Use "pip install" commands in the terminal for required packages
 - For **full-stack** web applications, guide the user to create BOTH a frontend and a backend:
 - Immediately after creating the main task folder, add a 'frontend' folder for UI code and a 'backend' folder for server code.
