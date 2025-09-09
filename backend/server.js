@@ -420,8 +420,13 @@ async function startServer() {
         userId = payload.sub; // Supabase user ID is in 'sub'
         console.log('✅ [WEBSOCKET] Token verified for user:', userId);
       } catch (err) {
-        console.log('❌ [WEBSOCKET] Invalid access token:', err.message);
-        ws.close(4002, 'Invalid access token');
+        if (err && err.name === 'TokenExpiredError') {
+          console.log('❌ [WEBSOCKET] Access token expired');
+          ws.close(4003, 'Access token expired');
+        } else {
+          console.log('❌ [WEBSOCKET] Invalid access token:', err.message);
+          ws.close(4002, 'Invalid access token');
+        }
         return;
       }
 

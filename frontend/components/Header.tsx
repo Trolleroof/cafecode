@@ -25,13 +25,13 @@ const Header = () => {
       setSession(session);
     });
     return () => {
-      listener?.subscription.unsubscribe();
+      try { listener.subscription.unsubscribe(); } catch {}
     };
   }, []);
 
   useEffect(() => {
     // On route change, if the new route is /login, stop the loading animation.
-    if (pathname === '/login') {
+    if (pathname === '/security/login') {
       setLoadingBrewing(false);
     }
   }, [pathname]);
@@ -49,7 +49,7 @@ const Header = () => {
   };
   const handleGoToIDE = () => {
     if (!session) {
-      router.push('/login');
+      router.push('/security/login');
       return;
     }
     setLoadingButton('ide');
@@ -154,7 +154,7 @@ const Header = () => {
               <button
                 onClick={() => {
                   setLoadingBrewing(true);
-                  router.push('/login');
+                  router.push('/security/login');
                 }}
                 className="btn-navbar-cta px-5 py-2 text-base shadow-lg flex items-center gap-2"
                 disabled={loadingBrewing}
@@ -223,7 +223,7 @@ const Header = () => {
               <button
                 onClick={() => {
                   setLoadingBrewing(true);
-                  router.push('/login');
+                  router.push('/security/login');
                 }}
                 className="btn-navbar-cta px-4 py-2 text-xs shadow-lg flex items-center gap-2"
                 disabled={loadingBrewing}

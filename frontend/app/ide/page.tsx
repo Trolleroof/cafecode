@@ -1049,7 +1049,8 @@ function IDEPage() {
             1006: 'Abnormal closure (no close frame)',
             1011: 'Server error',
             4001: 'Missing access token',
-            4002: 'Invalid access token'
+            4002: 'Invalid access token',
+            4003: 'Access token expired'
           };
           const meaning = closeCodeMeaning[String(event.code)] || 'Unknown code';
           console.log('📡 [FILE-EVENTS] Close code meaning:', meaning);

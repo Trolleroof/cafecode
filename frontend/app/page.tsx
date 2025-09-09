@@ -217,7 +217,7 @@ export default function Home() {
 
   const handleStartCoding = () => {
     if (!user) {
-      router.push('/login');
+      router.push('/security/login');
       return;
     }
     setLoadingButton('ide');
@@ -279,7 +279,7 @@ export default function Home() {
                       <button
                         onClick={() => {
                           if (!user) {
-                            router.push('/login');
+                            router.push('/security/login');
                           } else {
                             handleStartCoding();
                           }
@@ -620,7 +620,7 @@ export default function Home() {
                             } else if (plan.name === 'Starter') {
                               // Handle Starter tier (Start Coding Free button)
                               if (!user) {
-                                router.push('/login');
+                                router.push('/security/login');
                               } else {
                                 router.push('/ide');
                               }

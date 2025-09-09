@@ -26,11 +26,10 @@ export function decodeJwtPayload(token: string): Record<string, any> | null {
   }
 }
 
-export function isTokenExpiring(token: string, skewSeconds = 60): boolean {
+export function getTokenExpiry(token: string): number | null {
   const payload = decodeJwtPayload(token);
-  if (!payload || typeof payload.exp !== 'number') return false;
-  const now = Math.floor(Date.now() / 1000);
-  return payload.exp <= (now + skewSeconds);
+  if (!payload || typeof payload.exp !== 'number') return null;
+  return payload.exp as number;
 }
 
 export async function getFreshAccessToken(supabase: SupabaseClient): Promise<string | null> {
@@ -40,15 +39,20 @@ export async function getFreshAccessToken(supabase: SupabaseClient): Promise<str
   const token = current?.access_token || null;
   if (!token) return null;
 
-  // If token is fresh enough, use it
-  if (!isTokenExpiring(token, 60)) return token;
+  const exp = getTokenExpiry(token);
+  const now = Math.floor(Date.now() / 1000);
 
-  // Otherwise, attempt to refresh using stored refresh token
+  // If no exp or clearly fresh, use it
+  if (!exp || exp > now + 60) return token;
+
+  // Token is near expiry or expired: try to refresh
   const { data, error } = await supabase.auth.refreshSession();
   if (error) {
     console.warn('[AUTH] Failed to refresh session:', error.message);
-    return token; // Fall back to old token; server will reject if fully expired
+    // If the token is already expired, do not return it
+    if (exp <= now) return null;
+    // Otherwise, fallback to the still-valid-but-soon-expiring token
+    return token;
   }
-  return data.session?.access_token || token;
+  return data.session?.access_token || (exp <= now ? null : token);
 }
-

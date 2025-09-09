@@ -50,7 +50,7 @@ const Footer = () => {
               <li><Link href="/#how-it-works" className="text-cream-beige hover:text-light-cream transition-colors">How It Works</Link></li>
               <li><Link href="/#problemStatement" className="text-cream-beige hover:text-light-cream transition-colors">The Truth</Link></li>
               <li><Link href="/#pricing" className="text-cream-beige hover:text-light-cream transition-colors">Pricing</Link></li>
-              <li><Link href="/login" className="text-cream-beige hover:text-light-cream transition-colors">Login</Link></li>
+              <li><Link href="/security/login" className="text-cream-beige hover:text-light-cream transition-colors">Login</Link></li>
             </ul>
           </div>
         </div>
@@ -63,7 +63,7 @@ const Footer = () => {
             <Link href="/#features" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Features</Link>
             <Link href="/#pricing" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Menu</Link>
             <Link href="/ide" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Start Coding</Link>
-            <Link href="/login" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Login</Link>
+            <Link href="/security/login" className="text-cream-beige hover:text-light-cream text-sm transition-colors">Login</Link>
           </div>
         </div>
       </div>

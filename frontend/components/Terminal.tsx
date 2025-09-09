@@ -218,7 +218,8 @@ const Terminal: React.FC = () => {
               const codeMeaning: Record<number, string> = {
                 1000: 'Normal closure',
                 4001: 'Missing access token',
-                4002: 'Invalid access token'
+                4002: 'Invalid access token',
+                4003: 'Access token expired'
               };
               const meaning = codeMeaning[event.code] || 'Disconnected';
               term.writeln(`\r\n🖧 ${meaning}. Reconnecting if possible...`);
