@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import http from 'http';
 import { WebSocketServer } from 'ws';
 import pty from 'node-pty';
 import { UserTerminalManager } from './services/UserTerminalManager.js';
@@ -391,6 +392,65 @@ async function startServer() {
 
     // Store server reference for graceful shutdown
     global.server = server;
+
+    // Lightweight HTTP preview proxy for local dev servers (e.g., Vite/Next)
+    // Usage: iframe src -> https://<backend>/preview/:port/...
+    // Note: This only proxies HTTP traffic; HMR WebSocket is not proxied.
+    app.use('/preview/:port', (req, res) => {
+      const port = parseInt(req.params.port, 10);
+      // Basic port validation to avoid abuse
+      if (!Number.isFinite(port) || port < 1024 || port > 65535) {
+        res.status(400).send('Invalid port');
+        return;
+      }
+
+      // Strip the /preview/:port prefix when forwarding
+      const prefix = `/preview/${port}`;
+      const pathAfterPrefix = req.originalUrl.startsWith(prefix)
+        ? req.originalUrl.slice(prefix.length) || '/'
+        : '/';
+
+      const options = {
+        hostname: '127.0.0.1',
+        port,
+        path: pathAfterPrefix,
+        method: req.method,
+        headers: {
+          ...req.headers,
+          host: `127.0.0.1:${port}`,
+          // Avoid connection reuse issues across proxy boundary
+          connection: 'close',
+        },
+      };
+
+      const proxyReq = http.request(options, (proxyRes) => {
+        // Forward status and headers
+        res.status(proxyRes.statusCode || 502);
+        Object.entries(proxyRes.headers).forEach(([k, v]) => {
+          if (v !== undefined) res.setHeader(k, v);
+        });
+        // Allow embedding preview in IDE (disable frameguard for this response)
+        try { res.removeHeader('x-frame-options'); } catch (_) {}
+        proxyRes.pipe(res);
+      });
+
+      proxyReq.on('error', (err) => {
+        console.error(`[PREVIEW PROXY] Error to port ${port}:`, err.message);
+        // Return a helpful message for common cases (e.g., server not started)
+        if (!res.headersSent) {
+          res.status(502).send(`Preview proxy error. Is a server running on port ${port}?`);
+        } else {
+          try { res.end(); } catch (_) {}
+        }
+      });
+
+      // Pipe request body
+      if (req.readable) {
+        req.pipe(proxyReq);
+      } else {
+        proxyReq.end();
+      }
+    });
 
     // --- Unified WebSocket Server with Path-Based Routing ---
     const wss = new WebSocketServer({ server });

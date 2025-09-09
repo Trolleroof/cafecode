@@ -26,10 +26,22 @@ export class UserTerminalManager {
 
     const cwd = UserWorkspaceManager.getTerminalRoot(userId);
     
+    // Prepare shared package cache directories (outside the workspace) per user
+    const sharedCacheRoot = path.resolve(UserWorkspaceManager.baseDir, '..', 'package-caches', userId);
+    const npmCacheDir = path.join(sharedCacheRoot, 'npm');
+    const yarnCacheDir = path.join(sharedCacheRoot, 'yarn');
+    const bunCacheDir = path.join(sharedCacheRoot, 'bun');
+    
     // Ensure the workspace directory exists
     if (!fs.existsSync(cwd)) {
       fs.mkdirSync(cwd, { recursive: true });
     }
+    // Ensure shared caches exist
+    try {
+      fs.mkdirSync(npmCacheDir, { recursive: true });
+      fs.mkdirSync(yarnCacheDir, { recursive: true });
+      fs.mkdirSync(bunCacheDir, { recursive: true });
+    } catch (_) {}
     
     // Optimized environment setup
     const env = {
@@ -42,14 +54,22 @@ export class UserTerminalManager {
       PS1: '$ ',
       HOSTNAME: 'mac',
       // Performance optimizations
-      NODE_OPTIONS: '--max-old-space-size=4096', // Increase memory for faster npm operations
-      npm_config_cache: path.join(cwd, '.npm-cache'), // Local npm cache
+      // Combine options rather than overwrite: more memory and prefer IPv4 DNS
+      NODE_OPTIONS: '--max-old-space-size=4096 --dns-result-order=ipv4first',
+      npm_config_cache: npmCacheDir, // Shared npm cache per user
       npm_config_prefer_offline: 'true', // Use offline cache when possible
       npm_config_progress: 'false', // Reduce terminal overhead
       npm_config_audit: 'false', // Skip audit for speed
       npm_config_fund: 'false', // Skip funding messages
+      // Allow lifecycle scripts to run when user is root (Docker/Fly runtime)
+      npm_config_unsafe_perm: 'true',
       // Always set a registry (defaults to npmjs if not provided)
       npm_config_registry: process.env.NPM_REGISTRY || 'https://registry.npmjs.org',
+      // Yarn and Bun caches (if user chooses to use them)
+      YARN_CACHE_FOLDER: yarnCacheDir,
+      BUN_INSTALL_CACHE_DIR: bunCacheDir,
+      // Increase libuv threadpool for concurrent FS work during installs
+      UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || '8',
     };
     
     const ptyProcess = pty.spawn('bash', ['-i'], {
@@ -69,6 +89,9 @@ export class UserTerminalManager {
       ptyProcess.write('npm config set audit false\n');
       ptyProcess.write('npm config set fund false\n');
       ptyProcess.write('npm config set progress false\n');
+      ptyProcess.write('npm config set unsafe-perm true\n');
+      // Point npm to shared cache directory
+      ptyProcess.write(`npm config set cache \"${npmCacheDir}\"\n`);
       // Skip deprecated 'cache-min' to avoid noisy warnings
       // Set registry explicitly for this terminal session (use default if env not set)
       ptyProcess.write(`npm config set registry ${process.env.NPM_REGISTRY || 'https://registry.npmjs.org'}\n`);

@@ -1,6 +1,32 @@
 import fs from 'fs';
 import path from 'path';
 
+// Heavy directories to ignore during scans and watcher events
+const IGNORED_DIRS = new Set([
+  'node_modules',
+  '.next',
+  'build',
+  'dist',
+  'out',
+  'coverage',
+  '.turbo',
+  '.cache',
+  'tmp',
+  '.vite',
+  '.nuxt',
+  '.svelte-kit',
+]);
+
+const isIgnoredPath = (p) => {
+  if (!p) return false;
+  try {
+    const segments = p.split(/[\\\/]/);
+    return segments.some((seg) => IGNORED_DIRS.has(seg));
+  } catch (_) {
+    return false;
+  }
+};
+
 
 export class FileSystemIndexer {
   constructor() {
@@ -76,6 +102,11 @@ export class FileSystemIndexer {
           
           const itemRelPath = relativePath ? `${relativePath}/${item.name}` : item.name;
           const itemFullPath = path.join(dirPath, item.name);
+
+          // Skip heavy/ignored directories and their contents
+          if (IGNORED_DIRS.has(item.name) || isIgnoredPath(itemRelPath)) {
+            continue;
+          }
           
           if (item.isDirectory()) {
             // Add folder to index
@@ -125,7 +156,12 @@ export class FileSystemIndexer {
 
     try {
       const watcher = fs.watch(workspacePath, { recursive: true }, (eventType, filename) => {
-        if (filename && !filename.startsWith('.') && !filename.startsWith('_')) {
+        if (
+          filename &&
+          !filename.startsWith('.') &&
+          !filename.startsWith('_') &&
+          !isIgnoredPath(filename)
+        ) {
           // Debounce file change events to reduce spam
           this.debounceFileChange(userId, eventType, filename, workspacePath);
         }

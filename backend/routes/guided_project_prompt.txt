@@ -92,7 +92,7 @@ ${projectContext}
 
 TECHNOLOGY DETECTION AND SUPPORT:
 - If the user mentions React, React.js, or ReactJS in their coding task description, create steps for a React application.
-- For React applications, DO NOT use global scaffolding commands like "npx create-react-app" as a step. Instead, create explicit files we can verify by name. Start with creating a folder like 'react-app', then create 'public/index.html' and 'src/App.jsx' (or 'src/App.tsx' for TypeScript), and 'src/index.jsx'. Use exact file names in single quotes.
+- For React applications, DO NOT use global scaffolding commands like "npx create-react-app" as a step. Instead, use Vite with "npm create vite@latest your-app-name -- --template react" as the first step, then modify existing files. Vite creates 'index.html', 'src/App.jsx' (or 'src/App.tsx' for TypeScript), and 'src/main.jsx'. Use exact file names in single quotes.
 - If the user mentions Vue, Vue.js, or VueJS, create steps for a Vue application
 - If the user mentions Angular, create steps for an Angular application
 - If the user mentions Next.js, create steps for a Next.js application
@@ -104,10 +104,11 @@ TECHNOLOGY DETECTION AND SUPPORT:
 
 🚨 CRITICAL REACT PROJECT RULES 🚨
 - For React projects, NEVER start with "Create a folder called 'project-name'" - React projects don't need this step
-- React projects should start directly with the terminal command to create the app
-- Always use the EXACT command format: "npx create-react-app your-app-name" (replace 'your-app-name' with the actual app name)
-- Never use "npx create-react-app ." - this creates the app in the current folder which can cause issues
-- After creating a React app, the next steps should focus on modifying existing files, not creating new folders
+- React projects should start directly with the terminal command to create the app using Vite
+- Always use the EXACT command format: "npm create vite@latest your-app-name -- --template react" (replace 'your-app-name' with the actual app name)
+- Never use "npm create vite@latest ." - this creates the app in the current folder which can cause issues
+- After creating a React app with Vite, the next steps should focus on modifying existing files, not creating new folders
+- Vite is preferred over Create React App for better performance and modern tooling
 
 STRICT JSON RULE: YOU MUST ALWAYS RETURN A VALID JSON ARRAY OF STEPS. DO NOT RETURN A SEQUENCE OF OBJECTS. ALWAYS WRAP THE STEPS IN [ ] BRACKETS. IF YOU DO NOT FOLLOW THIS, YOUR RESPONSE WILL BE REJECTED.
 
@@ -169,7 +170,7 @@ STEP CREATION RULES:
 - Do NOT use markdown formatting, asterisks, bold, or italics in the step instructions. Only use plain text
 - IMPORTANT: Use the built-in terminal to install tools and libraries rather than manually creating configuration files
 - For Node.js applications: you may run "npm init -y" followed by "npm install express" in the terminal, but follow these with verifiable file steps like creating 'server.js' and 'routes/health.js'.
-- For React applications: DO NOT instruct to run "npx create-react-app". Instead, create verifiable files and folders (e.g., 'public/index.html', 'src/App.jsx', 'src/index.jsx') and describe the exact text to add that we can check.
+- For React applications: DO NOT instruct to run "npx create-react-app". Instead, use Vite with "npm create vite@latest your-app-name -- --template react" and then modify existing files (e.g., 'index.html', 'src/App.jsx', 'src/main.jsx') and describe the exact text to add that we can check.
 - For Python applications: Use "pip install" commands in the terminal for required packages
 - For **full-stack** web applications, guide the user to create BOTH a frontend and a backend:
 - Immediately after creating the main task folder, add a 'frontend' folder for UI code and a 'backend' folder for server code.
@@ -261,7 +262,7 @@ CRITICAL FILE/FOLDER NAMING REQUIREMENTS - THIS IS MANDATORY:
 - Step count validation happens automatically - wrong step counts will be rejected
 
 TECHNOLOGY-SPECIFIC GUIDELINES:
-- React applications: Start with "npx create-react-app your-app-name" command, then modify existing files
+- React applications: Start with "npm create vite@latest your-app-name -- --template react" command, then modify existing files
 - Vue applications: Start with App.vue component and index.html
 - Angular applications: Start with main app component and index.html
 - Next.js applications: Start with pages directory and index.js
@@ -291,7 +292,7 @@ EXECUTION INSTRUCTIONS:
 - Tell users to press the green "Run" button to execute code
 - IMPORTANT: Use the built-in terminal for installing tools and libraries instead of manually creating files
 - For package installation, use "npm install" or "pip install" in the built-in terminal
-- For application setup, use terminal commands like "npm init -y", "npx create-react-app your-app-name", etc.
+- For application setup, use terminal commands like "npm init -y", "npm create vite@latest your-app-name -- --template react", etc.
 - Use in-memory data structures or small JSON files for persistence
 - Do NOT ask users to open external terminals or run system commands
 - Do NOT manually create package.json, requirements.txt, or other configuration files - use terminal commands
