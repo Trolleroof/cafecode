@@ -27,9 +27,116 @@ type TerminalTab = {
   isBootstrapping: boolean;
   bootBuffer?: string;
   bootTimer?: ReturnType<typeof setTimeout> | null;
+  // Loading animation state
+  isLoading: boolean;
+  hasReceivedFirstOutput: boolean;
 };
 
 const createTerminalId = () => `term_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+// Terminal Loading Animation Component
+const TerminalLoader: React.FC = () => {
+  const [dots, setDots] = useState('');
+  const [spinnerIndex, setSpinnerIndex] = useState(0);
+  const [animationTick, setAnimationTick] = useState(0);
+  const spinnerChars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+  useEffect(() => {
+    const dotsInterval = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? '' : prev + '.');
+    }, 500);
+
+    const spinnerInterval = setInterval(() => {
+      setSpinnerIndex(prev => (prev + 1) % spinnerChars.length);
+    }, 100);
+
+    const animationInterval = setInterval(() => {
+      setAnimationTick(prev => prev + 1);
+    }, 100);
+
+    return () => {
+      clearInterval(dotsInterval);
+      clearInterval(spinnerInterval);
+      clearInterval(animationInterval);
+    };
+  }, []);
+
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.95)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#00ff00',
+      fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+      fontSize: '14px',
+      zIndex: 10,
+      // Do not block clicks/typing to the terminal beneath
+      pointerEvents: 'none'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        marginBottom: '20px'
+      }}>
+        <span style={{ 
+          fontSize: '20px',
+          color: '#00ff00'
+        }}>
+          {spinnerChars[spinnerIndex]}
+        </span>
+        <span style={{ color: '#ffffff' }}>
+          Initializing terminal{dots}
+        </span>
+      </div>
+      
+      <div style={{
+        display: 'flex',
+        gap: '4px',
+        marginBottom: '15px'
+      }}>
+        {[0, 1, 2, 3, 4].map((i) => {
+          const phase = (animationTick * 0.1 + i * 0.4) % (Math.PI * 2);
+          const opacity = Math.sin(phase) * 0.5 + 0.5;
+          const scale = Math.sin(phase + Math.PI/4) * 0.3 + 0.7;
+          return (
+            <div
+              key={i}
+              style={{
+                width: '8px',
+                height: '8px',
+                backgroundColor: '#00ff00',
+                borderRadius: '50%',
+                opacity: opacity * 0.8 + 0.2,
+                transform: `scale(${scale})`,
+                transition: 'all 0.1s ease'
+              }}
+            />
+          );
+        })}
+      </div>
+      
+      <div style={{
+        color: '#888',
+        fontSize: '12px',
+        textAlign: 'center',
+        lineHeight: '1.4'
+      }}>
+        <div>• Establishing WebSocket connection</div>
+        <div>• Setting up terminal environment</div>
+        <div>• Loading shell configuration</div>
+      </div>
+
+    </div>
+  );
+};
 
 // Helper function to get websocket status as a readable string
 const getWebSocketStatus = (ws: WebSocket | null): string => {
@@ -70,6 +177,14 @@ const Terminal: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(false);
   const reconnectAttemptsRef = useRef<Map<string, number>>(new Map());
   const reconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Track the latest WebSocket per tab to avoid multiple onData handlers sending twice
+  const wsRefs = useRef<Map<string, WebSocket | null>>(new Map());
+  // Connection state guard per tab to prevent parallel opens
+  const wsState = useRef<Map<string, 'connecting' | 'open' | 'closed'>>(new Map());
+  // Prevent duplicate terminal initialization per tab (e.g., React StrictMode/ref re-invocations)
+  const initializedTabsRef = useRef<Set<string>>(new Set());
+  // Track a single input handler per tab to avoid duplicate key forwarding
+  const inputHandlersRef = useRef<Map<string, { dispose: () => void } | null>>(new Map());
 
   const addTab = useCallback(() => {
     if (isInitializing) return; // Prevent multiple simultaneous initializations
@@ -85,7 +200,9 @@ const Terminal: React.FC = () => {
       onDataDispose: null,
       isBootstrapping: false,
       bootBuffer: '',
-      bootTimer: null
+      bootTimer: null,
+      isLoading: true,
+      hasReceivedFirstOutput: false
     };
     
     setTabs(prev => [...prev, newTab]);
@@ -106,8 +223,13 @@ const Terminal: React.FC = () => {
 
   const attachXterm = useCallback((tabId: string, node: HTMLDivElement | null) => {
     const tab = tabs.find(t => t.id === tabId);
-    if (!tab || !node || tab.isAttached || isInitializing) return;
+    if (!tab || !node) return;
+    // Hard guard against duplicate initialization for the same tab
+    if (initializedTabsRef.current.has(tabId)) return;
+    if (tab.isAttached || isInitializing) return;
 
+    // Mark as initialized immediately to avoid races
+    initializedTabsRef.current.add(tabId);
     setIsInitializing(true);
 
     try {
@@ -159,6 +281,27 @@ const Terminal: React.FC = () => {
       term.loadAddon(fitAddon);
       term.loadAddon(clipboardAddon);
       term.open(node);
+      // Ensure the terminal is focused for immediate typing
+      try { term.focus(); } catch {}
+      
+      // Attach a SINGLE input handler per tab that always writes to the latest WebSocket
+      if (!inputHandlersRef.current.get(tabId)) {
+        let lastSent = '';
+        let lastSentAt = 0;
+        const disposable = term.onData((data) => {
+          const now = Date.now();
+          const isSinglePrintable = data.length === 1 && data >= ' ' && data <= '~';
+          const isImmediateDup = isSinglePrintable && data === lastSent && (now - lastSentAt) < 120;
+          if (isImmediateDup) return;
+          lastSent = data;
+          lastSentAt = now;
+          const latest = wsRefs.current.get(tabId);
+          if (latest && latest.readyState === 1) {
+            try { latest.send(data); } catch {}
+          }
+        });
+        inputHandlersRef.current.set(tabId, disposable);
+      }
       
       // Optimized sizing with requestAnimationFrame for smoother rendering
       requestAnimationFrame(() => {
@@ -167,29 +310,108 @@ const Terminal: React.FC = () => {
           const dims = fitAddon.proposeDimensions() || { cols: 80, rows: 24 };
           
           const openWebSocket = async () => {
+            // Prevent parallel opens for this tab
+            const state = wsState.current.get(tabId);
+            if (state === 'connecting' || state === 'open') {
+              return;
+            }
+            wsState.current.set(tabId, 'connecting');
             // Avoid parallel connection attempts per tab
             const token = await getFreshAccessToken(supabase);
             if (!token) {
+              wsState.current.set(tabId, 'closed');
               return;
             }
+
+            // Ensure any previous socket for this tab is closed before opening a new one
+            const existing = wsRefs.current.get(tabId);
+            try { existing?.close(); } catch {}
 
             const ws = new WebSocket(`${WS_BASE_URL}?access_token=${encodeURIComponent(token)}&terminal_id=${tabId}`);
 
             ws.onopen = () => {
+              // Track latest ws for this tab
+              wsRefs.current.set(tabId, ws);
+              wsState.current.set(tabId, 'open');
               // Reset attempts on success
               reconnectAttemptsRef.current.set(tabId, 0);
               // Send size immediately after connection
               const size = fitAddon.proposeDimensions() || dims;
               try { ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows })); } catch {}
+              // Hide loader immediately upon connection; terminal will render prompt shortly
+              setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isLoading: false } : t));
             };
 
+            // Simple, safe de-duplication guard for immediate 1-char repeats
+            // This addresses rare cases where two sources echo the same keystroke.
+            let lastMsg = '';
+            let lastMsgAt = 0;
+
             ws.onmessage = (event) => {
+              // Ignore messages from non-latest sockets for this tab
+              const latest = wsRefs.current.get(tabId);
+              if (latest && latest !== ws) return;
               const data = typeof event.data === 'string' ? event.data : '';
-              term.write(data);
-              term.scrollToBottom();
+
+              // Drop only ultra-quick consecutive identical 1-char messages (likely double-echo)
+              // Keep everything else, including spaces/newlines and larger chunks.
+              const now = Date.now();
+              const isSinglePrintable = data.length === 1 && data >= ' ' && data <= '~';
+              const isImmediateDup = isSinglePrintable && data === lastMsg && (now - lastMsgAt) < 120;
+              lastMsg = data;
+              lastMsgAt = now;
+
+              if (!isImmediateDup && data) {
+                term.write(data);
+                term.scrollToBottom();
+              }
+              
+              // Update loading state based on terminal output
+              setTabs(prev => prev.map(t => {
+                if (t.id !== tabId) return t;
+                
+                let newIsLoading = t.isLoading;
+                let newHasReceivedFirstOutput = t.hasReceivedFirstOutput;
+                
+                // Mark that we've received first output
+                if (!t.hasReceivedFirstOutput && data) {
+                  newHasReceivedFirstOutput = true;
+                }
+                
+                // Detect clear command by looking for ANSI escape sequences that clear screen
+                // Common clear sequences: \x1b[2J, \x1b[H\x1b[2J, \x1b[3J, \x1bc
+                const clearPatterns = [
+                  /\x1b\[2J/,      // Clear entire screen
+                  /\x1b\[H\x1b\[2J/, // Move cursor to home and clear screen
+                  /\x1b\[3J/,      // Clear entire screen and scrollback
+                  /\x1bc/          // Full reset
+                ];
+                
+                const isClearCommand = clearPatterns.some(pattern => pattern.test(data));
+                if (isClearCommand && t.hasReceivedFirstOutput) {
+                  newIsLoading = false;
+                }
+                
+                // Also stop loading after a reasonable timeout if we've received output
+                if (t.hasReceivedFirstOutput && t.isLoading) {
+                  setTimeout(() => {
+                    setTabs(prevTabs => prevTabs.map(prevTab => 
+                      prevTab.id === tabId ? { ...prevTab, isLoading: false } : prevTab
+                    ));
+                  }, 3000); // Stop loading after 3 seconds of output
+                }
+                
+                if (newIsLoading !== t.isLoading || newHasReceivedFirstOutput !== t.hasReceivedFirstOutput) {
+                  return { ...t, isLoading: newIsLoading, hasReceivedFirstOutput: newHasReceivedFirstOutput };
+                }
+                return t;
+              }));
             };
 
             ws.onclose = (event) => {
+              // Clear ws ref for this tab
+              wsRefs.current.set(tabId, null);
+              wsState.current.set(tabId, 'closed');
               const codeMeaning: Record<number, string> = {
                 1000: 'Normal closure',
                 4001: 'Missing access token',
@@ -218,17 +440,10 @@ const Terminal: React.FC = () => {
               }
             };
 
-            // Wire onData to current ws; dispose previous handler if any
+            // Update ws in state
             setTabs(prev => prev.map(t => {
               if (t.id !== tabId) return t;
-              try { t.onDataDispose?.dispose(); } catch {}
-              const disposable = term.onData((data) => {
-                if (ws.readyState === 1) {
-                  ws.send(data);
-                  term.scrollToBottom();
-                }
-              });
-              return { ...t, ws, onDataDispose: disposable, isBootstrapping: false, bootBuffer: '', bootTimer: null };
+              return { ...t, ws, isBootstrapping: false, bootBuffer: '', bootTimer: null };
             }));
           };
 
@@ -246,12 +461,16 @@ const Terminal: React.FC = () => {
           setIsInitializing(false);
         } catch (error) {
           console.error('Error initializing terminal:', error);
+          // Allow retry by clearing init guard
+          initializedTabsRef.current.delete(tabId);
           setIsInitializing(false);
         }
       });
 
     } catch (error) {
       console.error('Error creating terminal:', error);
+      // Allow retry by clearing init guard
+      initializedTabsRef.current.delete(tabId);
       setIsInitializing(false);
     }
   }, [session?.access_token, tabs, isInitializing]);
@@ -271,9 +490,12 @@ const Terminal: React.FC = () => {
           reconnectTimersRef.current.delete(tabId);
         }
         reconnectAttemptsRef.current.delete(tabId);
+        wsRefs.current.delete(tabId);
         try { tab.ws?.close(); } catch (_) {}
         try { tab.xterm?.dispose(); } catch (_) {}
         try { tab.resizeObserver?.disconnect(); } catch (_) {}
+        // Clear init guard for this tab
+        initializedTabsRef.current.delete(tabId);
       }
       const next = prev.filter(t => t.id !== tabId);
       if (activeId === tabId) {
@@ -341,6 +563,7 @@ const Terminal: React.FC = () => {
             reconnectTimersRef.current.delete(t.id);
           }
           reconnectAttemptsRef.current.delete(t.id);
+          wsRefs.current.delete(t.id);
           try { t.ws?.close(); } catch (_) {}
           try { t.xterm?.dispose(); } catch (_) {}
           try { t.resizeObserver?.disconnect(); } catch (_) {}
@@ -382,9 +605,11 @@ const Terminal: React.FC = () => {
                   attachXterm(tab.id, node);
                 }
               }} 
+              onMouseDown={() => { try { tab.xterm?.focus(); } catch {} }}
               style={{ width: '100%', height: '100%', paddingBottom: '20px' }} 
             />
-            {/* Removed visual bootstrapping overlay to avoid blocking interactions */}
+            {/* Show loading animation while terminal is initializing */}
+            {tab.isLoading && <TerminalLoader />}
           </div>
         ))}
       </div>
