@@ -6,14 +6,13 @@ import { FitAddon } from 'xterm-addon-fit';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import 'xterm/css/xterm.css';
 import { useAuth } from '@/app/security/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
+import { getFreshAccessToken } from '@/lib/authToken';
 
-// WebSocket URL Configuration - UNCOMMENT THE OPTION YOU WANT TO USE
-
-// Option 1: Connect to local backend (for development)
-// const WS_BASE_URL = 'ws://localhost:8000/terminal';
-
-// Option 2: Connect to Fly.io backend (for production)
+// WebSocket URL Configuration
+// Use localhost when NEXT_PUBLIC_USE_LOCALHOST=true, otherwise use production
 const WS_BASE_URL = 'wss://cafecode-backend-v2.fly.dev/terminal';
+
 
 type TerminalTab = {
   id: string;
@@ -167,9 +166,9 @@ const Terminal: React.FC = () => {
           fitAddon.fit();
           const dims = fitAddon.proposeDimensions() || { cols: 80, rows: 24 };
           
-          const openWebSocket = () => {
+          const openWebSocket = async () => {
             // Avoid parallel connection attempts per tab
-            const token = session?.access_token;
+            const token = await getFreshAccessToken(supabase);
             if (!token) {
               term.writeln('🔄 Waiting for authentication...');
               return;
@@ -237,7 +236,7 @@ const Terminal: React.FC = () => {
                 const existing = reconnectTimersRef.current.get(tabId);
                 if (existing) clearTimeout(existing);
                 const timer = setTimeout(() => {
-                  openWebSocket();
+                  void openWebSocket();
                 }, delay);
                 reconnectTimersRef.current.set(tabId, timer);
               }
@@ -261,7 +260,7 @@ const Terminal: React.FC = () => {
             }));
           };
 
-          openWebSocket();
+          void openWebSocket();
 
           // Update tab state
           setTabs(prev => prev.map(t => t.id === tabId ? { 

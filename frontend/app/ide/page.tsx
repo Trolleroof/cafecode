@@ -48,16 +48,14 @@ import ReactPreview from '@/components/ReactPreview';
 import ProjectCompletionModal from '@/components/ProjectCompletionModal';
 import PaymentModal from '@/components/PaymentModal';
 import { supabase } from '../../lib/supabase';
+import { getFreshAccessToken } from '@/lib/authToken';
 import { FileNode } from '@/types';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
 
-// const backendUrl = 'http://localhost:8000/api';
-// const WebSocketUrl = 'ws://localhost:8000'
-
-
-//public backend url
+// Backend + WebSocket base URLs
+// Switch to localhost when NEXT_PUBLIC_USE_LOCALHOST=true
 const backendUrl = 'https://cafecode-backend-v2.fly.dev/api'
 const WS_BASE_URL = 'wss://cafecode-backend-v2.fly.dev';
 
@@ -915,14 +913,12 @@ function IDEPage() {
   
   // Set up WebSocket connection for file events (stabilized)
   useEffect(() => {
-    const accessToken = session?.access_token;
-    if (!accessToken) return;
-       
-    
+    if (!session?.access_token) return;
+
     let ws: WebSocket | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
-    
-    const connectWebSocket = () => {
+
+    const connectWebSocket = async () => {
       // Prevent parallel connects
       if (connectingRef.current) {
         return;
@@ -933,10 +929,16 @@ function IDEPage() {
       }
       connectingRef.current = true;
       try {
+        // Always fetch a fresh token just-in-time
+        const freshToken = await getFreshAccessToken(supabase);
+        if (!freshToken) {
+          console.warn('📡 [FILE-EVENTS] No access token available yet');
+          connectingRef.current = false;
+          return;
+        }
         const wsUrl = WS_BASE_URL
         console.log('📡 [FILE-EVENTS] Attempting to connect to:', `${wsUrl}/file-events`);
-        
-        const encodedToken = encodeURIComponent(session.access_token);
+        const encodedToken = encodeURIComponent(freshToken);
         const fullWsUrl = `${wsUrl}/file-events?access_token=${encodedToken}`;
         console.log('📡 [FILE-EVENTS] Full WebSocket URL (token truncated):', fullWsUrl.replace(/access_token=[^&]*/, 'access_token=***REDACTED***'));
         
@@ -1054,15 +1056,16 @@ function IDEPage() {
           fileEventsWsRef.current = null;
           connectingRef.current = false;
           
-          // Only attempt to reconnect if it wasn't a manual close and session is still valid
-          if (event.code !== 1000 && accessToken) {
+          // Only attempt to reconnect if it wasn't a manual close and we still have a session
+          if (event.code !== 1000 && session?.access_token) {
             // Exponential backoff with cap at 30s
             const attempt = Math.min(reconnectAttemptsRef.current + 1, 5);
             reconnectAttemptsRef.current = attempt;
             const delay = Math.min(30000, 2000 * Math.pow(2, attempt - 1));
             console.log(`📡 [FILE-EVENTS] Attempting to reconnect in ${Math.round(delay/1000)}s... (attempt ${attempt})`);
             reconnectTimeout = setTimeout(() => {
-              if (accessToken) {
+              if (session?.access_token) {
+                // Fetch fresh token inside connect call
                 connectWebSocket();
               }
             }, delay);
@@ -1076,7 +1079,7 @@ function IDEPage() {
     };
     
     // Initial connection attempt
-    connectWebSocket();
+    void connectWebSocket();
     
     return () => {
       if (reconnectTimeout) {
