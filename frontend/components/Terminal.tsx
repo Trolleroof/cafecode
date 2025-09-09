@@ -83,7 +83,7 @@ const Terminal: React.FC = () => {
       ws: null,
       isAttached: false,
       onDataDispose: null,
-      isBootstrapping: true,
+      isBootstrapping: false,
       bootBuffer: '',
       bootTimer: null
     };
@@ -170,7 +170,6 @@ const Terminal: React.FC = () => {
             // Avoid parallel connection attempts per tab
             const token = await getFreshAccessToken(supabase);
             if (!token) {
-              term.writeln('🔄 Waiting for authentication...');
               return;
             }
 
@@ -184,32 +183,8 @@ const Terminal: React.FC = () => {
               try { ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows })); } catch {}
             };
 
-            const detectPrompt = (text: string) => {
-              // Detect a PS1 '$ ' prompt, allow CR/LF variations
-              return /[\r\n]\$\s$/.test(text) || /\n\$\s/.test(text) || /\r\$\s/.test(text) || text.trimEnd().endsWith('$');
-            };
-
             ws.onmessage = (event) => {
               const data = typeof event.data === 'string' ? event.data : '';
-              const current = tabs.find(t => t.id === tabId);
-              const booting = current?.isBootstrapping;
-              if (booting) {
-                // Accumulate until we see a prompt, then finish bootstrap
-                const buf = (current?.bootBuffer || '') + data;
-                // Update buffer in state
-                setTabs(prev => prev.map(t => t.id === tabId ? { ...t, bootBuffer: buf } : t));
-                if (detectPrompt(buf)) {
-                  // Finish bootstrapping: clear terminal and ask shell to print a fresh prompt
-                  term.clear();
-                  try { ws.send('\n'); } catch {}
-                  const bootTimer = current?.bootTimer;
-                  if (bootTimer) {
-                    try { clearTimeout(bootTimer); } catch {}
-                  }
-                  setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isBootstrapping: false, bootBuffer: '', bootTimer: null } : t));
-                }
-                return;
-              }
               term.write(data);
               term.scrollToBottom();
             };
@@ -253,11 +228,7 @@ const Terminal: React.FC = () => {
                   term.scrollToBottom();
                 }
               });
-              // Start a bootstrap timeout fail-safe (show terminal after a delay even if no prompt detected)
-              const timer = setTimeout(() => {
-                setTabs(prev2 => prev2.map(tt => tt.id === tabId ? { ...tt, isBootstrapping: false, bootBuffer: '' } : tt));
-              }, 5000);
-              return { ...t, ws, onDataDispose: disposable, isBootstrapping: true, bootBuffer: '', bootTimer: timer };
+              return { ...t, ws, onDataDispose: disposable, isBootstrapping: false, bootBuffer: '', bootTimer: null };
             }));
           };
 
@@ -413,14 +384,7 @@ const Terminal: React.FC = () => {
               }} 
               style={{ width: '100%', height: '100%', paddingBottom: '20px' }} 
             />
-            {tab.isBootstrapping && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-gray-200" style={{ pointerEvents: 'none', zIndex: 10 }}>
-                <div className="flex items-center gap-3">
-                  <div className="h-5 w-5 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" />
-                  <span>Preparing terminal…</span>
-                </div>
-              </div>
-            )}
+            {/* Removed visual bootstrapping overlay to avoid blocking interactions */}
           </div>
         ))}
       </div>
