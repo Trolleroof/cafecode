@@ -5,7 +5,7 @@ import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import 'xterm/css/xterm.css';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '@/app/security/hooks/useAuth';
 
 // WebSocket URL Configuration - UNCOMMENT THE OPTION YOU WANT TO USE
 
@@ -23,6 +23,7 @@ type TerminalTab = {
   ws: WebSocket | null;
   resizeObserver?: ResizeObserver;
   isAttached: boolean;
+  onDataDispose?: { dispose: () => void } | null;
 };
 
 const createTerminalId = () => `term_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -62,8 +63,10 @@ const Terminal: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [tabs, setTabs] = useState<TerminalTab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const { session } = useAuth();
   const [isInitializing, setIsInitializing] = useState(false);
+  const reconnectAttemptsRef = useRef<Map<string, number>>(new Map());
+  const reconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const addTab = useCallback(() => {
     if (isInitializing) return; // Prevent multiple simultaneous initializations
@@ -75,7 +78,8 @@ const Terminal: React.FC = () => {
       xterm: null, 
       fit: null, 
       ws: null,
-      isAttached: false
+      isAttached: false,
+      onDataDispose: null
     };
     
     setTabs(prev => [...prev, newTab]);
@@ -87,21 +91,12 @@ const Terminal: React.FC = () => {
     setActiveId(tabId);
   }, []);
 
-  // Fetch access token once
-  useEffect(() => {
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      setAccessToken(session?.access_token ?? null);
-    })();
-  }, []);
-
   // Create initial tab when access token is available
   useEffect(() => {
-    if (accessToken && tabs.length === 0) {
+    if (session?.access_token && tabs.length === 0) {
       addTab();
     }
-  }, [accessToken, tabs.length, addTab]);
+  }, [session?.access_token, tabs.length, addTab]);
 
   const attachXterm = useCallback((tabId: string, node: HTMLDivElement | null) => {
     const tab = tabs.find(t => t.id === tabId);
@@ -165,41 +160,81 @@ const Terminal: React.FC = () => {
           fitAddon.fit();
           const dims = fitAddon.proposeDimensions() || { cols: 80, rows: 24 };
           
-          // Create WebSocket connection
-          let ws: WebSocket | null = null;
-          if (accessToken) {
-            ws = new WebSocket(`${WS_BASE_URL}?access_token=${accessToken}&terminal_id=${tabId}`);
-            
+          const openWebSocket = () => {
+            // Avoid parallel connection attempts per tab
+            const token = session?.access_token;
+            if (!token) {
+              term.writeln('🔄 Waiting for authentication...');
+              return;
+            }
+
+            const ws = new WebSocket(`${WS_BASE_URL}?access_token=${encodeURIComponent(token)}&terminal_id=${tabId}`);
+
             ws.onopen = () => {
+              // Reset attempts on success
+              reconnectAttemptsRef.current.set(tabId, 0);
               // Send size immediately after connection
-              ws?.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
+              const size = fitAddon.proposeDimensions() || dims;
+              try { ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows })); } catch {}
+              // Clear any previous reconnect message
+              term.writeln('\r\n🖧 Terminal connected.');
             };
-            
+
             ws.onmessage = (event) => {
               term.write(event.data);
               term.scrollToBottom();
             };
-            
-            ws.onclose = () => {
-              term.writeln('\r\n🖧 Terminal disconnected. Reload to reconnect.');
+
+            ws.onclose = (event) => {
+              const codeMeaning: Record<number, string> = {
+                1000: 'Normal closure',
+                4001: 'Missing access token',
+                4002: 'Invalid access token'
+              };
+              const meaning = codeMeaning[event.code] || 'Disconnected';
+              term.writeln(`\r\n🖧 ${meaning}. Reconnecting if possible...`);
+
+              // Mark ws as null in state so effects can try to reopen
+              setTabs(prev => prev.map(t => t.id === tabId ? { ...t, ws: null } : t));
+
+              const currentToken = session?.access_token;
+              if (event.code !== 1000 && currentToken) {
+                const prevAttempts = reconnectAttemptsRef.current.get(tabId) || 0;
+                const nextAttempts = Math.min(prevAttempts + 1, 5);
+                reconnectAttemptsRef.current.set(tabId, nextAttempts);
+                const delay = Math.min(30000, 2000 * Math.pow(2, nextAttempts - 1));
+                // Clear any existing timer then schedule
+                const existing = reconnectTimersRef.current.get(tabId);
+                if (existing) clearTimeout(existing);
+                const timer = setTimeout(() => {
+                  openWebSocket();
+                }, delay);
+                reconnectTimersRef.current.set(tabId, timer);
+              }
             };
 
-            term.onData((data) => {
-              if (ws && ws.readyState === 1) {
-                ws.send(data);
-                term.scrollToBottom();
-              }
-            });
-          } else {
-            term.writeln('🔄 Waiting for authentication...');
-          }
+            // Wire onData to current ws; dispose previous handler if any
+            setTabs(prev => prev.map(t => {
+              if (t.id !== tabId) return t;
+              try { t.onDataDispose?.dispose(); } catch {}
+              const disposable = term.onData((data) => {
+                if (ws.readyState === 1) {
+                  ws.send(data);
+                  term.scrollToBottom();
+                }
+              });
+              return { ...t, ws, onDataDispose: disposable };
+            }));
+          };
+
+          openWebSocket();
 
           // Update tab state
           setTabs(prev => prev.map(t => t.id === tabId ? { 
             ...t, 
             xterm: term, 
             fit: fitAddon, 
-            ws, 
+            // ws will be set by openWebSocket above
             isAttached: true
           } : t));
           
@@ -214,52 +249,62 @@ const Terminal: React.FC = () => {
       console.error('Error creating terminal:', error);
       setIsInitializing(false);
     }
-  }, [accessToken, tabs, isInitializing]);
+  }, [session?.access_token, tabs, isInitializing]);
 
-  // Re-attach terminals when access token becomes available
+  // Re-open sockets for tabs that are attached but have no active ws (e.g., after token refresh)
   useEffect(() => {
-    if (accessToken && tabs.length > 0) {
+    if (!session?.access_token || tabs.length === 0) return;
+    tabs.forEach(tab => {
+      if (!tab.xterm || tab.ws) return; // Need an xterm and no active ws
+      // Trigger a reconnect by simulating a small handler that will be set in attachXterm
+      // Here we duplicate the minimal logic to re-open
+      const token = session.access_token;
+      const ws = new WebSocket(`${WS_BASE_URL}?access_token=${encodeURIComponent(token)}&terminal_id=${tab.id}`);
 
-      tabs.forEach(tab => {
-        if (tab.xterm && !tab.ws && !tab.isAttached) {
-
-          const ws = new WebSocket(`${WS_BASE_URL}?access_token=${accessToken}&terminal_id=${tab.id}`);
-          ws.onopen = () => {
-
-            if (tab.fit) {
-              const dims = tab.fit.proposeDimensions() || { cols: 80, rows: 24 };
-              ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
-            }
-            // Clear the "waiting for auth" message
-            tab.xterm?.clear();
-          };
-          ws.onmessage = (event) => tab.xterm?.write(event.data);
-          ws.onclose = () => tab.xterm?.writeln('\r\n🖧 Terminal has been disconnected. PLEASE RELOAD');
-
-          tab.xterm.onData((data) => {
-            if (ws.readyState === 1) ws.send(data);
-          });
-
-          // Update the tab with the new WebSocket
-          setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, ws } : t));
-          
-          // Re-fit the terminal after re-attachment
-          setTimeout(() => {
-            if (tab.fit) {
-              tab.fit.fit();
-              const dims = tab.fit.proposeDimensions() || { cols: 80, rows: 24 };
-              ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows }));
-            }
-          }, 100);
+      ws.onopen = () => {
+        reconnectAttemptsRef.current.set(tab.id, 0);
+        if (tab.fit) {
+          const dims = tab.fit.proposeDimensions() || { cols: 80, rows: 24 };
+          try { ws.send(JSON.stringify({ type: 'resize', cols: dims.cols, rows: dims.rows })); } catch {}
         }
+        tab.xterm?.clear();
+      };
+      ws.onmessage = (event) => tab.xterm?.write(event.data);
+      ws.onclose = (event) => {
+        const existing = reconnectTimersRef.current.get(tab.id);
+        if (existing) clearTimeout(existing);
+        const currentToken = session?.access_token;
+        if (event.code !== 1000 && currentToken) {
+          const prev = reconnectAttemptsRef.current.get(tab.id) || 0;
+          const next = Math.min(prev + 1, 5);
+          reconnectAttemptsRef.current.set(tab.id, next);
+          const delay = Math.min(30000, 2000 * Math.pow(2, next - 1));
+          const timer = setTimeout(() => {
+            // Force ws to null, effect will pick it up again on next run
+            setTabs(prevTabs => prevTabs.map(t => t.id === tab.id ? { ...t, ws: null } : t));
+          }, delay);
+          reconnectTimersRef.current.set(tab.id, timer);
+        }
+      };
+      // Wire input, replace previous handler
+      try { tab.onDataDispose?.dispose(); } catch {}
+      const disposable = tab.xterm.onData((data) => {
+        if (ws.readyState === 1) ws.send(data);
       });
-    }
-  }, [accessToken, tabs]);
+      setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, ws, onDataDispose: disposable } : t));
+    });
+  }, [session?.access_token, tabs]);
 
   const closeTab = useCallback((tabId: string) => {
     setTabs(prev => {
       const tab = prev.find(t => t.id === tabId);
       if (tab) {
+        const timer = reconnectTimersRef.current.get(tabId);
+        if (timer) {
+          clearTimeout(timer);
+          reconnectTimersRef.current.delete(tabId);
+        }
+        reconnectAttemptsRef.current.delete(tabId);
         try { tab.ws?.close(); } catch (_) {}
         try { tab.xterm?.dispose(); } catch (_) {}
         try { tab.resizeObserver?.disconnect(); } catch (_) {}
@@ -324,6 +369,12 @@ const Terminal: React.FC = () => {
       // Use a ref to get the current tabs at unmount time
       setTabs(currentTabs => {
         currentTabs.forEach(t => {
+          const timer = reconnectTimersRef.current.get(t.id);
+          if (timer) {
+            clearTimeout(timer);
+            reconnectTimersRef.current.delete(t.id);
+          }
+          reconnectAttemptsRef.current.delete(t.id);
           try { t.ws?.close(); } catch (_) {}
           try { t.xterm?.dispose(); } catch (_) {}
           try { t.resizeObserver?.disconnect(); } catch (_) {}

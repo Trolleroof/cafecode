@@ -202,7 +202,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           ) : (
             <>
               <Search className={`h-5 w-5 mr-2 ${!isComplete ? 'animate-pulse' : ''}`} />
-              Check Step
+              Check
             </>
           )}
         </Button>
@@ -225,7 +225,7 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
             disabled={!isComplete}
           >
             <ArrowRight className="h-5 w-5 mr-2" />
-            {isComplete ? 'Next' : 'Complete Step First'}
+            Next
           </Button>
         )}
       </div>

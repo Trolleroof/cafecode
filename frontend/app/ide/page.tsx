@@ -360,6 +360,9 @@ function IDEPage() {
   const [isStartingFromSteps, setIsStartingFromSteps] = useState(false);
   const [stepsFlowError, setStepsFlowError] = useState<string | null>(null);
   const [isGeneratingSteps, setIsGeneratingSteps] = useState(false);
+  const [preloadedSteps, setPreloadedSteps] = useState<any[] | null>(null);
+  const [preloadSignature, setPreloadSignature] = useState<string | null>(null);
+  const [lastGenerationSignature, setLastGenerationSignature] = useState<string | null>(null);
 
   // Follow-up flow state
   const [isInFollowUpPhase, setIsInFollowUpPhase] = useState(false);
@@ -1619,6 +1622,30 @@ function IDEPage() {
         setChatMessages(prev => [...prev, { type: 'assistant', content: result.response.content, timestamp: new Date() }]);
         // Now set isInSetupPhase after questions are generated and loading is done
         setIsInSetupPhase(true);
+
+        // Kick off background preloading of steps for faster UX
+        try {
+          const signatureObj = { d: description, h: [] as string[] };
+          const sig = JSON.stringify(signatureObj);
+          setPreloadSignature(sig);
+          // Only preload if we don't already have matching steps
+          if (!preloadedSteps || preloadSignature !== sig) {
+            const preloadResp = await fetch('/api/guided/steps/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+              body: JSON.stringify({ projectDescription: description, history: [], projectFiles: files })
+            });
+            if (preloadResp.ok) {
+              const preloadData = await preloadResp.json();
+              if (Array.isArray(preloadData.steps)) {
+                setPreloadedSteps(preloadData.steps);
+                setPreloadSignature(sig);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[STEPS] Preload failed (non-blocking):', e);
+        }
       } else if (result?.error) {
         setIsTyping(true);
         // Add a small delay to show the typing indicator
@@ -1679,6 +1706,28 @@ function IDEPage() {
         }
       }
       
+      // Compute a simple signature of inputs to detect no-change situations
+      const signatureObj = { d: enhancedDescription, h: isInFollowUpPhase ? chatMessages.map(m => m.content) : [] };
+      const currentSignature = JSON.stringify(signatureObj);
+
+      // Fast path 1: Inputs unchanged and we already have generated steps
+      if (!isInFollowUpPhase && lastGenerationSignature && lastGenerationSignature === currentSignature && Array.isArray(originalSteps) && originalSteps.length > 0) {
+        setPreviewSteps(originalSteps);
+        setShowStepsPreviewModal(true);
+        setIsInSetupPhase(false);
+        return;
+      }
+
+      // Fast path 2: Use preloaded steps if available and inputs match preload
+      if (!isInFollowUpPhase && preloadedSteps && preloadSignature === currentSignature) {
+        setOriginalSteps(preloadedSteps);
+        setPreviewSteps(preloadedSteps);
+        setShowStepsPreviewModal(true);
+        setIsInSetupPhase(false);
+        setLastGenerationSignature(currentSignature);
+        return;
+      }
+
       const response = await fetch('/api/guided/steps/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
@@ -1695,6 +1744,10 @@ function IDEPage() {
         setPreviewSteps(result.steps);
         setShowStepsPreviewModal(true);
         setIsInSetupPhase(false);
+        setLastGenerationSignature(currentSignature);
+        // Refresh preload cache to match latest
+        setPreloadedSteps(result.steps);
+        setPreloadSignature(currentSignature);
       } else {
         if (response.status === 500) {
           setStepsFlowError('Server error occurred. Please press "Generate Steps" again to retry.');
