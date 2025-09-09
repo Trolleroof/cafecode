@@ -338,8 +338,13 @@ const Terminal: React.FC = () => {
               // Send size immediately after connection
               const size = fitAddon.proposeDimensions() || dims;
               try { ws.send(JSON.stringify({ type: 'resize', cols: size.cols, rows: size.rows })); } catch {}
-              // Hide loader immediately upon connection; terminal will render prompt shortly
-              setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isLoading: false } : t));
+              
+              // Fallback: Hide loader after 5 seconds to prevent getting stuck
+              setTimeout(() => {
+                setTabs(prevTabs => prevTabs.map(prevTab => 
+                  prevTab.id === tabId ? { ...prevTab, isLoading: false } : prevTab
+                ));
+              }, 5000);
             };
 
             // Simple, safe de-duplication guard for immediate 1-char repeats
@@ -379,7 +384,7 @@ const Terminal: React.FC = () => {
                 }
                 
                 // Detect clear command by looking for ANSI escape sequences that clear screen
-                // Common clear sequences: \x1b[2J, \x1b[H\x1b[2J, \x1b[3J, \x1bc
+                // This is the most reliable indicator that terminal setup is complete
                 const clearPatterns = [
                   /\x1b\[2J/,      // Clear entire screen
                   /\x1b\[H\x1b\[2J/, // Move cursor to home and clear screen
@@ -388,17 +393,10 @@ const Terminal: React.FC = () => {
                 ];
                 
                 const isClearCommand = clearPatterns.some(pattern => pattern.test(data));
+                
+                // Hide loading animation immediately when clear command is detected
                 if (isClearCommand && t.hasReceivedFirstOutput) {
                   newIsLoading = false;
-                }
-                
-                // Also stop loading after a reasonable timeout if we've received output
-                if (t.hasReceivedFirstOutput && t.isLoading) {
-                  setTimeout(() => {
-                    setTabs(prevTabs => prevTabs.map(prevTab => 
-                      prevTab.id === tabId ? { ...prevTab, isLoading: false } : prevTab
-                    ));
-                  }, 3000); // Stop loading after 3 seconds of output
                 }
                 
                 if (newIsLoading !== t.isLoading || newHasReceivedFirstOutput !== t.hasReceivedFirstOutput) {
