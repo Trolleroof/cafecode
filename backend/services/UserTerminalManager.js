@@ -99,39 +99,13 @@ export class UserTerminalManager {
       ptyProcess.write('  fi\n');
       ptyProcess.write('}\n');
       
-      // Add function to start development servers locally
+      // Simple function to start development servers
       ptyProcess.write('start-dev() {\n');
       ptyProcess.write('  if [ -f "package.json" ]; then\n');
-      ptyProcess.write('    echo "🚀 Starting development server locally..."\n');
-      ptyProcess.write('    echo "📍 Current directory: $(pwd)"\n');
-      ptyProcess.write('    \n');
-      ptyProcess.write('    if grep -q "vite" package.json; then\n');
-      ptyProcess.write('      echo "📦 Detected Vite project - starting on localhost"\n');
-      ptyProcess.write('      echo "🌐 Server will be available at: http://localhost:5173"\n');
-      ptyProcess.write('      echo "🔍 Watch the output below for the actual server URL..."\n');
-      ptyProcess.write('      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"\n');
-      ptyProcess.write('      npm run dev\n');
-      ptyProcess.write('    elif grep -q "next" package.json; then\n');
-      ptyProcess.write('      echo "📦 Detected Next.js project - starting on localhost"\n');
-      ptyProcess.write('      echo "🌐 Server will be available at: http://localhost:3000"\n');
-      ptyProcess.write('      echo "🔍 Watch the output below for the actual server URL..."\n');
-      ptyProcess.write('      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"\n');
-      ptyProcess.write('      npm run dev\n');
-      ptyProcess.write('    elif grep -q "react-scripts" package.json; then\n');
-      ptyProcess.write('      echo "📦 Detected Create React App - starting on localhost"\n');
-      ptyProcess.write('      echo "🌐 Server will be available at: http://localhost:3000"\n');
-      ptyProcess.write('      echo "🔍 Watch the output below for the actual server URL..."\n');
-      ptyProcess.write('      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"\n');
-      ptyProcess.write('      npm start\n');
-      ptyProcess.write('    else\n');
-      ptyProcess.write('      echo "📦 Starting with default npm run dev"\n');
-      ptyProcess.write('      echo "🔍 Watch the output below for the actual server URL..."\n');
-      ptyProcess.write('      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"\n');
-      ptyProcess.write('      npm run dev\n');
-      ptyProcess.write('    fi\n');
+      ptyProcess.write('    echo "🚀 Starting development server..."\n');
+      ptyProcess.write('    npm run dev\n');
       ptyProcess.write('  else\n');
-      ptyProcess.write('    echo "❌ No package.json found. Make sure you are in a Node.js project directory."\n');
-      ptyProcess.write('    echo "Use find-project <project-name> to navigate to your project"\n');
+      ptyProcess.write('    echo "❌ No package.json found"\n');
       ptyProcess.write('  fi\n');
       ptyProcess.write('}\n');
       
