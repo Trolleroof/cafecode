@@ -70,12 +70,19 @@ export class UserTerminalManager {
       BUN_INSTALL_CACHE_DIR: bunCacheDir,
       // Increase libuv threadpool for concurrent FS work during installs
       UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || '8',
+      // Add CafeCode utilities to PATH
+      PATH: `/tmp/cafecode/bin:${process.env.PATH}`,
       // Development server networking configuration
       HOST: '0.0.0.0', // Allow connections from any interface
       WDS_SOCKET_HOST: '0.0.0.0', // Webpack Dev Server socket host
       VITE_HOST: '0.0.0.0', // Vite dev server host
       VITE_PORT: '5173', // Default Vite port
       PORT: '3000', // Default port for other dev servers
+      // Prevent browser auto-opening
+      BROWSER: 'none', // Disable browser auto-opening
+      REACT_EDITOR: 'none', // Disable React editor auto-opening
+      EDITOR: 'none', // Disable editor auto-opening
+      VITE_OPEN_BROWSER: 'false', // Disable Vite browser auto-opening
     };
     
     const ptyProcess = pty.spawn('bash', ['-i'], {
@@ -113,9 +120,74 @@ export class UserTerminalManager {
       ptyProcess.write('export PORT=3000\n');
       
       // Add helpful aliases for common dev server commands
-      ptyProcess.write('alias vite-dev="npm run dev -- --host 0.0.0.0"\n');
+      ptyProcess.write('alias vite-dev="npm run dev -- --host 0.0.0.0 --no-open"\n');
       ptyProcess.write('alias react-dev="HOST=0.0.0.0 npm start"\n');
       ptyProcess.write('alias next-dev="HOSTNAME=0.0.0.0 npm run dev"\n');
+      
+      // Set environment variables to prevent browser auto-opening FIRST
+      ptyProcess.write('export BROWSER=none\n');
+      ptyProcess.write('export REACT_EDITOR=none\n');
+      ptyProcess.write('export EDITOR=none\n');
+      ptyProcess.write('export VITE_OPEN_BROWSER=false\n');
+      
+      // Create a comprehensive dummy xdg-open that always works
+      ptyProcess.write('mkdir -p /tmp/cafecode/bin\n');
+      ptyProcess.write('cat > /tmp/cafecode/bin/xdg-open << "EOF"\n');
+      ptyProcess.write('#!/bin/bash\n');
+      ptyProcess.write('# CafeCode dummy xdg-open - prevents browser opening errors\n');
+      ptyProcess.write('echo "Browser opening disabled in CafeCode environment"\n');
+      ptyProcess.write('echo "URL would have been: $1"\n');
+      ptyProcess.write('exit 0\n');
+      ptyProcess.write('EOF\n');
+      ptyProcess.write('chmod +x /tmp/cafecode/bin/xdg-open\n');
+      
+      // Add our dummy xdg-open to PATH (highest priority)
+      ptyProcess.write('export PATH="/tmp/cafecode/bin:$PATH"\n');
+      
+      // Try to install xdg-utils with sudo, but don\'t fail if it doesn\'t work
+      ptyProcess.write('if ! which xdg-open >/dev/null 2>&1; then\n');
+      ptyProcess.write('  echo "Setting up browser utilities for CafeCode..."\n');
+      ptyProcess.write('  if command -v sudo >/dev/null 2>&1; then\n');
+      ptyProcess.write('    sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y xdg-utils >/dev/null 2>&1 && echo "xdg-utils installed" || echo "Could not install xdg-utils with sudo"\n');
+      ptyProcess.write('  else\n');
+      ptyProcess.write('    echo "sudo not available, using dummy xdg-open"\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('fi\n');
+      
+      // Create a global Vite configuration that disables browser opening
+      ptyProcess.write('mkdir -p /usr/local/share/cafecode\n');
+      ptyProcess.write('cat > /usr/local/share/cafecode/vite.config.js << "EOF"\n');
+      ptyProcess.write('import { defineConfig } from "vite"\n');
+      ptyProcess.write('import react from "@vitejs/plugin-react"\n');
+      ptyProcess.write('\n');
+      ptyProcess.write('export default defineConfig({\n');
+      ptyProcess.write('  plugins: [react()],\n');
+      ptyProcess.write('  server: {\n');
+      ptyProcess.write('    host: "0.0.0.0",\n');
+      ptyProcess.write('    port: 5173,\n');
+      ptyProcess.write('    open: false,\n');
+      ptyProcess.write('  },\n');
+      ptyProcess.write('  preview: {\n');
+      ptyProcess.write('    host: "0.0.0.0",\n');
+      ptyProcess.write('    port: 4173,\n');
+      ptyProcess.write('    open: false,\n');
+      ptyProcess.write('  },\n');
+      ptyProcess.write('})\n');
+      ptyProcess.write('EOF\n');
+      
+      // Add function to fix Vite config for CafeCode environment
+      ptyProcess.write('fix-vite-config() {\n');
+      ptyProcess.write('  if [ -f "vite.config.js" ]; then\n');
+      ptyProcess.write('    echo "Fixing Vite configuration for CafeCode environment..."\n');
+      ptyProcess.write('    # Backup original config\n');
+      ptyProcess.write('    cp vite.config.js vite.config.js.backup 2>/dev/null || true\n');
+      ptyProcess.write('    # Copy CafeCode-optimized config\n');
+      ptyProcess.write('    cp /usr/local/share/cafecode/vite.config.js ./vite.config.js\n');
+      ptyProcess.write('    echo "Vite configuration updated for CafeCode!"\n');
+      ptyProcess.write('  else\n');
+      ptyProcess.write('    echo "No vite.config.js found in current directory"\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('}\n');
       
       ptyProcess.write('clear\n');
     }, 50); 
