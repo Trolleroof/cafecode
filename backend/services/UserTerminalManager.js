@@ -77,9 +77,9 @@ export class UserTerminalManager {
       WDS_SOCKET_HOST: '0.0.0.0', // Webpack Dev Server socket host
       PORT: '3000', // Default port for other dev servers
       // Enable browser auto-opening
-      BROWSER: 'default', // Enable browser auto-opening
-      REACT_EDITOR: 'default', // Enable React editor auto-opening
-      EDITOR: 'default', // Enable editor auto-opening
+      BROWSER: 'xdg-open', // Enable browser auto-opening
+      REACT_EDITOR: 'xdg-open', // Enable React editor auto-opening
+      EDITOR: 'xdg-open', // Enable editor auto-opening
     };
     
     const ptyProcess = pty.spawn('bash', ['-i'], {
@@ -119,9 +119,9 @@ export class UserTerminalManager {
       ptyProcess.write('alias next-dev="HOSTNAME=0.0.0.0 npm run dev"\n');
       
       // Set environment variables to enable browser auto-opening
-      ptyProcess.write('export BROWSER=default\n');
-      ptyProcess.write('export REACT_EDITOR=default\n');
-      ptyProcess.write('export EDITOR=default\n');
+      ptyProcess.write('export BROWSER=xdg-open\n');
+      ptyProcess.write('export REACT_EDITOR=xdg-open\n');
+      ptyProcess.write('export EDITOR=xdg-open\n');
       
       // Try to install xdg-utils with sudo for proper browser opening
       ptyProcess.write('if ! which xdg-open >/dev/null 2>&1; then\n');
