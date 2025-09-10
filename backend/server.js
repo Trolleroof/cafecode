@@ -14,6 +14,11 @@ import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 import { UserWorkspaceManager } from './services/UserWorkspaceManager.js';
 import { fileSystemIndexer } from './services/FileSystemIndexer.js';
+import httpProxy from 'http-proxy';
+// Map to track running dev server ports per user
+const userDevServers = new Map(); // userId -> port
+// Initialize a single proxy instance
+const proxy = httpProxy.createProxyServer({ changeOrigin: true, ws: true });
 
 // Load environment variables FIRST (ensure we load backend/.env regardless of cwd)
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '.env') });
@@ -340,6 +345,21 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// After app and middleware setup but before startServer() definition, add preview proxy route
+app.use('/preview/:uid', (req, res, next) => {
+  const { uid } = req.params;
+  const port = userDevServers.get(uid);
+  if (!port) {
+    return res.status(502).json({ error: 'No active dev server', uid });
+  }
+  proxy.web(req, res, { target: `http://localhost:${port}` }, (err) => {
+    console.error('Proxy error:', err?.message);
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Proxy error', details: err?.message });
+    }
+  });
+});
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
@@ -482,6 +502,14 @@ async function startServer() {
           }
           if (dataStr.includes('ready in') && (dataStr.includes('VITE') || dataStr.includes('Next.js'))) {
             console.log(`🚀 [DEV-SERVER] User ${userId} server ready: ${dataStr.trim()}`);
+          }
+          const portMatch = dataStr.match(/http:\/\/localhost:(\d+)/);
+          if (portMatch) {
+            const port = portMatch[1];
+            if (!userDevServers.get(userId)) {
+              console.log(`🔀 [DEV-SERVER] Mapping user ${userId} to port ${port}`);
+            }
+            userDevServers.set(userId, port);
           }
         } catch (_) {}
       });
