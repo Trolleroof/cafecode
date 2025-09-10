@@ -7,7 +7,7 @@ export class UserTerminalManager {
   // Map of userId -> Map of terminalId -> PTY process
   static userIdToTerminals = new Map();
 
-  static startTerminal(userId, shell = 'bash', cols = 80, rows = 34, terminalId = null) {
+  static startTerminal(userId, shell = 'bash', cols = 90, rows = 34, terminalId = null) {
     // Ensure map for user exists
     if (!UserTerminalManager.userIdToTerminals.has(userId)) {
       UserTerminalManager.userIdToTerminals.set(userId, new Map());
@@ -80,30 +80,7 @@ export class UserTerminalManager {
       ptyProcess.write('  fi\n');
       ptyProcess.write('}\n');
       
-      // Add function to automatically detect and navigate to project root
-      ptyProcess.write('auto-project() {\n');
-      ptyProcess.write('  # Look for package.json in current directory first\n');
-      ptyProcess.write('  if [ -f "package.json" ]; then\n');
-      ptyProcess.write('    echo "✓ Already in project directory: $(pwd)"\n');
-      ptyProcess.write('    return 0\n');
-      ptyProcess.write('  fi\n');
-      ptyProcess.write('  # Look for project directories with package.json\n');
-      ptyProcess.write('  local project_file=$(find . -maxdepth 3 -name "package.json" -type f 2>/dev/null | head -1)\n');
-      ptyProcess.write('  if [ -n "$project_file" ]; then\n');
-      ptyProcess.write('    local project_dir=$(dirname "$project_file")\n');
-      ptyProcess.write('    echo "Found project in: $project_dir"\n');
-      ptyProcess.write('    cd "$project_dir"\n');
-      ptyProcess.write('    echo "✓ Changed to project directory: $(pwd)"\n');
-      ptyProcess.write('    # Show available scripts\n');
-      ptyProcess.write('    if command -v jq >/dev/null 2>&1; then\n');
-      ptyProcess.write('      echo "Available scripts:"\n');
-      ptyProcess.write('      jq -r ".scripts | keys[]" package.json 2>/dev/null | sed "s/^/  - npm run /"\n');
-      ptyProcess.write('    fi\n');
-      ptyProcess.write('  else\n');
-      ptyProcess.write('    echo "No project found with package.json in current or subdirectories"\n');
-      ptyProcess.write('    echo "Try: find-project <project-name>"\n');
-      ptyProcess.write('  fi\n');
-      ptyProcess.write('}\n');
+
       
       // Add function to check current directory status
       ptyProcess.write('check-project() {\n');
@@ -122,12 +99,41 @@ export class UserTerminalManager {
       ptyProcess.write('  fi\n');
       ptyProcess.write('}\n');
       
+      // Add function to start development servers with proper network binding
+      ptyProcess.write('start-dev() {\n');
+      ptyProcess.write('  if [ -f "package.json" ]; then\n');
+      ptyProcess.write('    echo "🚀 Starting development server with proper network binding..."\n');
+      ptyProcess.write('    if grep -q "vite" package.json; then\n');
+      ptyProcess.write('      echo "📦 Detected Vite project - starting with host binding"\n');
+      ptyProcess.write('      npm run dev -- --host 0.0.0.0\n');
+      ptyProcess.write('    elif grep -q "next" package.json; then\n');
+      ptyProcess.write('      echo "📦 Detected Next.js project - starting with host binding"\n');
+      ptyProcess.write('      npm run dev -- --hostname 0.0.0.0\n');
+      ptyProcess.write('    elif grep -q "react-scripts" package.json; then\n');
+      ptyProcess.write('      echo "📦 Detected Create React App - starting with host binding"\n');
+      ptyProcess.write('      HOST=0.0.0.0 npm start\n');
+      ptyProcess.write('    else\n');
+      ptyProcess.write('      echo "📦 Starting with default npm run dev"\n');
+      ptyProcess.write('      npm run dev\n');
+      ptyProcess.write('    fi\n');
+      ptyProcess.write('  else\n');
+      ptyProcess.write('    echo "❌ No package.json found. Make sure you are in a Node.js project directory."\n');
+      ptyProcess.write('    echo "Use find-project <project-name> to navigate to your project"\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('}\n');
       
-      // Disable browser opening globally
+      
+      // Configure environment for development servers
+      // Disable browser opening but allow proper network binding
       ptyProcess.write('export BROWSER=none\n');
       ptyProcess.write('export REACT_EDITOR=none\n');
       ptyProcess.write('export EDITOR=none\n');
       ptyProcess.write('npm config set browser none\n');
+      
+      // Enable proper network binding for development servers
+      ptyProcess.write('export VITE_HOST=0.0.0.0\n');
+      ptyProcess.write('export NEXT_TELEMETRY_DISABLED=1\n');
+      ptyProcess.write('export WATCHPACK_POLLING=true\n');
       
       ptyProcess.write('clear\n');
     }, 300); // Increased timing for better initialization 
