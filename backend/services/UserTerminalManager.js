@@ -73,9 +73,6 @@ export class UserTerminalManager {
       // Add CafeCode utilities to PATH
       PATH: `/tmp/cafecode/bin:${process.env.PATH}`,
       // Development server networking configuration
-      HOST: '0.0.0.0', // Allow connections from any interface
-      WDS_SOCKET_HOST: '0.0.0.0', // Webpack Dev Server socket host
-      PORT: '3000', // Default port for other dev servers
       // Enable browser auto-opening
       BROWSER: 'xdg-open', // Enable browser auto-opening
       REACT_EDITOR: 'xdg-open', // Enable React editor auto-opening
@@ -217,15 +214,17 @@ export class UserTerminalManager {
       ptyProcess.write('  echo "💡 Or copy this URL to your browser"\n');
       ptyProcess.write('}\n');
       
-      // Try to install xdg-utils with sudo for proper browser opening
+      // Install xdg-utils with --fix-missing flag (based on user discovery)
       ptyProcess.write('if ! which xdg-open >/dev/null 2>&1; then\n');
-      ptyProcess.write('  echo "Setting up browser utilities for CafeCode..."\n');
+      ptyProcess.write('  echo "🔧 Installing xdg-utils for browser opening..."\n');
       ptyProcess.write('  if command -v sudo >/dev/null 2>&1; then\n');
-      ptyProcess.write('    sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y xdg-utils >/dev/null 2>&1 && echo "✓ xdg-utils installed" || echo "⚠ Could not install xdg-utils with sudo"\n');
+      ptyProcess.write('    sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y xdg-utils --fix-missing >/dev/null 2>&1 && echo "✓ xdg-utils installed successfully" || echo "⚠ Could not install xdg-utils with sudo"\n');
       ptyProcess.write('  else\n');
-      ptyProcess.write('    echo "⚠ sudo not available, browser opening may not work"\n');
-      ptyProcess.write('    echo "💡 Use open-browser <url> command as fallback"\n');
+      ptyProcess.write('    echo "⚠ sudo not available, trying alternative installation..."\n');
+      ptyProcess.write('    apt-get update >/dev/null 2>&1 && apt-get install -y xdg-utils --fix-missing >/dev/null 2>&1 && echo "✓ xdg-utils installed successfully" || echo "⚠ Could not install xdg-utils"\n');
       ptyProcess.write('  fi\n');
+      ptyProcess.write('else\n');
+      ptyProcess.write('  echo "✓ xdg-utils already available"\n');
       ptyProcess.write('fi\n');
       
       
