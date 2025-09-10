@@ -90,10 +90,17 @@ export class UserTerminalManager {
       env,
     });
     
-    // Optimized initial setup with reduced delay
+    // Optimized initial setup with proper directory handling
     setTimeout(() => {
+      // Ensure we're in the correct directory and verify it
       ptyProcess.write(`cd "${cwd}"\n`);
       ptyProcess.write('export PS1="$ "\n');
+      
+      // Verify we're in the right place and set proper context
+      ptyProcess.write('if [ "$PWD" != "' + cwd + '" ]; then\n');
+      ptyProcess.write('  echo "Warning: Not in expected directory. Fixing..."\n');
+      ptyProcess.write('  cd "' + cwd + '"\n');
+      ptyProcess.write('fi\n');
       
       // Enable Corepack so pnpm/yarn are available in this shell
       ptyProcess.write('corepack enable >/dev/null 2>&1 || true\n');
@@ -118,6 +125,69 @@ export class UserTerminalManager {
       ptyProcess.write('alias react-dev="HOST=0.0.0.0 npm start"\n');
       ptyProcess.write('alias next-dev="HOSTNAME=0.0.0.0 npm run dev"\n');
       
+      // Add helpful function to find and navigate to project directories
+      ptyProcess.write('find-project() {\n');
+      ptyProcess.write('  if [ -n "$1" ]; then\n');
+      ptyProcess.write('    local dir=$(find . -name "$1" -type d 2>/dev/null | head -1)\n');
+      ptyProcess.write('    if [ -n "$dir" ]; then\n');
+      ptyProcess.write('      echo "Found project directory: $dir"\n');
+      ptyProcess.write('      cd "$dir"\n');
+      ptyProcess.write('      echo "Changed to: $(pwd)"\n');
+      ptyProcess.write('      # Check if this is a valid project directory\n');
+      ptyProcess.write('      if [ -f "package.json" ]; then\n');
+      ptyProcess.write('        echo "✓ Valid Node.js project found"\n');
+      ptyProcess.write('      fi\n');
+      ptyProcess.write('    else\n');
+      ptyProcess.write('      echo "No directory named \'$1\' found"\n');
+      ptyProcess.write('    fi\n');
+      ptyProcess.write('  else\n');
+      ptyProcess.write('    echo "Usage: find-project <directory-name>"\n');
+      ptyProcess.write('    echo "Example: find-project my-vite-app"\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('}\n');
+      
+      // Add function to automatically detect and navigate to project root
+      ptyProcess.write('auto-project() {\n');
+      ptyProcess.write('  # Look for package.json in current directory first\n');
+      ptyProcess.write('  if [ -f "package.json" ]; then\n');
+      ptyProcess.write('    echo "✓ Already in project directory: $(pwd)"\n');
+      ptyProcess.write('    return 0\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('  # Look for project directories with package.json\n');
+      ptyProcess.write('  local project_file=$(find . -maxdepth 3 -name "package.json" -type f 2>/dev/null | head -1)\n');
+      ptyProcess.write('  if [ -n "$project_file" ]; then\n');
+      ptyProcess.write('    local project_dir=$(dirname "$project_file")\n');
+      ptyProcess.write('    echo "Found project in: $project_dir"\n');
+      ptyProcess.write('    cd "$project_dir"\n');
+      ptyProcess.write('    echo "✓ Changed to project directory: $(pwd)"\n');
+      ptyProcess.write('    # Show available scripts\n');
+      ptyProcess.write('    if command -v jq >/dev/null 2>&1; then\n');
+      ptyProcess.write('      echo "Available scripts:"\n');
+      ptyProcess.write('      jq -r ".scripts | keys[]" package.json 2>/dev/null | sed "s/^/  - npm run /"\n');
+      ptyProcess.write('    fi\n');
+      ptyProcess.write('  else\n');
+      ptyProcess.write('    echo "No project found with package.json in current or subdirectories"\n');
+      ptyProcess.write('    echo "Try: find-project <project-name>"\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('}\n');
+      
+      // Add function to check current directory status
+      ptyProcess.write('check-project() {\n');
+      ptyProcess.write('  echo "Current directory: $(pwd)"\n');
+      ptyProcess.write('  if [ -f "package.json" ]; then\n');
+      ptyProcess.write('    echo "✓ This is a Node.js project"\n');
+      ptyProcess.write('    if command -v jq >/dev/null 2>&1; then\n');
+      ptyProcess.write('      local name=$(jq -r ".name // \\"unknown\\"" package.json 2>/dev/null)\n');
+      ptyProcess.write('      echo "Project name: $name"\n');
+      ptyProcess.write('      echo "Available scripts:"\n');
+      ptyProcess.write('      jq -r ".scripts | keys[]" package.json 2>/dev/null | sed "s/^/  - npm run /" || echo "  No scripts found"\n');
+      ptyProcess.write('    fi\n');
+      ptyProcess.write('  else\n');
+      ptyProcess.write('    echo "⚠ No package.json found - not in a Node.js project directory"\n');
+      ptyProcess.write('    echo "Use auto-project or find-project to navigate to your project"\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('}\n');
+      
       // Set environment variables to enable browser auto-opening
       ptyProcess.write('export BROWSER=xdg-open\n');
       ptyProcess.write('export REACT_EDITOR=xdg-open\n');
@@ -134,8 +204,10 @@ export class UserTerminalManager {
       ptyProcess.write('fi\n');
       
       
+      // Run auto-project to ensure we're in the right place
+      ptyProcess.write('auto-project\n');
       ptyProcess.write('clear\n');
-    }, 50); 
+    }, 300); // Increased timing for better initialization 
     
     terminalsForUser.set(terminalId, ptyProcess);
     

@@ -369,6 +369,15 @@ const Terminal: React.FC = () => {
               if (!isImmediateDup && data) {
                 term.write(data);
                 term.scrollToBottom();
+                
+                // Provide helpful feedback for common issues
+                if (data.includes('No such file or directory') && data.includes('package.json')) {
+                  term.write('\r\n💡 Tip: Use "auto-project" to navigate to your project directory\r\n');
+                } else if (data.includes('command not found') && (data.includes('npm') || data.includes('node'))) {
+                  term.write('\r\n💡 Note: Node.js commands should work in project directories\r\n');
+                } else if (data.includes('ENOENT') && data.includes('package.json')) {
+                  term.write('\r\n💡 Try: "find-project <project-name>" or "auto-project"\r\n');
+                }
               }
               
               // Update loading state based on terminal output
