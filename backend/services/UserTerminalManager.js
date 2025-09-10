@@ -41,6 +41,12 @@ export class UserTerminalManager {
       SHELL: 'bash',
       PS1: '$ ',
       HOSTNAME: 'localhost',
+      // Disable browser opening completely
+      BROWSER: 'none',
+      REACT_EDITOR: 'none',
+      EDITOR: 'none',
+      // Disable any automatic opening
+      npm_config_browser: 'none',
     };
     
     const ptyProcess = pty.spawn('bash', ['-i'], {
@@ -127,6 +133,12 @@ export class UserTerminalManager {
       ptyProcess.write('  fi\n');
       ptyProcess.write('}\n');
       
+      
+      // Disable browser opening globally
+      ptyProcess.write('export BROWSER=none\n');
+      ptyProcess.write('export REACT_EDITOR=none\n');
+      ptyProcess.write('export EDITOR=none\n');
+      ptyProcess.write('npm config set browser none\n');
       
       ptyProcess.write('clear\n');
     }, 300); // Increased timing for better initialization 
