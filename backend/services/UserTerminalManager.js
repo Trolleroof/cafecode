@@ -70,6 +70,12 @@ export class UserTerminalManager {
       BUN_INSTALL_CACHE_DIR: bunCacheDir,
       // Increase libuv threadpool for concurrent FS work during installs
       UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || '8',
+      // Development server networking configuration
+      HOST: '0.0.0.0', // Allow connections from any interface
+      WDS_SOCKET_HOST: '0.0.0.0', // Webpack Dev Server socket host
+      VITE_HOST: '0.0.0.0', // Vite dev server host
+      VITE_PORT: '5173', // Default Vite port
+      PORT: '3000', // Default port for other dev servers
     };
     
     const ptyProcess = pty.spawn('bash', ['-i'], {
@@ -98,6 +104,18 @@ export class UserTerminalManager {
       // Skip deprecated 'cache-min' to avoid noisy warnings
       // Set registry explicitly for this terminal session (use default if env not set)
       ptyProcess.write(`npm config set registry ${process.env.NPM_REGISTRY || 'https://registry.npmjs.org'}\n`);
+      
+      // Set up development server environment variables for better networking
+      ptyProcess.write('export HOST=0.0.0.0\n');
+      ptyProcess.write('export WDS_SOCKET_HOST=0.0.0.0\n');
+      ptyProcess.write('export VITE_HOST=0.0.0.0\n');
+      ptyProcess.write('export VITE_PORT=5173\n');
+      ptyProcess.write('export PORT=3000\n');
+      
+      // Add helpful aliases for common dev server commands
+      ptyProcess.write('alias vite-dev="npm run dev -- --host 0.0.0.0"\n');
+      ptyProcess.write('alias react-dev="HOST=0.0.0.0 npm start"\n');
+      ptyProcess.write('alias next-dev="HOSTNAME=0.0.0.0 npm run dev"\n');
       
       ptyProcess.write('clear\n');
     }, 50); 

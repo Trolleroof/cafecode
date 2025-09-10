@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
 import FileExplorer, { getLanguageFromFileName } from '@/components/FileExplorer';
-import HTMLPreview from '@/components/HTMLPreview';
+// Preview removed
 import RunDropdown from '@/components/RunDropdown';
 import TypingIndicator from '@/components/TypingIndicator';
 import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
@@ -44,7 +44,7 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useAuth } from '../security/hooks/useAuth';
 import axios from 'axios';
-import ReactPreview from '@/components/ReactPreview';
+// ReactPreview removed
 import ProjectCompletionModal from '@/components/ProjectCompletionModal';
 import PaymentModal from '@/components/PaymentModal';
 import { supabase } from '../../lib/supabase';
@@ -1131,12 +1131,8 @@ function IDEPage() {
     setIsRunning(true);
     setOutput([]);
 
-    // Auto-switch tabs based on file type
-    if (file.language === 'html') {
-      setActiveTab('preview');
-    } else {
-      setActiveTab('terminal');
-    }
+    // Preview tab removed; focus terminal for run actions
+    setActiveTab('terminal');
 
     try {
       if (file.language === 'python') {
@@ -2536,10 +2532,7 @@ function IDEPage() {
                         <IconCode className="mr-2 h-4 w-4" />
                         Editor
                       </TabsTrigger>
-                      <TabsTrigger value="preview" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
-                        <IconPlayerPlay className="mr-2 h-4 w-4" />
-                        Preview
-                      </TabsTrigger>
+                      
                       <TabsTrigger value="terminal" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
                         <IconTerminal className="mr-2 h-4 w-4" />
                         Terminal
@@ -2615,38 +2608,7 @@ function IDEPage() {
                       )}
                   </TabsContent>
 
-                  <TabsContent value="preview" className="flex-1 m-0" isInSetupPhase={isInSetupPhase}>
-                    {selectedFile && selectedFile.name.match(/\.(png|jpe?g|gif|bmp|webp|svg)$/i) ? (
-                      <div className="w-full h-full flex items-center justify-center bg-white">
-                        {imagePreviewUrl ? (
-                          <img
-                            src={imagePreviewUrl}
-                            alt={selectedFile.name}
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        ) : (
-                          <div className="text-deep-espresso/70 text-sm">Loading image...</div>
-                        )}
-                      </div>
-                    ) : selectedFile?.language === 'html' ? (
-                      <HTMLPreview 
-                        htmlContent={selectedFile.content || ''} 
-                        cssContent={getAllFiles(files).find(f => f.language === 'css')?.content}
-                        jsContent={getAllFiles(files).find(f => f.language === 'javascript')?.content}
-                        onConsoleLog={(message) => setOutput(prev => [...prev, message])}
-                      />
-                    ) : isReactProject ? (
-                      <ReactPreview port={3000} />
-                    ) : (
-                      <div className="flex items-center justify-center h-full bg-cream-beige/20">
-                        <div className="text-center">
-                          <IconPlayerPlay className="h-16 w-16 text-medium-coffee mx-auto mb-4" />
-                          <p className="text-deep-espresso text-lg">Preview available for HTML files and React projects</p>
-                          <p className="text-deep-espresso/70 text-sm mt-2">Create an HTML file or start a React project to see the preview</p>
-                        </div>
-                      </div>
-                    )}
-                  </TabsContent>
+                  {/* Preview tab removed */}
 
                   {/* Always render the Terminal, but only show it when terminal tab is active */}
                   <div
