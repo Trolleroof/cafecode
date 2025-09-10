@@ -115,15 +115,7 @@ export class UserTerminalManager {
       // Skip deprecated 'cache-min' to avoid noisy warnings
       // Set registry explicitly for this terminal session (use default if env not set)
       ptyProcess.write(`npm config set registry ${process.env.NPM_REGISTRY || 'https://registry.npmjs.org'}\n`);
-      
-      // Set up development server environment variables for better networking
-      ptyProcess.write('export HOST=0.0.0.0\n');
-      ptyProcess.write('export WDS_SOCKET_HOST=0.0.0.0\n');
-      ptyProcess.write('export PORT=3000\n');
-      
-      // Add helpful aliases for common dev server commands
-      ptyProcess.write('alias react-dev="HOST=0.0.0.0 npm start"\n');
-      ptyProcess.write('alias next-dev="HOSTNAME=0.0.0.0 npm run dev"\n');
+    
       
       // Add helpful function to find and navigate to project directories
       ptyProcess.write('find-project() {\n');
@@ -188,18 +180,51 @@ export class UserTerminalManager {
       ptyProcess.write('  fi\n');
       ptyProcess.write('}\n');
       
-      // Set environment variables to enable browser auto-opening
+      // Set up browser opening with multiple fallback methods
       ptyProcess.write('export BROWSER=xdg-open\n');
       ptyProcess.write('export REACT_EDITOR=xdg-open\n');
       ptyProcess.write('export EDITOR=xdg-open\n');
+      
+      // Create a robust browser opening function with multiple fallbacks
+      ptyProcess.write('open-browser() {\n');
+      ptyProcess.write('  local url="$1"\n');
+      ptyProcess.write('  if [ -z "$url" ]; then\n');
+      ptyProcess.write('    echo "Usage: open-browser <url>"\n');
+      ptyProcess.write('    return 1\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('  \n');
+      ptyProcess.write('  echo "🌐 Opening browser: $url"\n');
+      ptyProcess.write('  \n');
+      ptyProcess.write('  # Try multiple methods in order of preference\n');
+      ptyProcess.write('  if command -v xdg-open >/dev/null 2>&1; then\n');
+      ptyProcess.write('    xdg-open "$url" 2>/dev/null && echo "✓ Opened with xdg-open" && return 0\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('  \n');
+      ptyProcess.write('  if command -v python3 >/dev/null 2>&1; then\n');
+      ptyProcess.write('    python3 -m webbrowser "$url" 2>/dev/null && echo "✓ Opened with python3 webbrowser" && return 0\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('  \n');
+      ptyProcess.write('  if command -v python >/dev/null 2>&1; then\n');
+      ptyProcess.write('    python -m webbrowser "$url" 2>/dev/null && echo "✓ Opened with python webbrowser" && return 0\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('  \n');
+      ptyProcess.write('  if command -v curl >/dev/null 2>&1; then\n');
+      ptyProcess.write('    curl -s "$url" >/dev/null 2>&1 && echo "✓ URL is accessible via curl" && return 0\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('  \n');
+      ptyProcess.write('  echo "⚠ Could not open browser automatically"\n');
+      ptyProcess.write('  echo "📋 Please manually open: $url"\n');
+      ptyProcess.write('  echo "💡 Or copy this URL to your browser"\n');
+      ptyProcess.write('}\n');
       
       // Try to install xdg-utils with sudo for proper browser opening
       ptyProcess.write('if ! which xdg-open >/dev/null 2>&1; then\n');
       ptyProcess.write('  echo "Setting up browser utilities for CafeCode..."\n');
       ptyProcess.write('  if command -v sudo >/dev/null 2>&1; then\n');
-      ptyProcess.write('    sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y xdg-utils >/dev/null 2>&1 && echo "xdg-utils installed" || echo "Could not install xdg-utils with sudo"\n');
+      ptyProcess.write('    sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y xdg-utils >/dev/null 2>&1 && echo "✓ xdg-utils installed" || echo "⚠ Could not install xdg-utils with sudo"\n');
       ptyProcess.write('  else\n');
-      ptyProcess.write('    echo "sudo not available, browser opening may not work"\n');
+      ptyProcess.write('    echo "⚠ sudo not available, browser opening may not work"\n');
+      ptyProcess.write('    echo "💡 Use open-browser <url> command as fallback"\n');
       ptyProcess.write('  fi\n');
       ptyProcess.write('fi\n');
       
