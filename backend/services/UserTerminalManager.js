@@ -26,24 +26,12 @@ export class UserTerminalManager {
 
     const cwd = UserWorkspaceManager.getTerminalRoot(userId);
     
-    // Prepare shared package cache directories (outside the workspace) per user
-    const sharedCacheRoot = path.resolve(UserWorkspaceManager.baseDir, '..', 'package-caches', userId);
-    const npmCacheDir = path.join(sharedCacheRoot, 'npm');
-    const yarnCacheDir = path.join(sharedCacheRoot, 'yarn');
-    const bunCacheDir = path.join(sharedCacheRoot, 'bun');
-    
     // Ensure the workspace directory exists
     if (!fs.existsSync(cwd)) {
       fs.mkdirSync(cwd, { recursive: true });
     }
-    // Ensure shared caches exist
-    try {
-      fs.mkdirSync(npmCacheDir, { recursive: true });
-      fs.mkdirSync(yarnCacheDir, { recursive: true });
-      fs.mkdirSync(bunCacheDir, { recursive: true });
-    } catch (_) {}
     
-    // Optimized environment setup
+    // Simple environment setup for local execution
     const env = {
       ...process.env,
       TERM: 'xterm-color',
@@ -52,31 +40,7 @@ export class UserTerminalManager {
       PWD: cwd,
       SHELL: 'bash',
       PS1: '$ ',
-      HOSTNAME: 'mac',
-      // Performance optimizations
-      // Combine options rather than overwrite: more memory and prefer IPv4 DNS
-      NODE_OPTIONS: '--max-old-space-size=4096 --dns-result-order=ipv4first',
-      npm_config_cache: npmCacheDir, // Shared npm cache per user
-      npm_config_prefer_offline: 'true', // Use offline cache when possible
-      npm_config_progress: 'false', // Reduce terminal overhead
-      npm_config_audit: 'false', // Skip audit for speed
-      npm_config_fund: 'false', // Skip funding messages
-      // Allow lifecycle scripts to run when user is root (Docker/Fly runtime)
-      npm_config_unsafe_perm: 'true',
-      // Always set a registry (defaults to npmjs if not provided)
-      npm_config_registry: process.env.NPM_REGISTRY || 'https://registry.npmjs.org',
-      // Yarn and Bun caches (if user chooses to use them)
-      YARN_CACHE_FOLDER: yarnCacheDir,
-      BUN_INSTALL_CACHE_DIR: bunCacheDir,
-      // Increase libuv threadpool for concurrent FS work during installs
-      UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || '8',
-      // Add CafeCode utilities to PATH
-      PATH: `/tmp/cafecode/bin:${process.env.PATH}`,
-      // Development server networking configuration
-      // Enable browser auto-opening
-      BROWSER: 'xdg-open', // Enable browser auto-opening
-      REACT_EDITOR: 'xdg-open', // Enable React editor auto-opening
-      EDITOR: 'xdg-open', // Enable editor auto-opening
+      HOSTNAME: 'localhost',
     };
     
     const ptyProcess = pty.spawn('bash', ['-i'], {
@@ -98,20 +62,6 @@ export class UserTerminalManager {
       ptyProcess.write('  echo "Warning: Not in expected directory. Fixing..."\n');
       ptyProcess.write('  cd "' + cwd + '"\n');
       ptyProcess.write('fi\n');
-      
-      // Enable Corepack so pnpm/yarn are available in this shell
-      ptyProcess.write('corepack enable >/dev/null 2>&1 || true\n');
-      
-      ptyProcess.write('npm config set prefer-offline true\n');
-      ptyProcess.write('npm config set audit false\n');
-      ptyProcess.write('npm config set fund false\n');
-      ptyProcess.write('npm config set progress false\n');
-      ptyProcess.write('npm config set unsafe-perm true\n');
-      // Point npm to shared cache directory
-      ptyProcess.write(`npm config set cache \"${npmCacheDir}\"\n`);
-      // Skip deprecated 'cache-min' to avoid noisy warnings
-      // Set registry explicitly for this terminal session (use default if env not set)
-      ptyProcess.write(`npm config set registry ${process.env.NPM_REGISTRY || 'https://registry.npmjs.org'}\n`);
     
       
       // Add helpful function to find and navigate to project directories
@@ -177,59 +127,7 @@ export class UserTerminalManager {
       ptyProcess.write('  fi\n');
       ptyProcess.write('}\n');
       
-      // Set up browser opening with multiple fallback methods
-      ptyProcess.write('export BROWSER=xdg-open\n');
-      ptyProcess.write('export REACT_EDITOR=xdg-open\n');
-      ptyProcess.write('export EDITOR=xdg-open\n');
       
-      // Create a robust browser opening function with multiple fallbacks
-      ptyProcess.write('open-browser() {\n');
-      ptyProcess.write('  local url="$1"\n');
-      ptyProcess.write('  if [ -z "$url" ]; then\n');
-      ptyProcess.write('    echo "Usage: open-browser <url>"\n');
-      ptyProcess.write('    return 1\n');
-      ptyProcess.write('  fi\n');
-      ptyProcess.write('  \n');
-      ptyProcess.write('  echo "🌐 Opening browser: $url"\n');
-      ptyProcess.write('  \n');
-      ptyProcess.write('  # Try multiple methods in order of preference\n');
-      ptyProcess.write('  if command -v xdg-open >/dev/null 2>&1; then\n');
-      ptyProcess.write('    xdg-open "$url" 2>/dev/null && echo "✓ Opened with xdg-open" && return 0\n');
-      ptyProcess.write('  fi\n');
-      ptyProcess.write('  \n');
-      ptyProcess.write('  if command -v python3 >/dev/null 2>&1; then\n');
-      ptyProcess.write('    python3 -m webbrowser "$url" 2>/dev/null && echo "✓ Opened with python3 webbrowser" && return 0\n');
-      ptyProcess.write('  fi\n');
-      ptyProcess.write('  \n');
-      ptyProcess.write('  if command -v python >/dev/null 2>&1; then\n');
-      ptyProcess.write('    python -m webbrowser "$url" 2>/dev/null && echo "✓ Opened with python webbrowser" && return 0\n');
-      ptyProcess.write('  fi\n');
-      ptyProcess.write('  \n');
-      ptyProcess.write('  if command -v curl >/dev/null 2>&1; then\n');
-      ptyProcess.write('    curl -s "$url" >/dev/null 2>&1 && echo "✓ URL is accessible via curl" && return 0\n');
-      ptyProcess.write('  fi\n');
-      ptyProcess.write('  \n');
-      ptyProcess.write('  echo "⚠ Could not open browser automatically"\n');
-      ptyProcess.write('  echo "📋 Please manually open: $url"\n');
-      ptyProcess.write('  echo "💡 Or copy this URL to your browser"\n');
-      ptyProcess.write('}\n');
-      
-      // Install xdg-utils with --fix-missing flag (based on user discovery)
-      ptyProcess.write('if ! which xdg-open >/dev/null 2>&1; then\n');
-      ptyProcess.write('  echo "🔧 Installing xdg-utils for browser opening..."\n');
-      ptyProcess.write('  if command -v sudo >/dev/null 2>&1; then\n');
-      ptyProcess.write('    sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y xdg-utils --fix-missing >/dev/null 2>&1 && echo "✓ xdg-utils installed successfully" || echo "⚠ Could not install xdg-utils with sudo"\n');
-      ptyProcess.write('  else\n');
-      ptyProcess.write('    echo "⚠ sudo not available, trying alternative installation..."\n');
-      ptyProcess.write('    apt-get update >/dev/null 2>&1 && apt-get install -y xdg-utils --fix-missing >/dev/null 2>&1 && echo "✓ xdg-utils installed successfully" || echo "⚠ Could not install xdg-utils"\n');
-      ptyProcess.write('  fi\n');
-      ptyProcess.write('else\n');
-      ptyProcess.write('  echo "✓ xdg-utils already available"\n');
-      ptyProcess.write('fi\n');
-      
-      
-      // Run auto-project to ensure we're in the right place
-      ptyProcess.write('auto-project\n');
       ptyProcess.write('clear\n');
     }, 300); // Increased timing for better initialization 
     
