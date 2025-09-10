@@ -31,22 +31,11 @@ export class UserTerminalManager {
       fs.mkdirSync(cwd, { recursive: true });
     }
     
-    // Simple environment setup for local execution
+    // Essential environment setup for terminal functionality
     const env = {
       ...process.env,
       TERM: 'xterm-color',
-      USER: userId,
-      HOME: cwd,
-      PWD: cwd,
-      SHELL: 'bash',
       PS1: '$ ',
-      HOSTNAME: 'localhost',
-      // Disable browser opening completely
-      BROWSER: 'none',
-      REACT_EDITOR: 'none',
-      EDITOR: 'none',
-      // Disable any automatic opening
-      npm_config_browser: 'none',
     };
     
     const ptyProcess = pty.spawn('bash', ['-i'], {
