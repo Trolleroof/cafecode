@@ -470,9 +470,20 @@ async function startServer() {
       ws.terminalId = terminalId;
       ws.connectionType = 'terminal';
 
-      // Wire up PTY <-> WebSocket
+      // Wire up PTY <-> WebSocket with server start detection
       ptyProcess.on('data', (data) => {
-        try { ws.send(data); } catch (_) {}
+        try { 
+          ws.send(data); 
+          
+          // Log when development servers start
+          const dataStr = data.toString();
+          if (dataStr.includes('Local:') && dataStr.includes('http://localhost:')) {
+            console.log(`🌐 [DEV-SERVER] User ${userId} started server: ${dataStr.trim()}`);
+          }
+          if (dataStr.includes('ready in') && (dataStr.includes('VITE') || dataStr.includes('Next.js'))) {
+            console.log(`🚀 [DEV-SERVER] User ${userId} server ready: ${dataStr.trim()}`);
+          }
+        } catch (_) {}
       });
       ws.on('message', (msg) => {
         try {

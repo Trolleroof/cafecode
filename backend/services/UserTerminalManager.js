@@ -99,21 +99,34 @@ export class UserTerminalManager {
       ptyProcess.write('  fi\n');
       ptyProcess.write('}\n');
       
-      // Add function to start development servers with proper network binding
+      // Add function to start development servers locally
       ptyProcess.write('start-dev() {\n');
       ptyProcess.write('  if [ -f "package.json" ]; then\n');
-      ptyProcess.write('    echo "🚀 Starting development server with proper network binding..."\n');
+      ptyProcess.write('    echo "🚀 Starting development server locally..."\n');
+      ptyProcess.write('    echo "📍 Current directory: $(pwd)"\n');
+      ptyProcess.write('    \n');
       ptyProcess.write('    if grep -q "vite" package.json; then\n');
-      ptyProcess.write('      echo "📦 Detected Vite project - starting with host binding"\n');
-      ptyProcess.write('      npm run dev -- --host 0.0.0.0\n');
+      ptyProcess.write('      echo "📦 Detected Vite project - starting on localhost"\n');
+      ptyProcess.write('      echo "🌐 Server will be available at: http://localhost:5173"\n');
+      ptyProcess.write('      echo "🔍 Watch the output below for the actual server URL..."\n');
+      ptyProcess.write('      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"\n');
+      ptyProcess.write('      npm run dev\n');
       ptyProcess.write('    elif grep -q "next" package.json; then\n');
-      ptyProcess.write('      echo "📦 Detected Next.js project - starting with host binding"\n');
-      ptyProcess.write('      npm run dev -- --hostname 0.0.0.0\n');
+      ptyProcess.write('      echo "📦 Detected Next.js project - starting on localhost"\n');
+      ptyProcess.write('      echo "🌐 Server will be available at: http://localhost:3000"\n');
+      ptyProcess.write('      echo "🔍 Watch the output below for the actual server URL..."\n');
+      ptyProcess.write('      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"\n');
+      ptyProcess.write('      npm run dev\n');
       ptyProcess.write('    elif grep -q "react-scripts" package.json; then\n');
-      ptyProcess.write('      echo "📦 Detected Create React App - starting with host binding"\n');
-      ptyProcess.write('      HOST=0.0.0.0 npm start\n');
+      ptyProcess.write('      echo "📦 Detected Create React App - starting on localhost"\n');
+      ptyProcess.write('      echo "🌐 Server will be available at: http://localhost:3000"\n');
+      ptyProcess.write('      echo "🔍 Watch the output below for the actual server URL..."\n');
+      ptyProcess.write('      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"\n');
+      ptyProcess.write('      npm start\n');
       ptyProcess.write('    else\n');
       ptyProcess.write('      echo "📦 Starting with default npm run dev"\n');
+      ptyProcess.write('      echo "🔍 Watch the output below for the actual server URL..."\n');
+      ptyProcess.write('      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"\n');
       ptyProcess.write('      npm run dev\n');
       ptyProcess.write('    fi\n');
       ptyProcess.write('  else\n');
@@ -122,16 +135,39 @@ export class UserTerminalManager {
       ptyProcess.write('  fi\n');
       ptyProcess.write('}\n');
       
+      // Add debugging function to track server locations
+      ptyProcess.write('debug-server() {\n');
+      ptyProcess.write('  echo "🔍 Debugging development server status..."\n');
+      ptyProcess.write('  echo "📍 Current directory: $(pwd)"\n');
+      ptyProcess.write('  echo "📦 Package.json exists: $([ -f package.json ] && echo "✅ Yes" || echo "❌ No")"\n');
+      ptyProcess.write('  \n');
+      ptyProcess.write('  if [ -f "package.json" ]; then\n');
+      ptyProcess.write('    echo "📋 Available scripts:"\n');
+      ptyProcess.write('    if command -v jq >/dev/null 2>&1; then\n');
+      ptyProcess.write('      jq -r ".scripts | to_entries[] | \"  - \" + .key + \": \" + .value" package.json 2>/dev/null || echo "  (jq not available)"\n');
+      ptyProcess.write('    else\n');
+      ptyProcess.write('      echo "  (jq not available - install with: apt-get install jq)"\n');
+      ptyProcess.write('    fi\n');
+      ptyProcess.write('    \n');
+      ptyProcess.write('    echo "🌐 Checking common development ports..."\n');
+      ptyProcess.write('    for port in 3000 3001 5173 8080 8000; do\n');
+      ptyProcess.write('      if lsof -ti:$port >/dev/null 2>&1; then\n');
+      ptyProcess.write('        echo "  ✅ Port $port: IN USE - http://localhost:$port"\n');
+      ptyProcess.write('        echo "    Process: $(ps -p $(lsof -ti:$port) -o pid,cmd --no-headers 2>/dev/null || echo "Unknown")"\n');
+      ptyProcess.write('      else\n');
+      ptyProcess.write('        echo "  ❌ Port $port: Available"\n');
+      ptyProcess.write('      fi\n');
+      ptyProcess.write('    done\n');
+      ptyProcess.write('  fi\n');
+      ptyProcess.write('  echo ""\n');
+      ptyProcess.write('  echo "💡 Use \'start-dev\' to start your project locally"\n');
+      ptyProcess.write('  echo "🌐 Open http://localhost:5173 (Vite) or http://localhost:3000 (Next.js/CRA) in your browser"\n');
+      ptyProcess.write('}\n');
       
-      // Configure environment for development servers
-      // Disable browser opening but allow proper network binding
-      ptyProcess.write('export BROWSER=none\n');
-      ptyProcess.write('export REACT_EDITOR=none\n');
-      ptyProcess.write('export EDITOR=none\n');
-      ptyProcess.write('npm config set browser none\n');
+   
+
       
-      // Enable proper network binding for development servers
-      ptyProcess.write('export VITE_HOST=0.0.0.0\n');
+      // Local development environment - no forced host binding
       ptyProcess.write('export NEXT_TELEMETRY_DISABLED=1\n');
       ptyProcess.write('export WATCHPACK_POLLING=true\n');
       
