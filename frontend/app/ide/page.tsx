@@ -44,7 +44,6 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useAuth } from '../security/hooks/useAuth';
 import axios from 'axios';
-import LocalDevServerDetector, { LocalDevServer } from '@/services/LocalDevServerDetector';
 // ReactPreview removed
 import ProjectCompletionModal from '@/components/ProjectCompletionModal';
 import PaymentModal from '@/components/PaymentModal';
@@ -383,34 +382,6 @@ function IDEPage() {
 
   // Simple file loading state
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-  
-  // Local dev server detection state
-  const [localDevServer, setLocalDevServer] = useState<LocalDevServer | null>(null);
-  const [showLocalPreview, setShowLocalPreview] = useState(false);
-  const [manualDevUrl, setManualDevUrl] = useState('');
-  const [showManualConfig, setShowManualConfig] = useState(false);
-
-  useEffect(() => {
-    const detector = LocalDevServerDetector.getInstance();
-    const handleDevServerChange = (server: LocalDevServer | null) => {
-      setLocalDevServer(server);
-      setShowLocalPreview(!!server);
-      if (server) {
-        console.log(`🚀 Local dev server detected: ${server.url} (${server.framework})`);
-      } else {
-        console.log('❌ No local dev server detected');
-      }
-    };
-
-    detector.addListener(handleDevServerChange);
-    detector.startPolling(3000);
-    void detector.detectDevServer().then(handleDevServerChange);
-
-    return () => {
-      detector.removeListener(handleDevServerChange);
-      detector.stopPolling();
-    };
-  }, []);
 
   // Create a file ID cache for efficient lookups
   const fileIdCache = useMemo(() => {
@@ -2478,20 +2449,7 @@ function IDEPage() {
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* Local dev server status */}
-            <div className="hidden sm:flex items-center gap-2 mr-2">
-              {localDevServer ? (
-                <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span>Dev Server: {localDevServer.port}</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  <span>No Dev Server</span>
-                </div>
-              )}
-            </div>
+            {/* No dev server status: keep UI minimal */}
             <RunDropdown 
               files={files} 
               onRunFile={handleRunFile} 
@@ -2565,77 +2523,7 @@ function IDEPage() {
               className="border-0 ide-dimmable"
             >
               <div className={`w-full h-full flex flex-col relative ${isExplorerCollapsed ? 'flex-1' : ''}`}>
-                {/* Local dev server banner / manual connect */}
-                {showLocalPreview && localDevServer ? (
-                  <div className="mb-3 mx-3 p-3 bg-green-100 border border-green-300 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-green-800">
-                          🚀 Local dev server running on port {localDevServer.port}
-                        </p>
-                        <p className="text-xs text-green-600">
-                          Framework: {localDevServer.framework} • Click to open in new tab
-                        </p>
-                      </div>
-                      <a
-                        href={localDevServer.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
-                      >
-                        Open Local Preview
-                      </a>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mb-3 mx-3 p-3 bg-blue-100 border border-blue-300 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-blue-800">
-                          💡 No local dev server detected
-                        </p>
-                        <p className="text-xs text-blue-600">
-                          Run 'npm run dev' in your terminal or enter a custom URL
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setShowManualConfig(!showManualConfig)}
-                        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-                      >
-                        Configure
-                      </button>
-                    </div>
-                    {showManualConfig && (
-                      <div className="mt-3 flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="http://localhost:3000"
-                          value={manualDevUrl}
-                          onChange={(e) => setManualDevUrl(e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
-                        />
-                        <button
-                          onClick={() => {
-                            if (manualDevUrl) {
-                              try {
-                                const url = new URL(manualDevUrl);
-                                const port = parseInt(url.port || '3000', 10) || 3000;
-                                setLocalDevServer({ url: url.toString(), port, framework: 'unknown', isRunning: true });
-                                setShowLocalPreview(true);
-                                setShowManualConfig(false);
-                              } catch (_) {
-                                // Invalid URL; ignore
-                              }
-                            }
-                          }}
-                          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
-                        >
-                          Connect
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* Keep things simple: no local dev detection banner */}
                 <Tabs value={activeTab} onValueChange={(val) => {
                   setActiveTab(val);
                   if (val === 'terminal') setTerminalInitialized(true);

@@ -36,6 +36,8 @@ export class UserTerminalManager {
       ...process.env,
       TERM: 'xterm-color',
       PS1: '$ ',
+      // Prevent dev servers from trying to auto-open a browser in the PTY
+      BROWSER: 'none',
     };
     
     const ptyProcess = pty.spawn('bash', ['-i'], {
