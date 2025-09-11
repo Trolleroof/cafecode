@@ -14,11 +14,7 @@ import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 import { UserWorkspaceManager } from './services/UserWorkspaceManager.js';
 import { fileSystemIndexer } from './services/FileSystemIndexer.js';
-import httpProxy from 'http-proxy';
-// Map to track running dev server ports per user
-const userDevServers = new Map(); // userId -> port
-// Initialize a single proxy instance
-const proxy = httpProxy.createProxyServer({ changeOrigin: true, ws: true });
+// Local dev servers now run on user machines; remove server-side proxying
 
 // Load environment variables FIRST (ensure we load backend/.env regardless of cwd)
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '.env') });
@@ -153,18 +149,8 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // Do not rate-limit preview asset fan-out; these can make hundreds of requests
-  skip: (req) => {
-    try {
-      if (req.path.startsWith('/preview/')) return true;
-      const ref = req.headers.referer || '';
-      if (ref) {
-        const u = new URL(ref);
-        if (/\/preview\/(\d{2,5})\//.test(u.pathname)) return true;
-      }
-    } catch (_) {}
-    return false;
-  }
+  // No special preview exceptions needed with local dev servers
+  skip: () => false
 });
 
 app.use(limiter);
@@ -362,18 +348,12 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// After app and middleware setup but before startServer() definition, add preview proxy route
-app.use('/preview/:uid', (req, res, next) => {
-  const { uid } = req.params;
-  const port = userDevServers.get(uid);
-  if (!port) {
-    return res.status(502).json({ error: 'No active dev server', uid });
-  }
-  proxy.web(req, res, { target: `http://localhost:${port}` }, (err) => {
-    console.error('Proxy error:', err?.message);
-    if (!res.headersSent) {
-      res.status(502).json({ error: 'Proxy error', details: err?.message });
-    }
+// Local dev health indicator for frontend feature toggles
+app.get('/api/health/local-dev', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Local dev server detection enabled',
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -512,21 +492,13 @@ async function startServer() {
         try { 
           ws.send(data); 
           
-          // Log when development servers start
+          // Log when development servers start (no server-side proxying)
           const dataStr = data.toString();
           if (dataStr.includes('Local:') && dataStr.includes('http://localhost:')) {
-            console.log(`🌐 [DEV-SERVER] User ${userId} started server: ${dataStr.trim()}`);
+            console.log(`🌐 [DEV-SERVER] (local) User ${userId} started server: ${dataStr.trim()}`);
           }
           if (dataStr.includes('ready in') && (dataStr.includes('VITE') || dataStr.includes('Next.js'))) {
-            console.log(`🚀 [DEV-SERVER] User ${userId} server ready: ${dataStr.trim()}`);
-          }
-          const portMatch = dataStr.match(/http:\/\/localhost:(\d+)/);
-          if (portMatch) {
-            const port = portMatch[1];
-            if (!userDevServers.get(userId)) {
-              console.log(`🔀 [DEV-SERVER] Mapping user ${userId} to port ${port}`);
-            }
-            userDevServers.set(userId, port);
+            console.log(`🚀 [DEV-SERVER] (local) User ${userId} server ready: ${dataStr.trim()}`);
           }
         } catch (_) {}
       });
