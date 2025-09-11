@@ -10,35 +10,51 @@ export class SimpleCache {
     
     this.defaultTtlMs = defaultTtlMs;
     this.maxEntries = maxEntries;
+    this.isConnected = false;
+    this.connectionFailed = false;
     
-    // Initialize Redis client
-    this.redis = createClient({
-      url: process.env.REDIS_URL || 'redis://localhost:6379',
-      socket: {
-        reconnectStrategy: (retries) => {
-          if (retries > 10) {
-            console.error('Redis connection failed after 10 retries');
-            return false;
+    // Initialize Redis client only if REDIS_URL is provided
+    if (process.env.REDIS_URL) {
+      this.redis = createClient({
+        url: process.env.REDIS_URL,
+        socket: {
+          reconnectStrategy: (retries) => {
+            if (retries > 10) {
+              console.error('Redis connection failed after 10 retries, falling back to in-memory cache');
+              this.connectionFailed = true;
+              return false;
+            }
+            return Math.min(retries * 100, 3000);
           }
-          return Math.min(retries * 100, 3000);
         }
-      }
-    });
+      });
 
-    // Connect to Redis
-    this.redis.connect().catch(err => {
-      console.error('Failed to connect to Redis:', err);
-    });
+      // Connect to Redis
+      this.redis.connect().catch(err => {
+        console.error('Failed to connect to Redis:', err);
+        this.connectionFailed = true;
+      });
 
-    // Handle Redis events
-    this.redis.on('error', (err) => {
-      console.error('Redis error:', err);
-    });
+      // Handle Redis events
+      this.redis.on('error', (err) => {
+        console.error('Redis error:', err);
+        this.connectionFailed = true;
+      });
 
-    this.redis.on('connect', () => {
-      console.log('✅ Redis connected successfully');
-    });
+      this.redis.on('connect', () => {
+        console.log('✅ Redis connected successfully');
+        this.isConnected = true;
+        this.connectionFailed = false;
+      });
+    } else {
+      console.log('⚠️ No REDIS_URL provided, using in-memory cache only');
+      this.connectionFailed = true;
+    }
 
+    // In-memory fallback cache
+    this.memoryCache = new Map();
+    this.memoryTags = new Map(); // tag -> Set<key>
+    
     // In-memory tracking for tags and inflight requests
     this.tagIndex = new Map(); // tag -> Set<key>
     this.inflight = new Map(); // key -> Promise
@@ -56,6 +72,25 @@ export class SimpleCache {
   static createTagOp(op) { return `op:${op}`; }
 
   async get(key) {
+    // Use in-memory cache if Redis is not available
+    if (this.connectionFailed || !this.redis) {
+      const entry = this.memoryCache.get(key);
+      if (!entry) {
+        this.metrics.misses++;
+        return null;
+      }
+      
+      // Check if entry has expired
+      if (Date.now() - entry.timestamp > entry.ttlMs) {
+        this.memoryCache.delete(key);
+        this.metrics.misses++;
+        return null;
+      }
+      
+      this.metrics.hits++;
+      return entry.value;
+    }
+
     try {
       const value = await this.redis.get(key);
       if (!value) {
@@ -66,24 +101,40 @@ export class SimpleCache {
       return JSON.parse(value);
     } catch (error) {
       console.error('Redis get error:', error);
+      this.connectionFailed = true;
       this.metrics.misses++;
       return null;
     }
   }
 
   async set(key, value, options = {}) {
+    const ttlMs = Number.isFinite(options.ttlMs) ? options.ttlMs : this.defaultTtlMs;
+    const tags = new Set(options.tags || []);
+    
+    // Store the value with tags metadata
+    const entry = {
+      value,
+      tags: Array.from(tags),
+      size: JSON.stringify(value)?.length || 0,
+      timestamp: Date.now(),
+      ttlMs
+    };
+
+    // Use in-memory cache if Redis is not available
+    if (this.connectionFailed || !this.redis) {
+      this.memoryCache.set(key, entry);
+      
+      // Update in-memory tag index
+      for (const tag of tags) {
+        if (!this.memoryTags.has(tag)) this.memoryTags.set(tag, new Set());
+        this.memoryTags.get(tag).add(key);
+      }
+      
+      this.metrics.sets++;
+      return value;
+    }
+
     try {
-      const ttlMs = Number.isFinite(options.ttlMs) ? options.ttlMs : this.defaultTtlMs;
-      const tags = new Set(options.tags || []);
-      
-      // Store the value with tags metadata
-      const entry = {
-        value,
-        tags: Array.from(tags),
-        size: JSON.stringify(value)?.length || 0,
-        timestamp: Date.now()
-      };
-      
       // Store in Redis with TTL
       await this.redis.setEx(key, ttlMs / 1000, JSON.stringify(entry));
 
@@ -97,11 +148,32 @@ export class SimpleCache {
       return value;
     } catch (error) {
       console.error('Redis set error:', error);
+      this.connectionFailed = true;
+      
+      // Fallback to in-memory cache
+      this.memoryCache.set(key, entry);
+      for (const tag of tags) {
+        if (!this.memoryTags.has(tag)) this.memoryTags.set(tag, new Set());
+        this.memoryTags.get(tag).add(key);
+      }
+      
+      this.metrics.sets++;
       return value;
     }
   }
 
   async delete(key) {
+    // Use in-memory cache if Redis is not available
+    if (this.connectionFailed || !this.redis) {
+      const wasPresent = this.memoryCache.has(key);
+      if (wasPresent) {
+        this.memoryCache.delete(key);
+        this.metrics.deletes++;
+        this._cleanupMemoryTags(key);
+      }
+      return wasPresent;
+    }
+
     try {
       const wasPresent = await this.redis.del(key);
       if (wasPresent) {
@@ -112,6 +184,7 @@ export class SimpleCache {
       return wasPresent > 0;
     } catch (error) {
       console.error('Redis delete error:', error);
+      this.connectionFailed = true;
       return false;
     }
   }
@@ -122,6 +195,16 @@ export class SimpleCache {
       keys.delete(key);
       if (keys.size === 0) {
         this.tagIndex.delete(tag);
+      }
+    }
+  }
+
+  _cleanupMemoryTags(key) {
+    // Remove key from all memory tag indexes
+    for (const [tag, keys] of this.memoryTags.entries()) {
+      keys.delete(key);
+      if (keys.size === 0) {
+        this.memoryTags.delete(tag);
       }
     }
   }
@@ -273,29 +356,43 @@ export class SimpleCache {
 
   // Snapshot basic statistics for monitoring/health reporting
   async getStats() {
+    const inflight = this.inflight.size;
+    const { hits, misses, sets, deletes } = this.metrics;
+    const requests = hits + misses;
+    const hitRate = requests > 0 ? hits / requests : 0;
+    
+    // Use in-memory cache if Redis is not available
+    if (this.connectionFailed || !this.redis) {
+      return {
+        entries: this.memoryCache.size,
+        inflight,
+        approxBytes: 0,
+        metrics: { hits, misses, sets, deletes, evictions: this.metrics.evictions, requests, hitRate },
+        config: { maxEntries: this.maxEntries, defaultTtlMs: this.defaultTtlMs },
+        mode: 'memory'
+      };
+    }
+
     try {
       const entries = await this.redis.dbSize();
-      const inflight = this.inflight.size;
-      
-      const { hits, misses, sets, deletes } = this.metrics;
-      const requests = hits + misses;
-      const hitRate = requests > 0 ? hits / requests : 0;
-      
       return {
         entries,
         inflight,
         approxBytes: 0, // Redis doesn't expose this easily
         metrics: { hits, misses, sets, deletes, evictions: this.metrics.evictions, requests, hitRate },
         config: { maxEntries: this.maxEntries, defaultTtlMs: this.defaultTtlMs },
+        mode: 'redis'
       };
     } catch (error) {
       console.error('Error getting cache stats:', error);
+      this.connectionFailed = true;
       return {
-        entries: 0,
+        entries: this.memoryCache.size,
         inflight: this.inflight.size,
         approxBytes: 0,
         metrics: this.metrics,
         config: { maxEntries: this.maxEntries, defaultTtlMs: this.defaultTtlMs },
+        mode: 'memory-fallback'
       };
     }
   }

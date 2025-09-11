@@ -205,11 +205,19 @@ async function initializeServices() {
     }
     
     geminiService = await initializeGemini(process.env.GEMINI_API_KEY);
-    console.log('✅ Gemini AI service initialized successfully');
+    
+    if (geminiService && geminiService.isServiceAvailable()) {
+      console.log('✅ Gemini AI service initialized successfully');
+    } else if (geminiService && geminiService.quotaExceeded) {
+      console.log('⚠️ Gemini AI service initialized but quota exceeded - some features will be limited');
+    } else {
+      console.log('⚠️ Gemini AI service initialized but not fully available');
+    }
   } catch (error) {
     console.error('❌ Failed to initialize Gemini AI service:', error.message);
     console.error('💡 Make sure your .env file contains a valid GEMINI_API_KEY');
-    process.exit(1);
+    // Don't exit the process, just continue without Gemini
+    geminiService = null;
   }
 }
 
@@ -316,24 +324,33 @@ app.get('/', (req, res) => {
 app.get('/health', async (req, res) => {
   try {
     const geminiStatus = geminiService ? await geminiService.checkHealth() : false;
+    const geminiQuotaExceeded = geminiService ? geminiService.quotaExceeded : false;
     // Lazy import to avoid circular dependency
     const { Cache } = await import('./services/Cache.js');
     const cacheStats = await Cache.getStats();
     
+    let overallStatus = 'healthy';
+    if (!geminiStatus && geminiService) {
+      overallStatus = geminiQuotaExceeded ? 'degraded' : 'degraded';
+    } else if (!geminiService) {
+      overallStatus = 'degraded';
+    }
+    
     res.json({
-      status: geminiStatus ? 'healthy' : 'degraded',
+      status: overallStatus,
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       services: {
-        gemini_ai: geminiStatus ? 'connected' : 'disconnected',
+        gemini_ai: geminiStatus ? 'connected' : (geminiQuotaExceeded ? 'quota_exceeded' : 'disconnected'),
         database: 'not_applicable',
-        cache: 'enabled'
+        cache: cacheStats.mode || 'enabled'
       },
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       environment: process.env.NODE_ENV || 'development',
       api_key_status: process.env.GEMINI_API_KEY ? 'configured' : 'missing',
       cache: cacheStats,
+      gemini_quota_exceeded: geminiQuotaExceeded
     });
   } catch (error) {
     console.error('Health check failed:', error);

@@ -8,6 +8,7 @@ class GeminiService {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     this.isInitialized = false;
+    this.quotaExceeded = false;
   }
 
   async initialize() {
@@ -25,13 +26,22 @@ class GeminiService {
       }
     } catch (error) {
       console.error('❌ Gemini AI initialization failed:', error.message);
+      
+      // Check if it's a quota exceeded error
+      if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('Too Many Requests')) {
+        console.log('⚠️ Gemini API quota exceeded - service will be disabled until quota resets');
+        this.quotaExceeded = true;
+        this.isInitialized = false;
+        return false; // Don't throw, just disable the service
+      }
+      
       throw error;
     }
   }
 
   async checkHealth() {
     try {
-      if (!this.isInitialized) {
+      if (!this.isInitialized || this.quotaExceeded) {
         return false;
       }
       
@@ -42,6 +52,21 @@ class GeminiService {
       console.error('Gemini health check failed:', error.message);
       return false;
     }
+  }
+
+  // Helper method to check if service is available
+  isServiceAvailable() {
+    return this.isInitialized && !this.quotaExceeded;
+  }
+
+  // Helper method to get quota exceeded message
+  getQuotaExceededMessage() {
+    return {
+      success: false,
+      error: 'Gemini API quota exceeded',
+      message: 'The AI service is temporarily unavailable due to daily quota limits. Please try again tomorrow or contact support for assistance.',
+      quota_exceeded: true
+    };
   }
 
   // Helper function to create project context from files
@@ -205,7 +230,10 @@ Use extremely simple language for complete beginners.`;
     const startTime = Date.now();
     
     try {
-      if (!this.isInitialized) {
+      if (!this.isServiceAvailable()) {
+        if (this.quotaExceeded) {
+          return this.getQuotaExceededMessage();
+        }
         throw new Error('Gemini service not initialized');
       }
 
@@ -264,7 +292,10 @@ Use extremely simple language for complete beginners.`;
     const startTime = Date.now();
     
     try {
-      if (!this.isInitialized) {
+      if (!this.isServiceAvailable()) {
+        if (this.quotaExceeded) {
+          return this.getQuotaExceededMessage();
+        }
         throw new Error('Gemini service not initialized');
       }
 
@@ -333,7 +364,10 @@ Use extremely simple language for complete beginners.`;
 
   async translateText(text, projectFiles = null, targetLanguage = 'English') {
     try {
-      if (!this.isInitialized) {
+      if (!this.isServiceAvailable()) {
+        if (this.quotaExceeded) {
+          return this.getQuotaExceededMessage();
+        }
         throw new Error('Gemini service not initialized');
       }
 
@@ -388,7 +422,10 @@ Use extremely simple language for complete beginners.`;
     const startTime = Date.now();
 
     try {
-      if (!this.isInitialized) {
+      if (!this.isServiceAvailable()) {
+        if (this.quotaExceeded) {
+          return this.getQuotaExceededMessage();
+        }
         throw new Error('Gemini service not initialized');
       }
 
