@@ -56,7 +56,7 @@ const WebContainerTerminal: React.FC = () => {
       ...prev,
       {
         id,
-        title: `Terminal ${prev.length + 1}`,
+        title: `Terminal`,
         xterm: null,
         fit: null,
         proc: null,
@@ -68,6 +68,9 @@ const WebContainerTerminal: React.FC = () => {
   }, []);
 
   const closeTab = useCallback((tabId: string) => {
+    // Prevent closing the last tab
+    if (tabs.length <= 1) return;
+    
     setTabs((prev) => {
       const tab = prev.find((t) => t.id === tabId);
       if (tab) {
@@ -81,7 +84,7 @@ const WebContainerTerminal: React.FC = () => {
       initializedTabsRef.current.delete(tabId);
       return next;
     });
-  }, [activeId]);
+  }, [activeId, tabs.length]);
 
   const renameTab = useCallback((tabId: string, title: string) => {
     setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, title } : t)));
@@ -254,11 +257,12 @@ const WebContainerTerminal: React.FC = () => {
                   outline: "none",
                 }}
               />
-              <button onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} style={{ background: "transparent", border: "none", color: "#aaa", cursor: "pointer" }}>×</button>
+              {tabs.length > 1 && (
+                <button onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} style={{ background: "transparent", border: "none", color: "#aaa", cursor: "pointer" }}>×</button>
+              )}
             </div>
           ))}
         </div>
-        <button onClick={addTab} style={{ background: "transparent", color: "#ddd", border: "none", cursor: "pointer", fontSize: 16, padding: 6 }}>+</button>
       </div>
 
       {/* Active terminal surface */}

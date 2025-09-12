@@ -594,11 +594,12 @@ const Terminal: React.FC = () => {
               color: '#ddd'
             }}>
               <span>{tab.title}</span>
-              <button onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} style={{ background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer' }}>×</button>
+              {tabs.length > 1 && (
+                <button onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} style={{ background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer' }}>×</button>
+              )}
             </div>
           ))}
         </div>
-        <button onClick={addTab} style={{background: 'transparent', color: '#ddd', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '6px'}}>+</button>
       </div>
 
       {/* Active terminal surface */}

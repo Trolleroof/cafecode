@@ -45,6 +45,8 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '../security/hooks/useAuth';
 import axios from 'axios';
 import { webContainerFS } from '@/services/WebContainerFileSystem';
+import PreviewPanel from '@/components/PreviewPanel';
+import { previewService } from '@/services/PreviewService';
 // ReactPreview removed
 import ProjectCompletionModal from '@/components/ProjectCompletionModal';
 import PaymentModal from '@/components/PaymentModal';
@@ -397,6 +399,9 @@ function IDEPage() {
     return cache;
   }, [files]);
 
+  // Track logged missing files to prevent spam
+  const loggedMissingFiles = useRef(new Set<string>());
+
   // Helper function to find a node by its ID using cache for efficiency
   const findNodeById = (id: string, nodes?: FileNode[]): FileNode | null => {
     // Use cache for quick lookup
@@ -418,10 +423,7 @@ function IDEPage() {
       }
     }
     
-    // Only log missing nodes for debugging, but skip common test files
-    if (process.env.NODE_ENV === 'development' && id !== 'test.py' && !id.includes('test')) {
-      console.log(`🔍 [FIND-NODE] Node not found: ${id}`);
-    }
+  
     return null;
   };
 
@@ -2105,6 +2107,23 @@ function IDEPage() {
     };
   }, []);
 
+  // Auto-start dev server and watch preview URL
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    (async () => {
+      try {
+        unsub = previewService.watch((servers, primary) => {
+          setPreviewUrl(primary);
+          const primaryServer = primary ? servers.find(s => s.url === primary) : servers[0];
+          setDevStatus(primaryServer?.status || 'idle');
+        });
+        // Try to start once; ignore if no package.json or scripts missing
+        await previewService.autoStart().catch(() => {});
+      } catch {}
+    })();
+    return () => { if (unsub) unsub(); };
+  }, []);
+
   // Load files when component mounts and session is available
   useEffect(() => {
     if (session?.access_token) {
@@ -2114,6 +2133,9 @@ function IDEPage() {
 
   // Add state to track if the terminal has been initialized
   const [terminalInitialized, setTerminalInitialized] = useState(false);
+  // Dev server preview state
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
+  const [devStatus, setDevStatus] = useState<'idle' | 'installing' | 'starting' | 'running' | 'exited' | 'error'>('idle');
 
   // Memoize the Terminal component so it is not remounted on tab switch
   const memoizedTerminal = useMemo(() => <WebContainerTerminal />, []);
@@ -2338,6 +2360,10 @@ function IDEPage() {
                         <IconTerminal className="mr-2 h-4 w-4" />
                         Terminal
                       </TabsTrigger>
+                      <TabsTrigger value="preview" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
+                        <IconBolt className="mr-2 h-4 w-4" />
+                        Preview
+                      </TabsTrigger>
                     </TabsList>
 
                     {selectedFile && (
@@ -2409,7 +2435,16 @@ function IDEPage() {
                       )}
                   </TabsContent>
 
-                  {/* Preview tab removed */}
+                  <TabsContent value="preview" className="flex-1 m-0">
+                    <div style={{ width: '100%', height: '100%', background: '#000' }}>
+                      <PreviewPanel 
+                        url={previewUrl}
+                        status={devStatus}
+                        onReload={() => setPreviewUrl(prev => prev ? prev + '' : prev)}
+                        onOpenNewTab={() => { if (previewUrl) window.open(previewUrl, '_blank'); }}
+                      />
+                    </div>
+                  </TabsContent>
 
                   {/* Always render the Terminal, but only show it when terminal tab is active */}
                   <div
