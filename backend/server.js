@@ -7,9 +7,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import http from 'http';
-import { WebSocketServer } from 'ws';
-import pty from 'node-pty';
-import { UserTerminalManager } from './services/UserTerminalManager.js';
+// WebSocket terminal removed; WebContainer handles terminal in-browser
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 import { UserWorkspaceManager } from './services/UserWorkspaceManager.js';
@@ -39,6 +37,7 @@ import nodejsRoutes from './routes/nodejs.js';
 import javaRoutes from './routes/java.js';
 import filesRoutes from './routes/files.js';
 import filesRoutesV2 from './routes/files-v2.js';
+import syncRoutes from './routes/sync.js';
 import stripeRoutes from './routes/stripe.js';
 import adminRoutes from './routes/admin.js';
 import searchRoutes from './routes/search.js';
@@ -275,6 +274,7 @@ app.use('/api/tavus', authenticateUser, tavusRoutes);
 app.use('/api/stripe', stripeRoutes); // Stripe routes (no auth required for webhooks)
 app.use('/api/admin', authenticateUser, adminRoutes);
 app.use('/api/search', authenticateUser, searchRoutes);
+app.use('/api/sync', authenticateUser, syncRoutes);
 // --- End authentication enforcement ---
 
 // Root endpoint
@@ -423,121 +423,7 @@ async function startServer() {
     global.server = server;
 
 
-    // --- Unified WebSocket Server with Path-Based Routing ---
-    const wss = new WebSocketServer({ server });
-    
-    console.log('🔧 [WEBSOCKET] Unified WebSocket server initialized');
-
-    // Store connected clients by user ID for file events
-    const fileEventClients = new Map(); // userId -> Set of WebSocket connections
-
-    wss.on('connection', (ws, req) => {
-      console.log('📡 [WEBSOCKET] New connection attempt to:', req.url, 'from:', req.socket.remoteAddress);
-      
-      const url = new URL(req.url, `http://${req.headers.host}`);
-      const pathname = url.pathname;
-      const token = url.searchParams.get('access_token');
-      
-      if (!token) {
-        console.log('❌ [WEBSOCKET] Missing access token');
-        ws.close(4001, 'Missing access token');
-        return;
-      }
-
-      // Verify JWT and extract user ID
-      let userId;
-      try {
-        const payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET);
-        userId = payload.sub; // Supabase user ID is in 'sub'
-        console.log('✅ [WEBSOCKET] Token verified for user:', userId);
-      } catch (err) {
-        if (err && err.name === 'TokenExpiredError') {
-          console.log('❌ [WEBSOCKET] Access token expired');
-          ws.close(4003, 'Access token expired');
-        } else {
-          console.log('❌ [WEBSOCKET] Invalid access token:', err.message);
-          ws.close(4002, 'Invalid access token');
-        }
-        return;
-      }
-
-      // Route based on pathname
-      if (pathname === '/terminal') {
-        console.log('📡 [TERMINAL] Handling terminal connection for user:', userId);
-        handleTerminalConnection(ws, req, userId, url, wss);
-      } else if (pathname === '/file-events') {
-        console.log('📡 [FILE-EVENTS] Handling file-events connection for user:', userId);
-        handleFileEventsConnection(ws, req, userId, fileEventClients);
-      } else {
-        console.log('❌ [WEBSOCKET] Unknown path:', pathname);
-        ws.close(4004, 'Unknown endpoint');
-      }
-    });
-
-    // Terminal connection handler
-    function handleTerminalConnection(ws, req, userId, url, wss) {
-      const requestedTerminalId = url.searchParams.get('terminal_id') || undefined;
-      
-      // Start or attach to terminal for this user
-      const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
-      const { id: terminalId, pty: ptyProcess } = UserTerminalManager.startTerminal(userId, shell, 80, 34, requestedTerminalId);
-
-      // Store metadata on websocket
-      ws.userId = userId;
-      ws.terminalId = terminalId;
-      ws.connectionType = 'terminal';
-
-      // Wire up PTY <-> WebSocket with server start detection
-      ptyProcess.on('data', (data) => {
-        try { 
-          ws.send(data); 
-          
-          // Log when development servers start (no server-side proxying)
-          const dataStr = data.toString();
-          if (dataStr.includes('Local:') && dataStr.includes('http://localhost:')) {
-            console.log(`🌐 [DEV-SERVER] (local) User ${userId} started server: ${dataStr.trim()}`);
-          }
-          if (dataStr.includes('ready in') && (dataStr.includes('VITE') || dataStr.includes('Next.js'))) {
-            console.log(`🚀 [DEV-SERVER] (local) User ${userId} server ready: ${dataStr.trim()}`);
-          }
-        } catch (_) {}
-      });
-      ws.on('message', (msg) => {
-        try {
-          // Try to parse as JSON for resize events or other commands
-          const parsed = JSON.parse(msg);
-          if (parsed && parsed.type === 'resize' && parsed.cols && parsed.rows) {
-            ptyProcess.resize(parsed.cols, parsed.rows);
-            return;
-          }
-        } catch (e) {
-          // Not JSON, treat as normal input
-        }
-        // Intercept and block cd commands that escape the workspace
-        const strMsg = typeof msg === 'string' ? msg : msg.toString();
-        const cdMatch = strMsg.match(/^\s*cd\s+(.+)/);
-        if (cdMatch) {
-          const target = cdMatch[1].trim();
-          // Disallow cd to absolute paths or ..
-          if (target.startsWith('/') || target.startsWith('..') || target.includes('..')) {
-            try { ws.send('cd: Permission denied\r\n'); } catch (_) {}
-            return;
-          }
-        }
-        try { ptyProcess.write(msg); } catch (_) {}
-      });
-      ws.on('close', () => {
-        // Only kill terminal if no other client is attached to the same terminal
-        const stillAttached = Array.from(wss.clients).some((client) => {
-          return client !== ws && client.readyState === 1 && client.userId === userId && client.terminalId === terminalId;
-        });
-        if (!stillAttached) {
-          UserTerminalManager.killTerminal(userId, terminalId);
-        }
-      });
-    }
-
-    // File events connection handler
+    // WebSocket terminal/file-events removed; frontend uses in-browser WebContainer + polling FS sync
     function handleFileEventsConnection(ws, req, userId, fileEventClients) {
       // Add client to user's connection set
       if (!fileEventClients.has(userId)) {

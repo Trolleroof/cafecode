@@ -133,9 +133,18 @@ const WebContainerTerminal: React.FC = () => {
       await webContainerService.boot();
       const proc = await webContainerService.spawnShell({ cols: dims.cols, rows: dims.rows });
 
-      // Pipe process output to xterm
+      // Pipe process output to xterm with light highlighting
       const output = proc.output;
       const writer = output.getReader();
+      const colorize = (s: string) => {
+        try {
+          // Basic highlight for build logs
+          return s
+            .replace(/\b(ERROR|Failed|Exception)\b/gi, '\u001b[31m$1\u001b[0m')
+            .replace(/\b(WARN|Deprecated)\b/gi, '\u001b[33m$1\u001b[0m')
+            .replace(/\b(Success|built in [\d\.]+ms)\b/gi, '\u001b[32m$1\u001b[0m');
+        } catch { return s; }
+      };
 
       let canceled = false;
       (async () => {
@@ -143,7 +152,7 @@ const WebContainerTerminal: React.FC = () => {
           while (!canceled) {
             const { value, done } = await writer.read();
             if (done || value === undefined) break;
-            term.write(value);
+            term.write(colorize(value));
           }
         } catch {}
       })();
@@ -233,7 +242,7 @@ const WebContainerTerminal: React.FC = () => {
   }, [activeId, tabs]);
 
   return (
-    <div style={{ backgroundColor: "rgb(0,0,0)", paddingTop: 2, width: "100%", height: 400 }}>
+    <div style={{ backgroundColor: "rgb(0,0,0)", paddingTop: 2, width: "100%", height: '100%', overflow: 'hidden' }}>
       {/* Tabs header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", borderBottom: "1px solid #222", backgroundColor: "#000" }}>
         <div style={{ display: "flex", overflowX: "auto" }}>
@@ -263,12 +272,15 @@ const WebContainerTerminal: React.FC = () => {
             </div>
           ))}
         </div>
+        <button onClick={addTab} title="New terminal"
+          style={{ background: "transparent", color: "#ddd", border: '1px solid #333', cursor: "pointer", fontSize: 14, padding: '4px 8px', borderRadius: 4, marginLeft: 8 }}
+        >+ New</button>
       </div>
 
       {/* Active terminal surface */}
-      <div ref={containerRef} style={{ width: "100%", height: "calc(100% - 36px)" }}>
+      <div ref={containerRef} style={{ width: "100%", height: "calc(100% - 36px)", overflow: 'hidden' }}>
         {tabs.map((tab) => (
-          <div key={tab.id} style={{ display: activeId === tab.id ? "block" : "none", width: "100%", height: "100%", position: "relative" }}>
+          <div key={tab.id} style={{ display: activeId === tab.id ? "block" : "none", width: "100%", height: "100%", position: "relative", overflow: 'hidden' }}>
             <div
               ref={(node) => {
                 if (!tab.isAttached && node) {
@@ -276,7 +288,7 @@ const WebContainerTerminal: React.FC = () => {
                 }
               }}
               onMouseDown={() => { try { tab.xterm?.focus(); } catch {} }}
-              style={{ width: "100%", height: "100%", paddingBottom: 20 }}
+              style={{ width: "100%", height: "100%" }}
             />
             {tab.isLoading && <TerminalLoader message="Starting terminal" />}
           </div>

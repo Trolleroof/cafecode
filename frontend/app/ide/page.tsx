@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  IconPlayerPlay,
   IconMessage,
   IconBulb,
   IconCode,
@@ -53,6 +52,8 @@ import PaymentModal from '@/components/PaymentModal';
 import { supabase } from '../../lib/supabase';
 import { getFreshAccessToken } from '@/lib/authToken';
 import { FileNode } from '@/types';
+import { webContainerService } from '@/services/WebContainerService';
+import SyncStatus from '@/components/SyncStatus';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const WebContainerTerminal = dynamic(() => import('@/components/WebContainerTerminal'), { ssr: false });
@@ -2131,6 +2132,14 @@ function IDEPage() {
     }
   }, [session?.access_token]); // Only depend on session token, not the loadFiles function
 
+  // Slight pre-boot of WebContainer to reduce first-interaction latency
+  useEffect(() => {
+    let mounted = true;
+    // Defer a tick to avoid blocking initial render
+    const t = setTimeout(() => { if (mounted) void webContainerService.boot().catch(() => {}); }, 50);
+    return () => { mounted = false; clearTimeout(t); };
+  }, []);
+
   // Add state to track if the terminal has been initialized
   const [terminalInitialized, setTerminalInitialized] = useState(false);
   // Dev server preview state
@@ -2277,6 +2286,12 @@ function IDEPage() {
               isRunning={isRunning} 
             />
 
+            {/* Sync status indicator */}
+            <div className="hidden sm:block">
+              <SyncStatus />
+            </div>
+
+ 
             {/* Start Guided Project Button - only show if not in a guided project */}
             {!guidedProject && (
               <Button
@@ -2446,22 +2461,11 @@ function IDEPage() {
                     </div>
                   </TabsContent>
 
-                  {/* Always render the Terminal, but only show it when terminal tab is active */}
-                  <div
-                    style={{
-                      height: '400px', // Increased height
-                      width: '100%',
-                      background: 'black', // Black background for padding
-                      paddingLeft: '10px',
-                      paddingBottom: '15px',
-                      boxSizing: 'border-box',
-                      display: activeTab === 'terminal' ? 'block' : 'none',
-                      overflowX: 'auto', // Enable horizontal scroll
-                      overflowY: 'auto',
-                    }}
-                  >
-                    {memoizedTerminal}
-                  </div>
+                  <TabsContent value="terminal" className="flex-1 m-0">
+                    <div style={{ width: '100%', height: '100%', background: 'black', overflow: 'hidden' }}>
+                      {memoizedTerminal}
+                    </div>
+                  </TabsContent>
 
                 </Tabs>
               </div>

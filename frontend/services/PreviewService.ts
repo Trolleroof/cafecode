@@ -19,10 +19,23 @@ class PreviewService {
   }
 
   async autoStart() {
-    // Try default dev command
+    // Wait up to ~30s for package.json to appear (handles initial seed)
+    const maxWaitMs = 30000;
+    const start = Date.now();
+    while (Date.now() - start < maxWaitMs) {
+      try {
+        // detectCommand throws if no package.json; success means ready
+        const cmd = await devServerManager.detectCommand();
+        await devServerManager.start(cmd);
+        return;
+      } catch (e) {
+        // Not ready yet
+        await new Promise(r => setTimeout(r, 800));
+      }
+    }
+    // Final attempt: start with default and let error bubble to caller
     await devServerManager.start();
   }
 }
 
 export const previewService = new PreviewService();
-

@@ -68,6 +68,31 @@ class DevServerManager {
     }
   }
 
+  private async readJSON<T = any>(path: string): Promise<T | null> {
+    const wc = await this.ensureBoot();
+    try {
+      const raw = await wc.fs.readFile(path, 'utf-8' as any);
+      const text = typeof raw === 'string' ? raw : new TextDecoder().decode(raw as any);
+      return JSON.parse(text) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  async detectCommand(): Promise<string[]> {
+    const pkg = await this.readJSON<{ scripts?: Record<string,string>; dependencies?: any; devDependencies?: any }>(
+      '/package.json'
+    );
+    if (!pkg) throw new Error('No package.json found');
+    // Prefer explicit dev script
+    if (pkg.scripts?.dev) return ['npm', 'run', 'dev'];
+    const hasVite = !!(pkg.dependencies?.vite || pkg.devDependencies?.vite);
+    if (hasVite) return ['npm', 'exec', 'vite', '--', '--host'];
+    // Common alternatives
+    if (pkg.scripts?.start) return ['npm', 'run', 'start'];
+    return ['npm', 'run', 'dev'];
+  }
+
   async ensureDependencies(): Promise<void> {
     const wc = await this.ensureBoot();
     const hasPackage = await this.hasFile('/package.json');
@@ -96,7 +121,7 @@ class DevServerManager {
     this.notify();
   }
 
-  async start(command: string[] = ['npm', 'run', 'dev']): Promise<string> {
+  async start(command?: string[]): Promise<string> {
     const wc = await this.ensureBoot();
     // Must have a package.json for default dev command
     const hasPackage = await this.hasFile('/package.json');
@@ -105,13 +130,14 @@ class DevServerManager {
     }
     // Best-effort ensure deps first
     await this.ensureDependencies().catch(() => {});
+    const finalCmd = command && command.length ? command : await this.detectCommand();
     const id = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const dev: DevServer = { id, cmd: command, status: 'starting' };
     this.servers.push(dev);
     this.pendingQueue.push(id);
     this.notify();
 
-    const proc = await wc.spawn(command[0], command.slice(1), { terminal: { cols: 80, rows: 24 } as any });
+    const proc = await wc.spawn(finalCmd[0], finalCmd.slice(1), { terminal: { cols: 80, rows: 24 } as any });
     this.procs.set(id, proc);
 
     // Track exit
