@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   IconMessage,
   IconBulb,
@@ -17,7 +18,8 @@ import {
   IconCopy,
   IconLoader2,
   IconArrowLeft,
-  IconRefresh
+  IconRefresh,
+  IconCoffee
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -2125,8 +2127,97 @@ function IDEPage() {
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(undefined);
   const [devStatus, setDevStatus] = useState<'idle' | 'installing' | 'starting' | 'running' | 'exited' | 'error'>('idle');
 
-  // Memoize the Terminal component so it is not remounted on tab switch
-  const memoizedTerminal = useMemo(() => <WebContainerTerminal />, []);
+  // Terminal state management (moved from WebContainerTerminal)
+  type TerminalTab = {
+    id: string;
+    title: string;
+    xterm: any | null;
+    fit: any | null;
+    proc: any | null;
+    isAttached: boolean;
+    isLoading: boolean;
+    // Persist terminal content across remounts
+    outputBuffer?: string;
+    // Track whether a single reader has been started for this proc
+    readerActive?: boolean;
+  };
+
+  const createTerminalId = () => `wct_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  
+  const [terminalTabs, setTerminalTabs] = useState<TerminalTab[]>([]);
+  const [activeTerminalId, setActiveTerminalId] = useState<string | null>(null);
+  const terminalInitializedTabsRef = useRef<Set<string>>(new Set());
+  const terminalInitialTabCreatedRef = useRef<boolean>(false);
+
+  // Terminal management functions
+  const addTerminalTab = useCallback(() => {
+    const id = createTerminalId();
+    setTerminalTabs((prev) => [
+      ...prev,
+      {
+        id,
+        title: `Terminal`,
+        xterm: null,
+        fit: null,
+        proc: null,
+        isAttached: false,
+        isLoading: true,
+        outputBuffer: '',
+        readerActive: false,
+      },
+    ]);
+    setActiveTerminalId(id);
+  }, []);
+
+  const closeTerminalTab = useCallback((tabId: string) => {
+    // Prevent closing the last tab
+    if (terminalTabs.length <= 1) return;
+    
+    setTerminalTabs((prev) => {
+      const tab = prev.find((t) => t.id === tabId);
+      if (tab) {
+        try { tab.proc?.kill(); } catch {}
+        try { tab.xterm?.dispose(); } catch {}
+      }
+      const next = prev.filter((t) => t.id !== tabId);
+      if (activeTerminalId === tabId) {
+        setActiveTerminalId(next.length ? next[next.length - 1].id : null);
+      }
+      terminalInitializedTabsRef.current.delete(tabId);
+      return next;
+    });
+  }, [activeTerminalId, terminalTabs.length]);
+
+  const renameTerminalTab = useCallback((tabId: string, title: string) => {
+    setTerminalTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, title } : t)));
+  }, []);
+
+  // Create initial terminal tab
+  useEffect(() => {
+    if (terminalTabs.length === 0 && !terminalInitialTabCreatedRef.current) {
+      terminalInitialTabCreatedRef.current = true;
+      addTerminalTab();
+    }
+  }, [terminalTabs.length, addTerminalTab]);
+
+  // Update a terminal tab (xterm/proc/flags)
+  const updateTerminalTab = useCallback((tabId: string, updates: Partial<TerminalTab>) => {
+    setTerminalTabs(prev => prev.map(t => t.id === tabId ? { ...t, ...updates } : t));
+  }, []);
+
+  // Memoize the Terminal component with props
+  const memoizedTerminal = useMemo(() => (
+    <WebContainerTerminal 
+      tabs={terminalTabs}
+      activeId={activeTerminalId}
+      onAddTab={addTerminalTab}
+      onCloseTab={closeTerminalTab}
+      onRenameTab={renameTerminalTab}
+      onSelectTab={setActiveTerminalId}
+      onUpdateTab={updateTerminalTab}
+      initializedTabsRef={terminalInitializedTabsRef}
+    />
+  ), [terminalTabs, activeTerminalId, addTerminalTab, closeTerminalTab, renameTerminalTab]);
 
   // New handler for returning to the chat from the steps preview
   const handleReturnToChat = () => {
@@ -2230,7 +2321,7 @@ function IDEPage() {
     <ProtectedRoute>
       <div className={`flex flex-col h-screen bg-light-cream text-dark-charcoal transition-colors duration-150 ${isInSetupPhase ? 'dim-layout' : ''}`}>
         {/* Header */}
-        <header className="flex items-center justify-between p-4 border-b border-cream-beige bg-light-cream shadow-lg ide-dimmable">
+        <header className="flex items-center justify-between p-3 border-b border-cream-beige bg-light-cream shadow-lg ide-dimmable">
     
                  <div className="flex items-center space-x-1">
            <button 
@@ -2238,20 +2329,20 @@ function IDEPage() {
               setIsNavigatingBack(true);
               router.replace('/');
             }} 
-            className="p-2 rounded-full hover:bg-cream-beige transition-colors duration-150 disabled:opacity-50"
+            className="p-1.5 rounded-full hover:bg-cream-beige transition-colors duration-150 disabled:opacity-50"
             disabled={isNavigatingBack}
           >
             {isNavigatingBack ? (
-              <IconLoader2 className="h-5 w-5 text-deep-espresso animate-spin" />
+              <IconLoader2 className="h-4 w-4 text-deep-espresso animate-spin" />
             ) : (
-            <IconArrowLeft className="h-5 w-5 text-deep-espresso" />
+            <IconArrowLeft className="h-4 w-4 text-deep-espresso" />
             )}
           </button>
-          <div className="w-9 h-9 flex items-center justify-center">
-            <Image src="/images/logo-trans.png" alt="Cafécode Logo" width={70} height={70} className="h-9 w-9 object-contain rounded-xl" />
+          <div className="w-7 h-7 flex items-center justify-center">
+            <Image src="/images/logo-trans.png" alt="Cafécode Logo" width={56} height={56} className="h-7 w-7 object-contain rounded-xl" />
           </div>
               <div className="flex items-center justify-left">
-                <h1 className="text-xl font-bold text-deep-espresso">
+                <h1 className="text-lg font-bold text-deep-espresso">
                 Project Brewer
               </h1>
           </div>
@@ -2266,9 +2357,9 @@ function IDEPage() {
                 }}
                 className="bg-medium-coffee hover:bg-deep-espresso text-white font-semibold shadow-lg transition-all duration-300 transform hover:scale-105"
               >
-                <IconSparkles className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Start Guided Project</span>
-                <span className="sm:hidden">Guide</span>
+                <IconSparkles className="mr-1.5 h-3.5 w-3.5" />
+                <span className="hidden sm:inline text-sm">Start Guided Project</span>
+                <span className="sm:hidden text-sm">Guide</span>
               </Button>
             )}
 
@@ -2279,9 +2370,9 @@ function IDEPage() {
                 variant="outline"
                 className="border-medium-coffee text-medium-coffee hover:bg-medium-coffee hover:text-white"
               >
-                <IconX className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Stop Guide</span>
-                <span className="sm:hidden">Stop</span>
+                <IconX className="mr-1.5 h-3.5 w-3.5" />
+                <span className="hidden sm:inline text-sm">Stop Guide</span>
+                <span className="sm:hidden text-sm">Stop</span>
               </Button>
             )}
 
@@ -2459,7 +2550,7 @@ function IDEPage() {
 
                   <TabsContent value="terminal" className="flex-1 m-0">
                     <div style={{ width: '100%', height: '100%', background: 'black', overflow: 'hidden' }}>
-                      {/* Terminal will be rendered below but controlled by visibility */}
+                      {memoizedTerminal}
                     </div>
                   </TabsContent>
 
@@ -2472,18 +2563,18 @@ function IDEPage() {
               defaultSize={isExplorerCollapsed ? 25 : 25} 
               minSize={isExplorerCollapsed ? 15 : 20}
               maxSize={isExplorerCollapsed ? 30 : 45} 
-              style={{ minHeight: '400px', overflow: 'visible', maxWidth: '350px' }}
+              style={{ minHeight: '400px', overflow: 'visible', maxWidth: '420px' }}
               className="border-0"
             >
               <div className={`w-full h-full flex flex-col bg-cream-beige border-l border-cream-beige ${isExplorerCollapsed ? 'flex-shrink-0' : ''}`}>
                 {/* Chat Header */}
-                <div className="flex items-center justify-between p-3 border-b-2 border-cream-beige bg-light-cream">
+                <div className="flex items-center justify-between p-2 border-b-2 border-cream-beige bg-light-cream">
                   <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-medium-coffee rounded-full flex items-center justify-center">
-                      <IconSparkles className="h-4 w-4 text-light-cream" />
+                    <div className="w-6 h-6 bg-medium-coffee rounded-full flex items-center justify-center">
+                      <IconCoffee className="h-3 w-3 text-light-cream" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-deep-espresso">Cody</h3>
+                      <h3 className="font-semibold text-deep-espresso text-sm">Cody</h3>
                     </div>
                   </div>
                 </div>
@@ -2491,13 +2582,13 @@ function IDEPage() {
           
                 <div className="flex-1 overflow-hidden transition-all duration-300 relative">
                   {/* Chat messages area */}
-                  <div className="flex-1 overflow-y-auto px-6 pt-6 pb-0 space-y-4 bg-cream-beige" style={{paddingTop: '2rem', height: 'calc(100% - 160px)'}}>
+                  <div className="flex-1 overflow-y-auto px-4 pt-4 pb-0 space-y-3 bg-cream-beige" style={{paddingTop: '1.5rem', height: 'calc(100% - 140px)'}}>
                     {chatMessages.map((msg, idx) => (
                       <div
                         key={idx}
                         className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2${idx === 0 ? ' mt-0' : ''}`}
                       >
-                        <div className={`max-w-[85%] px-6 py-4 rounded-2xl shadow-lg text-base ${msg.type === 'user' ? 'bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream ml-auto' : 'bg-white text-dark-charcoal border-2 border-cream-beige/50 shadow-md'}`}
+                        <div className={`max-w-[85%] px-4 py-3 rounded-2xl shadow-lg ${msg.type === 'user' ? 'bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream text-base' : 'bg-white text-dark-charcoal border-2 border-cream-beige/50 shadow-md text-base'}`}
                           style={idx === 0 ? { marginTop: 0 } : {}}>
                           {msg.type === 'assistant' && (msg.content.includes('substantial') || msg.content.startsWith('🛠️ Fixing code')) ? (
                             <div className="text-base">
@@ -2527,7 +2618,7 @@ function IDEPage() {
                     ))}
                     {isTyping && (
                       <div className="flex justify-start">
-                        <div className="bg-white rounded-2xl px-6 py-4 mr-4 border-2 border-cream-beige/50 shadow-md text-base">
+                        <div className="bg-white rounded-2xl px-4 py-3 mr-4 border-2 border-cream-beige/50 shadow-md text-base">
                           <TypingIndicator />
                         </div>
                       </div>
@@ -2538,7 +2629,7 @@ function IDEPage() {
                   
                   
                   {/* Always show chat input and action buttons at the bottom */}
-                  <div className="absolute bottom-0 left-0 right-0 pt-6 pb-5 px-6 border-t border-cream-beige bg-light-cream">
+                  <div className="absolute bottom-0 left-0 right-0 pt-4 pb-4 px-4 border-t border-cream-beige bg-light-cream">
                     <div className="flex space-x-3 items-center">
                       <div className="flex-1 flex space-x-2 items-center">
                       <input
@@ -2547,17 +2638,17 @@ function IDEPage() {
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                           placeholder="Ask me anything"
-                          className="flex-1 bg-white border-2 border-medium-coffee/30 rounded-2xl px-3 py-2 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200 shadow-md h-12 text-base"
+                          className="flex-1 bg-white border-2 border-medium-coffee/30 rounded-2xl px-3 py-2 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200 shadow-md h-10 text-base"
                           disabled={false}
                           title=""
                       />
                       <Button
                         onClick={handleSendMessage}
                           disabled={false}
-                          className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-4 py-2 rounded-2xl transition-all duration-200 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg h-12 text-base"
+                          className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-3 py-2 rounded-2xl transition-all duration-200 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg h-10 text-sm"
                           title=""
                       >
-                          <IconArrowRight className="h-5 w-5" />
+                          <IconArrowRight className="h-4 w-4" />
                       </Button>
                       </div>
                     </div>
@@ -2572,7 +2663,7 @@ function IDEPage() {
                             onClick={handleSubmitAndGenerateSteps}
                             variant="outline"
                             size="sm"
-                            className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                            className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-sm"
                           >
                             Generate Steps
                           </Button>
@@ -2588,7 +2679,7 @@ function IDEPage() {
                         title=""
                       >
                         <IconBulb className="mr-2 h-4 w-4" />
-                        Get Hint
+                        Hint
                       </Button>
                       <Button
                         onClick={handleFixCode}

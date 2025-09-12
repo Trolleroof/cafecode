@@ -18,7 +18,16 @@ type TerminalTab = {
   isLoading: boolean;
 };
 
-const createTerminalId = () => `wct_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+interface WebContainerTerminalProps {
+  tabs: TerminalTab[];
+  activeId: string | null;
+  onAddTab: () => void;
+  onCloseTab: (id: string) => void;
+  onRenameTab: (id: string, title: string) => void;
+  onSelectTab: (id: string) => void;
+  onUpdateTab: (tabId: string, updates: Partial<TerminalTab>) => void;
+  initializedTabsRef: React.MutableRefObject<Set<string>>;
+}
 
 const TerminalLoader: React.FC<{ message?: string }> = ({ message }) => {
   const [dots, setDots] = useState("");
@@ -44,60 +53,27 @@ const TerminalLoader: React.FC<{ message?: string }> = ({ message }) => {
   );
 };
 
-const WebContainerTerminal: React.FC = () => {
+const WebContainerTerminal: React.FC<WebContainerTerminalProps> = ({
+  tabs,
+  activeId,
+  onAddTab,
+  onCloseTab,
+  onRenameTab,
+  onSelectTab,
+  onUpdateTab,
+  initializedTabsRef
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [tabs, setTabs] = useState<TerminalTab[]>([]);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const initializedTabsRef = useRef<Set<string>>(new Set());
-  const initialTabCreatedRef = useRef<boolean>(false);
 
-  const addTab = useCallback(() => {
-    const id = createTerminalId();
-    setTabs((prev) => [
-      ...prev,
-      {
-        id,
-        title: `Terminal`,
-        xterm: null,
-        fit: null,
-        proc: null,
-        isAttached: false,
-        isLoading: true,
-      },
-    ]);
-    setActiveId(id);
+  // Safely compute terminal size ensuring positive integers
+  const getSafeDims = useCallback((fit: FitAddon | null | undefined) => {
+    const proposed = (() => {
+      try { return fit?.proposeDimensions(); } catch { return undefined; }
+    })() || { cols: 80, rows: 24 };
+    const cols = Math.max(1, Math.floor(Number(proposed.cols) || 0));
+    const rows = Math.max(1, Math.floor(Number(proposed.rows) || 0));
+    return { cols, rows };
   }, []);
-
-  const closeTab = useCallback((tabId: string) => {
-    // Prevent closing the last tab
-    if (tabs.length <= 1) return;
-    
-    setTabs((prev) => {
-      const tab = prev.find((t) => t.id === tabId);
-      if (tab) {
-        try { tab.proc?.kill(); } catch {}
-        try { tab.xterm?.dispose(); } catch {}
-      }
-      const next = prev.filter((t) => t.id !== tabId);
-      if (activeId === tabId) {
-        setActiveId(next.length ? next[next.length - 1].id : null);
-      }
-      initializedTabsRef.current.delete(tabId);
-      return next;
-    });
-  }, [activeId, tabs.length]);
-
-  const renameTab = useCallback((tabId: string, title: string) => {
-    setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, title } : t)));
-  }, []);
-
-  useEffect(() => {
-    // Create one tab on first mount only
-    if (tabs.length === 0 && !initialTabCreatedRef.current) {
-      initialTabCreatedRef.current = true;
-      addTab();
-    }
-  }, [tabs.length, addTab]);
 
   const attachXterm = useCallback(async (tabId: string, node: HTMLDivElement | null) => {
     if (!node) return;
@@ -147,9 +123,9 @@ const WebContainerTerminal: React.FC = () => {
 
     // Optimistic fit pre-boot
     try { fitAddon.fit(); } catch {}
-    const dims = fitAddon.proposeDimensions() || { cols: 80, rows: 24 };
+    const dims = getSafeDims(fitAddon);
 
-    // Boot WebContainer + spawn shell
+    // Boot WebContainer + spawn shell (only once per tab)
     try {
       await webContainerService.boot();
 
@@ -157,7 +133,8 @@ const WebContainerTerminal: React.FC = () => {
       const username = (typeof window !== 'undefined' && (window as any).__CAFECODE_USERNAME__) || 'user';
       const workspaceName = `${username}-workspace`;
 
-      const proc = await webContainerService.spawnShell({ cols: dims.cols, rows: dims.rows });
+      // Reuse existing proc if present; otherwise spawn a new shell
+      const proc = tab.proc ?? await webContainerService.spawnShell({ cols: dims.cols, rows: dims.rows });
 
       // Pipe process output to xterm with light highlighting
       const output = proc.output;
@@ -192,24 +169,25 @@ const WebContainerTerminal: React.FC = () => {
       // Initial resize
       try {
         fitAddon.fit();
-        const d = fitAddon.proposeDimensions() || { cols: 80, rows: 24 };
+        const d = getSafeDims(fitAddon);
         // @ts-ignore - resize exists on TTY processes
-        if (typeof proc.resize === 'function') proc.resize({ cols: d.cols, rows: d.rows });
+        if (typeof proc.resize === 'function' && d.cols > 0 && d.rows > 0) {
+          proc.resize({ cols: d.cols, rows: d.rows });
+        }
       } catch {}
 
       // No custom prompt setup - use default terminal prompt
 
       // Finalize tab wiring
-      setTabs((prev) => prev.map((t) => (t.id === tabId ? {
-        ...t,
+      onUpdateTab(tabId, {
         xterm: term,
         fit: fitAddon,
         proc,
         isAttached: true,
         isLoading: false,
-      } : t)));
+      });
 
-      // Cleanup for this attachment
+      // Cleanup for this attachment (kept minimal to allow background persistence)
       const cleanup = () => {
         canceled = true;
         try { onDataDisposable.dispose(); } catch {}
@@ -220,7 +198,7 @@ const WebContainerTerminal: React.FC = () => {
       // Nothing to register on term; rely on tab close/unmount to run cleanup
     } catch (err) {
       term.writeln("\r\nFailed to start WebContainer shell.\r\n" + String(err));
-      setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, isLoading: false } : t)));
+      onUpdateTab(tabId, { isLoading: false });
     }
   }, [tabs]);
 
@@ -231,28 +209,20 @@ const WebContainerTerminal: React.FC = () => {
       if (active?.fit && active?.proc) {
         try {
           active.fit.fit();
-          const d = active.fit.proposeDimensions() || { cols: 80, rows: 24 };
+          const d = getSafeDims(active.fit);
           // @ts-ignore - resize exists on TTY processes
-          if (typeof active.proc.resize === 'function') active.proc.resize({ cols: d.cols, rows: d.rows });
+          if (typeof active.proc.resize === 'function' && d.cols > 0 && d.rows > 0) {
+            active.proc.resize({ cols: d.cols, rows: d.rows });
+          }
         } catch {}
       }
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [activeId, tabs]);
+  }, [activeId, tabs, getSafeDims]);
 
-  useEffect(() => {
-    return () => {
-      // On unmount, dispose tabs/processes
-      setTabs((current) => {
-        current.forEach((t) => {
-          try { t.proc?.kill(); } catch {}
-          try { t.xterm?.dispose(); } catch {}
-        });
-        return current;
-      });
-    };
-  }, []);
+  // Intentionally avoid killing processes on unmount to keep terminals alive in background
+  // Cleanup is handled only when user explicitly closes a tab via onCloseTab
 
   // Ensure sizing is correct when switching tabs
   useEffect(() => {
@@ -262,12 +232,14 @@ const WebContainerTerminal: React.FC = () => {
     setTimeout(() => {
       try {
         tab.fit!.fit();
-        const d = tab.fit!.proposeDimensions() || { cols: 80, rows: 24 };
+        const d = getSafeDims(tab.fit!);
         // @ts-ignore
-        if (typeof tab.proc!.resize === 'function') tab.proc!.resize({ cols: d.cols, rows: d.rows });
+        if (typeof tab.proc!.resize === 'function' && d.cols > 0 && d.rows > 0) {
+          tab.proc!.resize({ cols: d.cols, rows: d.rows });
+        }
       } catch {}
     }, 50);
-  }, [activeId, tabs]);
+  }, [activeId, tabs, getSafeDims]);
 
   return (
     <div style={{ 
@@ -294,7 +266,7 @@ const WebContainerTerminal: React.FC = () => {
           {tabs.map((tab) => (
             <div 
               key={tab.id} 
-              onClick={() => setActiveId(tab.id)} 
+              onClick={() => onSelectTab(tab.id)} 
               style={{
                 display: "flex", 
                 alignItems: "center", 
@@ -328,7 +300,7 @@ const WebContainerTerminal: React.FC = () => {
               </span>
               {tabs.length > 1 && (
                 <button 
-                  onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} 
+                  onClick={(e) => { e.stopPropagation(); onCloseTab(tab.id); }} 
                   style={{ 
                     background: "transparent", 
                     border: "none", 
@@ -350,7 +322,7 @@ const WebContainerTerminal: React.FC = () => {
           ))}
         </div>
         <button 
-          onClick={addTab} 
+          onClick={onAddTab} 
           title="New terminal"
           style={{ 
             background: "transparent", 
@@ -400,8 +372,18 @@ const WebContainerTerminal: React.FC = () => {
           >
             <div
               ref={(node) => {
-                if (!tab.isAttached && node) {
+                if (!node) return;
+                if (!tab.isAttached) {
                   attachXterm(tab.id, node);
+                } else if (tab.xterm) {
+                  // Re-attach existing xterm to a new node after remounts
+                  try {
+                    // Some xterm versions allow re-opening onto a new element
+                    // If this throws, the terminal will still be visible from prior mounts
+                    tab.xterm.open(node);
+                    try { tab.xterm.focus(); } catch {}
+                    try { tab.fit?.fit(); } catch {}
+                  } catch {}
                 }
               }}
               onMouseDown={() => { try { tab.xterm?.focus(); } catch {} }}
