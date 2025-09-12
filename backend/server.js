@@ -32,7 +32,6 @@ import hintRoutes from './routes/hint.js';
 import guidedRecapRoutes from './routes/guided_recap.js';
 import guidedRoutes from './routes/guided.js';
 import accountRoutes from './routes/account.js';
-import tavusRoutes from './routes/tavus.js';
 import nodejsRoutes from './routes/nodejs.js';
 import javaRoutes from './routes/java.js';
 import filesRoutes from './routes/files.js';
@@ -55,6 +54,7 @@ console.log(`   GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ Loaded' : '�
 console.log(`   SUPABASE_JWT_SECRET: ${process.env.SUPABASE_JWT_SECRET ? '✅ Loaded' : '❌ Missing'}`);
 console.log(`   SUPABASE_JWT_SECRET length: ${process.env.SUPABASE_JWT_SECRET?.length || 'N/A'}`);
 console.log(`   ALLOWED_ORIGINS: ${process.env.ALLOWED_ORIGINS || 'Using defaults'}`);
+console.log(`   WEBCONTAINER_API: ${process.env.WEBCONTAINER_API ? '✅ Loaded' : '❌ Missing'}`);
 
 // Trust proxy configuration
 app.set('trust proxy', 1);
@@ -270,12 +270,107 @@ app.use('/api/account', authenticateUser, accountRoutes);
 app.use('/api/recap', authenticateUser, guidedRecapRoutes);
 app.use('/api/hint', authenticateUser, hintRoutes);
 app.use('/api/translate', authenticateUser, translateRoutes);
-app.use('/api/tavus', authenticateUser, tavusRoutes);
 app.use('/api/stripe', stripeRoutes); // Stripe routes (no auth required for webhooks)
 app.use('/api/admin', authenticateUser, adminRoutes);
 app.use('/api/search', authenticateUser, searchRoutes);
 app.use('/api/sync', authenticateUser, syncRoutes);
 // --- End authentication enforcement ---
+
+// Lightweight status check for WebContainer Cloud integration
+app.get('/api/webcontainer/status', authenticateUser, (req, res) => {
+  const enabled = !!process.env.WEBCONTAINER_API;
+  res.json({ enabled });
+});
+
+// WebContainer Cloud callback endpoints (public, used by external redirect)
+// These routes intentionally do not require auth so the external service can call them.
+app.get('/webcontainer/callback', (req, res) => {
+  const { projectId, project, token, status, error, state } = req.query || {};
+  const ok = (status || '').toString().toLowerCase() !== 'error' && !error;
+  const safe = (v) => (v ? String(v).replace(/</g, '&lt;').replace(/>/g, '&gt;') : '');
+  const html = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebContainer Project ${ok ? 'Connected' : 'Error'}</title>
+    <style>
+      body{font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#0b1020; color:#e6e8ec; margin:0;}
+      .wrap{max-width:720px; margin:12vh auto; padding:24px; background:#121731; border-radius:12px; border:1px solid #263159; box-shadow:0 10px 30px rgba(0,0,0,0.3)}
+      h1{margin:0 0 12px; font-size:22px}
+      p{margin:6px 0; opacity:0.9}
+      code{background:#0b1228; padding:2px 6px; border-radius:6px; border:1px solid #1f2a4d}
+      .ok{color:#8ff0a4}
+      .err{color:#ff9aa2}
+      .hint{opacity:0.75; font-size:14px; margin-top:12px}
+      .btn{display:inline-block; margin-top:16px; padding:8px 12px; background:#1f2a4d; border:1px solid #2b3a6d; border-radius:8px; color:#dfe6ff; text-decoration:none}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>${ok ? '✅ WebContainer Project Connected' : '⚠️ WebContainer Connection Error'}</h1>
+      <p>Status: <strong class="${ok ? 'ok' : 'err'}">${ok ? 'success' : 'error'}</strong></p>
+      ${projectId || project ? `<p>Project: <code>${safe(projectId || project)}</code></p>` : ''}
+      ${state ? `<p>State: <code>${safe(state)}</code></p>` : ''}
+      ${error ? `<p class="err">Error: <code>${safe(error)}</code></p>` : ''}
+      <p class="hint">You can close this tab and return to the IDE.</p>
+      <a class="btn" href="/">Back to backend root</a>
+    </div>
+    <script>
+      try {
+        const payload = {
+          type: 'webcontainer:connected',
+          ok: ${ok ? 'true' : 'false'},
+          projectId: ${JSON.stringify(projectId || project || '')},
+          token: ${JSON.stringify(token || '')},
+          state: ${JSON.stringify(state || '')},
+          error: ${JSON.stringify(error || '')}
+        };
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(payload, '*');
+        }
+      } catch (e) { /* noop */ }
+      setTimeout(() => { try { window.close(); } catch (_) {} }, 1500);
+    </script>
+  </body>
+</html>`;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(ok ? 200 : 400).send(html);
+});
+
+// Friendly landing if an external service directs users to a generic connect URL
+app.get('/webcontainer/connect', (req, res) => {
+  const html = `<!doctype html>
+<html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Connect WebContainer Project</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#e6e8ec;margin:0} .wrap{max-width:720px;margin:12vh auto;padding:24px;background:#121731;border-radius:12px;border:1px solid #263159;box-shadow:0 10px 30px rgba(0,0,0,0.3)} h1{margin:0 0 12px;font-size:22px} p{margin:6px 0;opacity:.9} .hint{opacity:.75;font-size:14px;margin-top:12px}</style>
+</head><body>
+<div class="wrap">
+  <h1>Connect WebContainer Project</h1>
+  <p>This backend is ready to receive the connection callback at <code>/webcontainer/callback</code>.</p>
+  <p class="hint">If you reached this page from a “Connect project” button, the external provider may need the callback URL set to: <code>https://cafecode-backend-v2.fly.dev/webcontainer/callback</code>.</p>
+</div>
+</body></html>`;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(html);
+});
+
+// Generic catch-all for other WebContainer-related paths to avoid 404s
+app.get('/webcontainer/*', (req, res) => {
+  const html = `<!doctype html>
+<html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WebContainer Endpoint</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#e6e8ec;margin:0} .wrap{max-width:720px;margin:12vh auto;padding:24px;background:#121731;border-radius:12px;border:1px solid #263159;box-shadow:0 10px 30px rgba(0,0,0,0.3)} h1{margin:0 0 12px;font-size:22px} p{margin:6px 0;opacity:.9} code{background:#0b1228;padding:2px 6px;border-radius:6px;border:1px solid #1f2a4d}</style>
+</head><body>
+<div class="wrap">
+  <h1>WebContainer Endpoint</h1>
+  <p>Received request at <code>${req.originalUrl}</code>.</p>
+  <p>This backend serves the WebContainer callback at <code>/webcontainer/callback</code>.</p>
+</div>
+</body></html>`;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(html);
+});
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -300,7 +395,6 @@ app.get('/', (req, res) => {
       guided_start_project: '/api/guided/startProject',
       guided_simple_chat: '/api/guided/simple-chat',
       guided_followup: '/api/guided/followup',
-      tavus: '/api/tavus',
       search_grounded: '/api/search/grounded'
     }
   });
@@ -412,8 +506,6 @@ async function startServer() {
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log('🚀 CodeCraft IDE Backend Server Started');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log(`📡 Server running on: http://localhost:${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🤖 Gemini AI: ${geminiService ? '✅ Connected' : '❌ Disconnected'}`);
       console.log(`🔑 API Key: ${process.env.GEMINI_API_KEY ? '✅ Configured' : '❌ Missing'}`);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

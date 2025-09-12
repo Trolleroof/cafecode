@@ -17,8 +17,6 @@ import {
   IconCopy,
   IconLoader2,
   IconArrowLeft,
-  IconMicrophone,
-  IconVideo,
   IconRefresh
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
@@ -26,7 +24,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
 import FileExplorer, { getLanguageFromFileName } from '@/components/WebContainerFileExplorer';
 // Preview removed
-import RunDropdown from '@/components/RunDropdown';
 import TypingIndicator from '@/components/TypingIndicator';
 import ProjectDescriptionModal from '@/components/ProjectDescriptionModal';
 import { ProtectedRoute } from '@/app/security/components/ProtectedRoute';
@@ -37,8 +34,6 @@ import StepsPreviewModal, { PreviewStep } from '@/components/StepsPreviewModal';
 import ProjectSetupLoader from '@/components/ProjectSetupLoader';
 import { useRouter } from 'next/navigation';
 import { Switch } from '@/components/ui/switch';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import TavusConversation from '../../components/TavusConversation';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useAuth } from '../security/hooks/useAuth';
@@ -53,7 +48,6 @@ import { supabase } from '../../lib/supabase';
 import { getFreshAccessToken } from '@/lib/authToken';
 import { FileNode } from '@/types';
 import { webContainerService } from '@/services/WebContainerService';
-import SyncStatus from '@/components/SyncStatus';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
 const WebContainerTerminal = dynamic(() => import('@/components/WebContainerTerminal'), { ssr: false });
@@ -318,7 +312,6 @@ function IDEPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
   const [output, setOutput] = useState<string[]>([]);
   const [isExplorerCollapsed, setIsExplorerCollapsed] = useState(false);
   const [highlightedLines, setHighlightedLines] = useState<number[]>([]);
@@ -340,6 +333,25 @@ function IDEPage() {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [chatMessages.length, isTyping]);
+
+  // Listen for WebContainer Cloud connection callback messages from popup/tab
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const data = e?.data as any;
+      if (!data || typeof data !== 'object') return;
+      if (data.type === 'webcontainer:connected') {
+        const suffix = data?.projectId ? ` (project ${String(data.projectId)})` : '';
+        if (data.ok) {
+          setOutput(prev => [...prev, `✅ WebContainer project connected${suffix}.`]);
+        } else {
+          const err = data?.error ? String(data.error) : 'Unknown error';
+          setOutput(prev => [...prev, `⚠️ WebContainer connection failed${suffix ? ' for' + suffix : ''}: ${err}`]);
+        }
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
   
   // Removed isChatOpen and showChatClosedMessage, chat is always open
 
@@ -373,9 +385,6 @@ function IDEPage() {
 
   // UI state
   const [activeTab, setActiveTab] = useState('editor');
-  const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const [showVideoWarning, setShowVideoWarning] = useState(false);
-  const [videoNotice, setVideoNotice] = useState<string>('');
   const router = useRouter();
   const { session } = useAuth();
 
@@ -926,52 +935,22 @@ function IDEPage() {
     }
   };
 
-  // Run code with automatic tab switching
-  const handleRunFile = async (file: FileNode) => {
-    if (!file.content) return;
 
-    setIsRunning(true);
-    setOutput([]);
-
-    // Preview tab removed; focus terminal for run actions
-    setActiveTab('terminal');
-
-    try {
-      if (file.language === 'python') {
-        const response = await fetch('/api/python/run', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: file.content })
-        });
-
-        const result = await response.json();
-        if (result.output) {
-          setOutput(result.output.split('\n').filter((line: string) => line.trim()));
-        }
-        if (result.error) {
-          setOutput(prev => [...prev, `Error: ${result.error}`]);
-        }
-      } else if (file.language === 'javascript') {
-        try {
-          const originalLog = console.log;
-          const logs: string[] = [];
-          console.log = (...args) => {
-            logs.push(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '));
-          };
-
-          new Function(file.content)();
-          console.log = originalLog;
-          setOutput(logs);
-        } catch (error) {
-          setOutput([`Error: ${error}`]);
+  // Prevent default Cmd+S download behavior
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        // Trigger save if a file is selected
+        if (selectedFile) {
+          handleCodeChange(selectedFile.content);
         }
       }
-    } catch (error) {
-      setOutput([`Error: ${error}`]);
-    } finally {
-      setIsRunning(false);
-    }
-  };
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFile]);
 
   // Chat functionality
   const handleSendMessage = async function() {
@@ -2279,19 +2258,6 @@ function IDEPage() {
           </div>
 
           <div className="flex items-center space-x-2">
-            {/* No dev server status: keep UI minimal */}
-            <RunDropdown 
-              files={files} 
-              onRunFile={handleRunFile} 
-              isRunning={isRunning} 
-            />
-
-            {/* Sync status indicator */}
-            <div className="hidden sm:block">
-              <SyncStatus />
-            </div>
-
- 
             {/* Start Guided Project Button - only show if not in a guided project */}
             {!guidedProject && (
               <Button
@@ -2353,9 +2319,9 @@ function IDEPage() {
 
             {/* Editor and Preview */}
             <ResizablePanel 
-              defaultSize={isExplorerCollapsed ? 65 : 50} 
-              minSize={isExplorerCollapsed ? 45 : 30}
-              maxSize={isExplorerCollapsed ? 75 : 70}
+              defaultSize={isExplorerCollapsed ? 75 : 60} 
+              minSize={isExplorerCollapsed ? 50 : 35}
+              maxSize={isExplorerCollapsed ? 85 : 80}
               className="border-0 ide-dimmable"
             >
               <div className={`w-full h-full flex flex-col relative ${isExplorerCollapsed ? 'flex-1' : ''}`}>
@@ -2382,8 +2348,17 @@ function IDEPage() {
                     </TabsList>
 
                     {selectedFile && (
-                      <div className="flex items-center space-x-1 text-sm text-deep-espresso">
-                        <div className="w-2 h-2 bg-deep-espresso rounded-full"></div>
+                      <div className="flex items-center space-x-2 text-sm text-deep-espresso">
+                        {/* Pulsing save dot */}
+                        <span
+                          className="inline-block w-2.5 h-2.5 rounded-full"
+                          style={{
+                            background: autoSaveTimerRef.current ? '#ef4444' : '#16a34a',
+                            boxShadow: autoSaveTimerRef.current ? '0 0 8px rgba(239,68,68,0.7)' : '0 0 6px rgba(22,163,74,0.7)',
+                            transition: 'all 180ms ease-in-out'
+                          }}
+                          title={autoSaveTimerRef.current ? 'unsaved' : 'saved'}
+                        />
                         <span className="font-mono">{selectedFile.name}</span>
                       </div>
                     )}
@@ -2456,14 +2431,35 @@ function IDEPage() {
                         url={previewUrl}
                         status={devStatus}
                         onReload={() => setPreviewUrl(prev => prev ? prev + '' : prev)}
-                        onOpenNewTab={() => { if (previewUrl) window.open(previewUrl, '_blank'); }}
+                        onOpenNewTab={async () => {
+                          // Ensure a preview URL is available; try auto-start if missing
+                          let target = previewUrl;
+                          if (!target) {
+                            try { await previewService.autoStart(); } catch {}
+                            // Wait briefly for server-ready to publish a URL
+                            target = await new Promise<string | undefined>((resolve) => {
+                              const timeout = setTimeout(() => resolve(undefined), 8000);
+                              const unsub = previewService.watch((_, primary) => {
+                                if (primary) {
+                                  clearTimeout(timeout);
+                                  unsub();
+                                  resolve(primary);
+                                }
+                              });
+                            });
+                          }
+                          if (target) {
+                            const encoded = encodeURIComponent(target);
+                            window.open(`/preview?url=${encoded}`, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
                       />
                     </div>
                   </TabsContent>
 
                   <TabsContent value="terminal" className="flex-1 m-0">
                     <div style={{ width: '100%', height: '100%', background: 'black', overflow: 'hidden' }}>
-                      {memoizedTerminal}
+                      {/* Terminal will be rendered below but controlled by visibility */}
                     </div>
                   </TabsContent>
 
@@ -2473,10 +2469,10 @@ function IDEPage() {
 
             {/* Chat Panel */}
             <ResizablePanel 
-              defaultSize={isExplorerCollapsed ? 30 : 35} 
-              minSize={isExplorerCollapsed ? 20 : 25}
-              maxSize={isExplorerCollapsed ? 35 : 60} 
-              style={{ minHeight: '400px', overflow: 'visible', maxWidth: '400px' }}
+              defaultSize={isExplorerCollapsed ? 25 : 25} 
+              minSize={isExplorerCollapsed ? 15 : 20}
+              maxSize={isExplorerCollapsed ? 30 : 45} 
+              style={{ minHeight: '400px', overflow: 'visible', maxWidth: '350px' }}
               className="border-0"
             >
               <div className={`w-full h-full flex flex-col bg-cream-beige border-l border-cream-beige ${isExplorerCollapsed ? 'flex-shrink-0' : ''}`}>
@@ -2490,35 +2486,7 @@ function IDEPage() {
                       <h3 className="font-semibold text-deep-espresso">Cody</h3>
                     </div>
                   </div>
-                  <ToggleGroup
-                    type="single"
-                    value={isVoiceMode ? 'voice' : 'text'}
-                    onValueChange={(value) => {
-                      if (value === 'voice') {
-                        // Temporarily disable video assistant; show coming soon notice
-                        setVideoNotice('🎥 Video assistant is coming soon.');
-                        setShowVideoWarning(true);
-                        setTimeout(() => setShowVideoWarning(false), 2500);
-                        return; // Do not enable voice mode yet
-                      } else if (value === 'text') {
-                        setIsVoiceMode(false);
-                      }
-                    }}
-                    className="bg-cream-beige p-1 rounded-lg"
-                  >
-                    <ToggleGroupItem value="text" aria-label="Toggle text" className="data-[state=on]:bg-medium-coffee data-[state=on]:text-light-cream rounded-md px-2 py-1 hover:bg-cream-beige hover:text-deep-espresso">
-                      <IconMessage className="h-4 w-4" />
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="voice" aria-label="Toggle video" className="data-[state=on]:bg-medium-coffee data-[state=on]:text-light-cream rounded-md px-2 py-1 hover:bg-cream-beige hover:text-deep-espresso">
-                      <IconVideo className="h-4 w-4" />
-                    </ToggleGroupItem>
-                  </ToggleGroup>
                 </div>
-                {showVideoWarning && (
-                  <div className="bg-red-100 text-red-700 text-center py-2 px-4 text-sm font-semibold">
-                    {videoNotice || 'Feature is coming soon.'}
-                  </div>
-                )}
                 
           
                 <div className="flex-1 overflow-hidden transition-all duration-300 relative">
@@ -2568,28 +2536,6 @@ function IDEPage() {
                     <div ref={chatEndRef} />
                   </div>
                   
-                  {/* Voice assistant UI overlay - only covers the messages area */}
-                  {isVoiceMode && (
-                    <div className="absolute top-0 left-0 right-0 bottom-0 bg-cream-beige/50 z-10" style={{height: 'calc(100% - 140px)'}}>
-                      {guidedProject ? (
-                        <TavusConversation 
-                          currentCode={selectedFile?.content || ''}
-                          currentLanguage={selectedFile?.language || 'plaintext'}
-                          output={output}
-                          projectFiles={files}
-                          guidedProject={guidedProject}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full">
-                          <div className="text-center">
-                            <IconVideo className="h-16 w-16 text-red-400 mx-auto mb-4" />
-                            <p className="text-deep-espresso text-lg font-semibold">Start a project to use the video assistant</p>
-                            <p className="text-deep-espresso/70 text-sm mt-2">You must begin a guided project before accessing this feature.</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                   
                   {/* Always show chat input and action buttons at the bottom */}
                   <div className="absolute bottom-0 left-0 right-0 pt-6 pb-5 px-6 border-t border-cream-beige bg-light-cream">

@@ -32,208 +32,298 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
   completedSteps,
   totalCompleted,
 }) => {
-  // Draggable state with default bottom-left position
-  const [position, setPosition] = useState({ x: 32, y: window.innerHeight - 500 });
   const [dragging, setDragging] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const popupRef = useRef(null);
-
-  // Update default position on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      setPosition(pos => ({
-        x: pos.x,
-        y: Math.min(pos.y, window.innerHeight - 200)
-      }));
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const popupRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    setDragging(true);
-    dragStart.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    };
-    document.body.style.userSelect = 'none';
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!dragging) return;
-    setPosition({
-      x: e.clientX - dragStart.current.x,
-      y: e.clientY - dragStart.current.y
-    });
-  };
-
-  const handleMouseUp = () => {
-    setDragging(false);
-    document.body.style.userSelect = '';
+    if (e.target === popupRef.current || (popupRef.current && popupRef.current.contains(e.target as Node))) {
+      setDragging(true);
+      const rect = popupRef.current!.getBoundingClientRect();
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    }
   };
 
   useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (dragging && popupRef.current) {
+        const x = e.clientX - dragOffset.x;
+        const y = e.clientY - dragOffset.y;
+        popupRef.current.style.left = `${x}px`;
+        popupRef.current.style.top = `${y}px`;
+        popupRef.current.style.transform = 'none';
+      }
+    };
+
+    const handleMouseUp = () => {
+      setDragging(false);
+    };
+
     if (dragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
-    } else {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
     }
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragging]);
-
-  const popup = (
-    <div
-      ref={popupRef}
-      style={{
-        position: 'fixed',
-        left: position.x,
-        top: position.y,
-        width: 380,
-        maxWidth: '95vw',
-        minHeight: 260,
-        zIndex: 2147483647, // ensure above any overlay
-        pointerEvents: 'auto',
-        background: 'rgba(247, 236, 220, 0.95)',
-        borderRadius: '0.75rem',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-        border: '1px solid #bfa074',
-        padding: 24,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        animation: 'fade-in 0.3s',
-        cursor: dragging ? 'grabbing' : 'default',
-        transform: 'translateZ(0)'
-      }}
-      className="guided-step-popup animate-fade-in"
-    >
-      {/* Draggable handle */}
-      <div
-        onMouseDown={handleMouseDown}
-        style={{ cursor: 'grab', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 4 }}
-        className="w-full"
-      >
-        <div style={{ width: 32, height: 8, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <span className="pb-3" style={{ fontSize: 24, color: '#a67c52', letterSpacing: 2 }}>•••</span>
-        </div>
-      </div>
-      {/* Progress Bar */}
-      <div className="w-full h-2 bg-[#e7dbc7] rounded-full mb-4 overflow-hidden relative">
-        <div
-          className="h-full bg-medium-coffee/70 transition-all duration-500"
-          style={{ width: `${(totalSteps > 0 ? (stepNumber / totalSteps) * 100 : 0)}%` }}
-        />
-      </div>
-      
-      {/* Step Completion Summary */}
-      <div className="text-center mb-3 text-base text-medium-coffee">
-    
-       
-      </div>
-      {/* Header */}
-      <div className="flex items-center mb-3 gap-3">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-medium-coffee to-deep-espresso flex items-center justify-center text-light-cream font-bold text-xl shadow-lg border-2 border-light-cream/30">
-          <span className='pb-0.5'>{stepNumber}</span>
-        </div>
-        <h3 className="font-bold text-medium-coffee text-xl tracking-wide">
-          Step {stepNumber} of {totalSteps}
-        </h3>
-      </div>
-      {/* Instruction */}
-      <div className="mb-5 max-h-32 overflow-y-auto text-lg text-dark-charcoal leading-7 font-medium">
-        <ReactMarkdown
-          children={instruction}
-          remarkPlugins={[remarkGfm]}
-          components={{
-            p: ({ children }: { children?: React.ReactNode }) => <p className="mb-3">{children}</p>,
-            code: ({ inline, children }: { inline?: boolean; children?: React.ReactNode }) =>
-              inline ? (
-                <code className="bg-light-cream text-medium-coffee px-2 rounded font-mono text-lg">{children}</code>
-              ) : (
-                <pre className="bg-light-cream p-4 rounded-lg overflow-x-auto text-lg font-mono text-medium-coffee my-3">{children}</pre>
-              ),
-            strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-bold text-deep-espresso">{children}</strong>,
-            ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-6 mb-3 space-y-2">{children}</ul>,
-            li: ({ children }: { children?: React.ReactNode }) => <li className="leading-loose">{children}</li>,
-            h1: ({ children }: { children?: React.ReactNode }) => <h1 className="text-2xl font-bold mb-3 mt-4 text-medium-coffee">{children}</h1>,
-            h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-xl font-bold mb-3 mt-3 text-medium-coffee">{children}</h2>,
-            h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-lg font-semibold mb-3 mt-3 text-medium-coffee">{children}</h3>,
-            blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote className="border-l-4 border-medium-coffee pl-5 italic text-medium-coffee mb-3 my-3 text-lg">{children}</blockquote>,
-            br: () => <br />,
-          }}
-        />
-      </div>
-      {/* Buttons */}
-      <div className="flex gap-2 mt-auto">
-        <Button
-          onClick={onPreviousStep}
-          variant="outline"
-          size="sm"
-          className="flex-1 border-2 border-medium-coffee/50 text-medium-coffee bg-transparent hover:bg-medium-coffee/10 transition-all duration-200 rounded-lg text-lg font-semibold py-3 px-4"
-          disabled={stepNumber === 1}
-        >
-          <ArrowLeft className="h-5 w-5 mr-2" />
-          Back
-        </Button>
-
-        {/* Primary action: check step or move on when complete */}
-        <Button
-          onClick={isComplete ? onNextStep : onCheckStep}
-          variant="default"
-          size="sm"
-          className={`flex-1 ${isComplete ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-medium-coffee hover:bg-deep-espresso text-light-cream'} transition-all duration-200 rounded-lg text-base font-bold py-3 px-4 flex items-center justify-center shadow-md hover:shadow-lg`}
-          disabled={isChecking}
-        > 
-          {isChecking ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Checking...
-            </>
-          ) : isComplete ? (
-            <>
-              <CheckCircle className="h-5 w-5 mr-2" />
-              Move to Next Step
-            </>
-          ) : (
-            <>
-              <Search className={`h-5 w-5 mr-2 ${!isComplete ? 'animate-pulse' : ''}`} />
-              Check
-            </>
-          )}
-        </Button>
-
-        {stepNumber === totalSteps ? (
-          <Button
-            onClick={onFinish}
-            size="sm"
-            className={`flex-1 bg-gradient-to-r ${isComplete ? 'from-medium-coffee to-deep-espresso hover:from-deep-espresso hover:to-medium-coffee' : 'from-gray-400 to-gray-500'} text-light-cream transition-all duration-300 rounded-lg text-base font-semibold py-3 px-4 ${!isComplete && 'cursor-not-allowed'}`}
-            disabled={!isComplete}
-          >
-            <CheckCircle className="h-5 w-5 mr-2" />
-            Finish
-          </Button>
-        ) : (
-          <Button
-            onClick={onNextStep}
-            size="sm"
-            className={`flex-1 ${isComplete ? 'bg-medium-coffee hover:bg-deep-espresso text-light-cream' : 'bg-gray-300 text-gray-500 cursor-not-allowed'} transition-all duration-200 rounded-lg text-lg font-semibold py-3 px-4`}
-            disabled={!isComplete}
-          >
-            <ArrowRight className="h-5 w-5 mr-2" />
-            Next
-          </Button>
-        )}
-      </div>
-    </div>
-  );
+  }, [dragging, dragOffset]);
 
   // Render via portal to avoid being hidden by parent stacking contexts/overlays
-  return typeof document !== 'undefined' ? createPortal(popup, document.body) : popup;
+  return typeof document !== 'undefined' ? createPortal(
+    <>
+      {/* Dimming backdrop */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.3)',
+          zIndex: 2147483646,
+          pointerEvents: 'none',
+        }}>
+      </div>
+      
+      {/* Popup content */}
+      <div
+        ref={popupRef}
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 2147483647,
+          width: '90%',
+          maxWidth: '600px',
+          maxHeight: '80vh',
+          overflow: 'auto',
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          border: '1px solid #e5e7eb',
+          cursor: dragging ? 'grabbing' : 'grab',
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '20px 24px 16px',
+            borderBottom: '1px solid #e5e7eb',
+            backgroundColor: '#f9fafb',
+            borderRadius: '12px 12px 0 0',
+            cursor: dragging ? 'grabbing' : 'grab',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ 
+                width: '32px', 
+                height: '32px', 
+                borderRadius: '50%', 
+                backgroundColor: isComplete ? '#10b981' : '#6b7280',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontWeight: 'bold',
+                fontSize: '14px'
+              }}>
+                {stepNumber}
+              </div>
+              <div>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '18px', 
+                  fontWeight: '600', 
+                  color: '#111827',
+                  lineHeight: '1.2'
+                }}>
+                  Step {stepNumber} of {totalSteps}
+                </h3>
+                {completedSteps !== undefined && totalCompleted !== undefined && (
+                  <p style={{ 
+                    margin: '4px 0 0', 
+                    fontSize: '14px', 
+                    color: '#6b7280',
+                    lineHeight: '1.2'
+                  }}>
+                    {completedSteps} of {totalCompleted} steps completed
+                  </p>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {isComplete && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px',
+                  color: '#10b981',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}>
+                  <CheckCircle className="h-4 w-4" />
+                  Complete
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: '20px 24px' }}>
+          <div style={{ marginBottom: '20px' }}>
+            <h4 style={{ 
+              margin: '0 0 12px', 
+              fontSize: '16px', 
+              fontWeight: '600', 
+              color: '#111827',
+              lineHeight: '1.3'
+            }}>
+              Instructions:
+            </h4>
+            <div style={{ 
+              fontSize: '15px', 
+              lineHeight: '1.6', 
+              color: '#374151',
+              backgroundColor: '#f9fafb',
+              padding: '16px',
+              borderRadius: '8px',
+              border: '1px solid #e5e7eb'
+            }}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  p: ({ children }) => <p style={{ margin: '0 0 12px', lineHeight: '1.6' }}>{children}</p>,
+                  ul: ({ children }) => <ul style={{ margin: '0 0 12px', paddingLeft: '20px' }}>{children}</ul>,
+                  ol: ({ children }) => <ol style={{ margin: '0 0 12px', paddingLeft: '20px' }}>{children}</ol>,
+                  li: ({ children }) => <li style={{ margin: '0 0 4px', lineHeight: '1.5' }}>{children}</li>,
+                  code: ({ children, className, ...props }: any) => {
+                    const isInline = !className || !className.includes('language-');
+                    return isInline ? (
+                      <code style={{ 
+                        backgroundColor: '#e5e7eb', 
+                        padding: '2px 6px', 
+                        borderRadius: '4px', 
+                        fontSize: '14px',
+                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
+                      }}>
+                        {children}
+                      </code>
+                    ) : (
+                      <pre style={{ 
+                        backgroundColor: '#1f2937', 
+                        color: '#f9fafb', 
+                        padding: '12px', 
+                        borderRadius: '6px', 
+                        overflow: 'auto',
+                        fontSize: '14px',
+                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+                        margin: '12px 0'
+                      }}>
+                        <code>{children}</code>
+                      </pre>
+                    );
+                  },
+                  strong: ({ children }) => <strong style={{ fontWeight: '600', color: '#111827' }}>{children}</strong>,
+                  em: ({ children }) => <em style={{ fontStyle: 'italic', color: '#6b7280' }}>{children}</em>,
+                }}
+              >
+                {instruction}
+              </ReactMarkdown>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ 
+          padding: '16px 24px 20px', 
+          borderTop: '1px solid #e5e7eb', 
+          backgroundColor: '#f9fafb',
+          borderRadius: '0 0 12px 12px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {stepNumber > 1 && (
+              <Button
+                onClick={onPreviousStep}
+                variant="outline"
+                className="flex items-center gap-2"
+                style={{ 
+                  borderColor: '#d1d5db',
+                  color: '#374151',
+                  backgroundColor: 'white'
+                }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Previous
+              </Button>
+            )}
+            
+            <Button
+              onClick={onCheckStep}
+              disabled={isChecking}
+              className="flex items-center gap-2"
+              style={{ 
+                backgroundColor: isComplete ? '#10b981' : '#3b82f6',
+                color: 'white',
+                border: 'none'
+              }}
+            >
+              {isChecking ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Checking...
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4" />
+                  Check
+                </>
+              )}
+            </Button>
+          </div>
+
+          {stepNumber === totalSteps ? (
+            onFinish ? (
+              <Button
+                onClick={onFinish}
+                className="flex items-center gap-2"
+                style={{ 
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none'
+                }}
+              >
+                <CheckCircle className="h-4 w-4" />
+                Finish Project
+              </Button>
+            ) : null
+          ) : (
+            <Button
+              onClick={onNextStep}
+              disabled={!isComplete}
+              className={`flex-1 ${isComplete ? 'bg-medium-coffee hover:bg-deep-espresso text-light-cream' : 'bg-gray-300 text-gray-500 cursor-not-allowed'} transition-all duration-200 rounded-lg text-lg font-semibold py-3 px-4`}
+            >
+              <ArrowRight className="h-5 w-5 mr-2" />
+              Next
+            </Button>
+          )}
+        </div>
+      </div>
+    </>,
+    document.body
+  ) : null;
 };
 
 export default GuidedStepPopup;

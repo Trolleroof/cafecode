@@ -23,12 +23,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ url, status = 'idle', onOpe
           aria-live="polite"
         />
       ) : (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ddd', height: '100%', gap: 12 }} aria-live="polite">
-          {showSpinner && (
-            <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: 9999, border: '2px solid #888', borderTopColor: '#fff', animation: 'spin 1s linear infinite' }} />
-          )}
-          <span>{label}</span>
-        </div>
+        <div style={{ width: '100%', height: '100%', background: '#111' }} />
       )}
 
       <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 8 }}>
@@ -51,9 +46,6 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ url, status = 'idle', onOpe
           Open in new tab
         </button>
       </div>
-
-      {/* local keyframes for spinner */}
-      <style>{`@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 };

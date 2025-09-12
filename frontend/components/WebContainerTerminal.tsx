@@ -49,6 +49,7 @@ const WebContainerTerminal: React.FC = () => {
   const [tabs, setTabs] = useState<TerminalTab[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const initializedTabsRef = useRef<Set<string>>(new Set());
+  const initialTabCreatedRef = useRef<boolean>(false);
 
   const addTab = useCallback(() => {
     const id = createTerminalId();
@@ -91,8 +92,11 @@ const WebContainerTerminal: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Create one tab on first mount
-    if (tabs.length === 0) addTab();
+    // Create one tab on first mount only
+    if (tabs.length === 0 && !initialTabCreatedRef.current) {
+      initialTabCreatedRef.current = true;
+      addTab();
+    }
   }, [tabs.length, addTab]);
 
   const attachXterm = useCallback(async (tabId: string, node: HTMLDivElement | null) => {
@@ -107,13 +111,30 @@ const WebContainerTerminal: React.FC = () => {
     const term = new XTerm({
       cols: 80,
       rows: 24,
-      fontSize: 14,
+      fontSize: 16,
+      lineHeight: 1.0,
       convertEol: true,
       cursorBlink: true,
       theme: {
-        background: "#000000",
-        foreground: "#ffffff",
-        cursor: "#ffffff",
+        background: "#0d1117",
+        foreground: "#e6edf3",
+        cursor: "#58a6ff",
+        black: "#484f58",
+        red: "#f85149",
+        green: "#3fb950",
+        yellow: "#d29922",
+        blue: "#58a6ff",
+        magenta: "#bc8cff",
+        cyan: "#39d353",
+        white: "#f0f6fc",
+        brightBlack: "#6e7681",
+        brightRed: "#f85149",
+        brightGreen: "#3fb950",
+        brightYellow: "#d29922",
+        brightBlue: "#58a6ff",
+        brightMagenta: "#bc8cff",
+        brightCyan: "#39d353",
+        brightWhite: "#f0f6fc"
       },
     });
 
@@ -131,6 +152,11 @@ const WebContainerTerminal: React.FC = () => {
     // Boot WebContainer + spawn shell
     try {
       await webContainerService.boot();
+
+      // Derive username from auth (fallback to 'user') and set workspace name in PS1
+      const username = (typeof window !== 'undefined' && (window as any).__CAFECODE_USERNAME__) || 'user';
+      const workspaceName = `${username}-workspace`;
+
       const proc = await webContainerService.spawnShell({ cols: dims.cols, rows: dims.rows });
 
       // Pipe process output to xterm with light highlighting
@@ -170,6 +196,8 @@ const WebContainerTerminal: React.FC = () => {
         // @ts-ignore - resize exists on TTY processes
         if (typeof proc.resize === 'function') proc.resize({ cols: d.cols, rows: d.rows });
       } catch {}
+
+      // No custom prompt setup - use default terminal prompt
 
       // Finalize tab wiring
       setTabs((prev) => prev.map((t) => (t.id === tabId ? {
@@ -242,45 +270,134 @@ const WebContainerTerminal: React.FC = () => {
   }, [activeId, tabs]);
 
   return (
-    <div style={{ backgroundColor: "rgb(0,0,0)", paddingTop: 2, width: "100%", height: '100%', overflow: 'hidden' }}>
+    <div style={{ 
+      backgroundColor: "#0d1117", 
+      width: "100%", 
+      height: '100%', 
+      overflow: 'hidden', 
+      borderRadius: '8px', 
+      border: '1px solid #30363d',
+      scrollbarWidth: "none",
+      msOverflowStyle: "none"
+    }}>
       {/* Tabs header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", borderBottom: "1px solid #222", backgroundColor: "#000" }}>
-        <div style={{ display: "flex", overflowX: "auto" }}>
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "space-between",
+        padding: "8px 12px", 
+        borderBottom: "1px solid #30363d", 
+        backgroundColor: "#161b22",
+        borderRadius: "8px 8px 0 0"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {tabs.map((tab) => (
-            <div key={tab.id} onClick={() => setActiveId(tab.id)} style={{
-              display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", marginRight: 2,
-              cursor: "pointer", borderRadius: 4,
-              backgroundColor: activeId === tab.id ? "#111" : "transparent",
-              borderTop: activeId === tab.id ? "2px solid #007acc" : "none",
-              color: "#ddd",
-            }}>
-              <input
-                value={tab.title}
-                onChange={(e) => renameTab(tab.id, e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#ddd",
-                  width: Math.max(8, tab.title.length) + "ch",
-                  outline: "none",
-                }}
-              />
+            <div 
+              key={tab.id} 
+              onClick={() => setActiveId(tab.id)} 
+              style={{
+                display: "flex", 
+                alignItems: "center", 
+                gap: 6, 
+                padding: "6px 12px", 
+                cursor: "pointer", 
+                borderRadius: 6,
+                backgroundColor: activeId === tab.id ? "#238636" : "#21262d",
+                border: activeId === tab.id ? "1px solid #238636" : "1px solid #30363d",
+                color: activeId === tab.id ? "#ffffff" : "#e6edf3",
+                transition: "all 0.2s ease",
+                fontSize: "14px",
+                fontWeight: "500",
+                opacity: activeId === tab.id ? 1 : 0.8
+              }}
+              onMouseEnter={(e) => {
+                if (activeId !== tab.id) {
+                  e.currentTarget.style.backgroundColor = "#30363d";
+                  e.currentTarget.style.opacity = "1";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeId !== tab.id) {
+                  e.currentTarget.style.backgroundColor = "#21262d";
+                  e.currentTarget.style.opacity = "0.8";
+                }
+              }}
+            >
+              <span style={{ color: "inherit" }}>
+                {tab.title}
+              </span>
               {tabs.length > 1 && (
-                <button onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} style={{ background: "transparent", border: "none", color: "#aaa", cursor: "pointer" }}>×</button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} 
+                  style={{ 
+                    background: "transparent", 
+                    border: "none", 
+                    color: activeId === tab.id ? "#e6edf3" : "#8b949e", 
+                    cursor: "pointer",
+                    padding: "2px",
+                    borderRadius: "3px",
+                    fontSize: "16px",
+                    lineHeight: 1,
+                    transition: "color 0.2s ease"
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = "#f85149"}
+                  onMouseLeave={(e) => e.currentTarget.style.color = activeId === tab.id ? "#e6edf3" : "#8b949e"}
+                >
+                  ×
+                </button>
               )}
             </div>
           ))}
         </div>
-        <button onClick={addTab} title="New terminal"
-          style={{ background: "transparent", color: "#ddd", border: '1px solid #333', cursor: "pointer", fontSize: 14, padding: '4px 8px', borderRadius: 4, marginLeft: 8 }}
-        >+ New</button>
+        <button 
+          onClick={addTab} 
+          title="New terminal"
+          style={{ 
+            background: "transparent", 
+            color: "#8b949e", 
+            border: '1px solid #30363d', 
+            cursor: "pointer", 
+            fontSize: 14, 
+            padding: '8px 16px', 
+            borderRadius: 6,
+            transition: "all 0.2s ease",
+            fontWeight: "500"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "#238636";
+            e.currentTarget.style.borderColor = "#238636";
+            e.currentTarget.style.color = "#ffffff";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
+            e.currentTarget.style.borderColor = "#30363d";
+            e.currentTarget.style.color = "#8b949e";
+          }}
+        >
+          + New Terminal
+        </button>
       </div>
 
       {/* Active terminal surface */}
-      <div ref={containerRef} style={{ width: "100%", height: "calc(100% - 36px)", overflow: 'hidden' }}>
+      <div ref={containerRef} style={{ 
+        width: "100%", 
+        height: "calc(100% - 65px)", 
+        overflow: 'hidden',
+        backgroundColor: "#0d1117",
+        borderRadius: "0 0 8px 8px"
+      }}>
         {tabs.map((tab) => (
-          <div key={tab.id} style={{ display: activeId === tab.id ? "block" : "none", width: "100%", height: "100%", position: "relative", overflow: 'hidden' }}>
+          <div 
+            key={tab.id} 
+            style={{ 
+              display: activeId === tab.id ? "block" : "none", 
+              width: "100%", 
+              height: "100%", 
+              position: "relative", 
+              overflow: 'hidden',
+              padding: "8px"
+            }}
+          >
             <div
               ref={(node) => {
                 if (!tab.isAttached && node) {
@@ -288,12 +405,41 @@ const WebContainerTerminal: React.FC = () => {
                 }
               }}
               onMouseDown={() => { try { tab.xterm?.focus(); } catch {} }}
-              style={{ width: "100%", height: "100%" }}
+              style={{ 
+                width: "100%", 
+                height: "100%",
+                backgroundColor: "#0d1117",
+                borderRadius: "6px",
+                border: "1px solid #30363d",
+                padding: "6px",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none"
+              }}
             />
             {tab.isLoading && <TerminalLoader message="Starting terminal" />}
           </div>
         ))}
       </div>
+      
+      {/* Hide scrollbars and reduce line spacing */}
+      <style>{`
+        .xterm-viewport::-webkit-scrollbar {
+          display: none;
+        }
+        .xterm-viewport {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .xterm .xterm-rows {
+          line-height: 1.0 !important;
+        }
+        .xterm .xterm-rows div {
+          line-height: 1.0 !important;
+        }
+        .xterm .xterm-screen {
+          line-height: 1.0 !important;
+        }
+      `}</style>
     </div>
   );
 };

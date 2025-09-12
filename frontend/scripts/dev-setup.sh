@@ -40,7 +40,6 @@ if [ "$USE_LOCALHOST" = true ]; then
             echo "  hint: { getHint: false },"
             echo "  translate: { translate: false },"
             echo "  leetcode: { assigned: false, testcases: false, startProblem: false, chat: false, analyzeStep: false, structured: false, similar: false },"
-            echo "  tavus: { createConversation: false, deleteConversation: false },"
             echo "};"
             ;;
         2)

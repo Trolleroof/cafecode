@@ -262,11 +262,11 @@ export const getLanguageFromFileName = (fileName: string): string => {
     case 'js':
     case 'mjs':
     case 'cjs': return 'javascript';
-    case 'jsx': return 'javascriptreact';
+    case 'jsx': return 'javascript';
     case 'ts':
     case 'mts':
     case 'cts': return 'typescript';
-    case 'tsx': return 'typescriptreact';
+    case 'tsx': return 'typescript';
     
     // Python
     case 'py':

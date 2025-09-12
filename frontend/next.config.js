@@ -12,7 +12,8 @@ const nextConfig = {
         source: '/:path*',
         headers: [
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+          // Use credentialless to allow cross-origin iframes (e.g., WebContainer previews)
+          { key: 'Cross-Origin-Embedder-Policy', value: 'credentialless' },
         ],
       },
     ];

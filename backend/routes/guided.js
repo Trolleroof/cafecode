@@ -801,9 +801,6 @@ You must determine the appropriate number of steps for this project. Consider th
       projectFiles: projectFiles || []
     });
 
-    // Construct project context string for Tavus
-    const stepsList = steps.map((step, idx) => `${idx + 1}. ${step.instruction}`).join('\n');
-    const tavusProjectContext = `Project Overview: ${projectDescription}\nSteps:\n${stepsList}`;
 
     // Note: We increment project_count on project completion (not start)
     // to reflect completed projects and gate new projects after finishing.
@@ -814,7 +811,7 @@ You must determine the appropriate number of steps for this project. Consider th
       content: `I'll guide you through building: "${projectDescription}"\n\nLet's start with the first step:\n\n${steps[0].instruction}\n\nUse the "+" button in the file explorer to create folders and files as needed. Once you've completed a step, click "Check" to continue to the next step.`,
     };
 
-    res.json({ projectId, steps, welcomeMessage, projectContext: tavusProjectContext });
+    res.json({ projectId, steps, welcomeMessage });
   } catch (error) {
     console.error("Error starting project:", error);
     res.status(500).json({ error: "Failed to start project" });
