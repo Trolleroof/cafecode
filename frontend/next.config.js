@@ -6,6 +6,17 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     // Use localhost backend when NEXT_PUBLIC_USE_LOCALHOST=true, otherwise Fly.io
     const backendUrl = 'https://cafecode-backend-v2.fly.dev/api';

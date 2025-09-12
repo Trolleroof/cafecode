@@ -25,7 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
-import FileExplorer, { getLanguageFromFileName } from '@/components/FileExplorer';
+import FileExplorer, { getLanguageFromFileName } from '@/components/WebContainerFileExplorer';
 // Preview removed
 import RunDropdown from '@/components/RunDropdown';
 import TypingIndicator from '@/components/TypingIndicator';
@@ -44,6 +44,7 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useAuth } from '../security/hooks/useAuth';
 import axios from 'axios';
+import { webContainerFS } from '@/services/WebContainerFileSystem';
 // ReactPreview removed
 import ProjectCompletionModal from '@/components/ProjectCompletionModal';
 import PaymentModal from '@/components/PaymentModal';
@@ -52,12 +53,10 @@ import { getFreshAccessToken } from '@/lib/authToken';
 import { FileNode } from '@/types';
 
 const MonacoEditor = dynamic(() => import('@/components/MonacoEditor'), { ssr: false });
-const Terminal = dynamic(() => import('@/components/Terminal'), { ssr: false });
+const WebContainerTerminal = dynamic(() => import('@/components/WebContainerTerminal'), { ssr: false });
 
-// Backend + WebSocket base URLs
-// Switch to localhost when NEXT_PUBLIC_USE_LOCALHOST=true
+// Backend base URL still used for non-FS endpoints (chat, etc.)
 const backendUrl = 'https://cafecode-backend-v2.fly.dev/api'
-const WS_BASE_URL = 'wss://cafecode-backend-v2.fly.dev';
 
 
 // CSS keyframes for shimmer animation
@@ -470,24 +469,20 @@ function IDEPage() {
     // For files, load content lazily if not already loaded
     if (!file.content) {
       try {
-        const res = await axios.get(`${backendUrl}/v2/file/${encodeURIComponent(file.id)}`, {
-          headers: getAuthHeaders()
-        });
-        
+        await webContainerFS.ensureReady();
+        const content = await webContainerFS.readFile(file.id);
         const fileWithContent = {
           ...file,
-          content: res.data.content,
+          content,
           language: getLanguageFromFileName(file.name)
         };
-        
-        // Update the file in the tree with content
-        setFiles(prevFiles => updateFileContentInTree(prevFiles, file.id, res.data.content));
+        setFiles(prevFiles => updateFileContentInTree(prevFiles, file.id, content));
         setSelectedFile(fileWithContent);
       } catch (err: any) {
         console.error('Failed to load file content:', err);
         setChatMessages(prev => [...prev, {
           type: 'assistant',
-          content: `Failed to load file: ${err.response?.data?.error || err.message}`,
+          content: `Failed to load file: ${err.message || String(err)}`,
           timestamp: new Date()
         }]);
       }
@@ -521,22 +516,13 @@ function IDEPage() {
     setIsLoadingFiles(true);
     
     try {
-      // Use new v2 API - single endpoint for file tree
-      const res = await axios.get(`${backendUrl}/v2/files?recursive=1&withContent=0`, {
-        headers: getAuthHeaders()
-      });
-      
-      // Transform v2 format to tree structure
-      const fileList = res.data.map((item: any) => ({
-        name: item.path,
-        isDirectory: item.isDir
-      }));
-      
-      const nodes = convertBackendFilesToTree(fileList);
+      await webContainerFS.ensureReady();
+      const list = await webContainerFS.list();
+      const nodes = convertBackendFilesToTree(list.map(i => ({ name: i.name, isDirectory: i.isDirectory })));
       setFiles(nodes);
     } catch (err: any) {
       console.error('Failed to fetch files:', err);
-      setFilesError(err.response?.data?.error || err.message || 'Failed to load files');
+      setFilesError(err.message || 'Failed to load files');
     } finally {
       setIsLoadingFiles(false);
     }
@@ -578,57 +564,21 @@ function IDEPage() {
     console.log('🔄 [REFRESH] Starting file tree refresh...');
     setFilesError(null);
     setIsLoadingFiles(true);
-    
     try {
-      const headers = {
-        ...getAuthHeaders(),
-        ...(fileListETagRef.current ? { 'If-None-Match': fileListETagRef.current } : {})
-      };
-      
-      const res = await axios.get(`${backendUrl}/v2/files?recursive=1&withContent=0`, { 
-        headers,
-        validateStatus: (status) => status < 500 // Accept 304 as valid response
-      });
-      
-      // Check if data hasn't changed (304 Not Modified)
-      if (res.status === 304) {
-        console.log('✅ [REFRESH] File tree unchanged (304 Not Modified)');
-        setIsLoadingFiles(false);
-        return;
-      }
-      
-      // Store new ETag if provided
-      const newETag = res.headers['etag'];
-      if (newETag) {
-        fileListETagRef.current = newETag;
-        console.log('📋 [REFRESH] Stored new ETag:', newETag);
-      }
-      
-      // Transform v2 format to tree structure
-      const fileList = res.data.map((item: any) => ({
-        name: item.path,
-        isDirectory: item.isDir
-      }));
-      
-      const nodes = convertBackendFilesToTree(fileList);
+      await webContainerFS.ensureReady();
+      const list = await webContainerFS.list();
+      const nodes = convertBackendFilesToTree(list.map(i => ({ name: i.name, isDirectory: i.isDirectory })));
       console.log(`✅ [REFRESH] Refresh completed: ${nodes.length} files loaded`);
-      
-      // Update the files state
       setFiles(nodes);
-      
-      // If a file was selected, make sure it still exists
       if (selectedFile) {
         const stillExists = findNodeById(selectedFile.id, nodes);
         if (!stillExists) {
-          console.log(`⚠️ [REFRESH] Selected file no longer exists: ${selectedFile.id}`);
           setSelectedFile(null);
         }
       }
     } catch (err: any) {
-      if (err.response?.status !== 304) {
-        console.error('Failed to refresh files:', err);
-        setFilesError(err.response?.data?.error || err.message || 'Failed to refresh files');
-      }
+      console.error('Failed to refresh files:', err);
+      setFilesError(err.message || 'Failed to refresh files');
     } finally {
       setIsLoadingFiles(false);
     }
@@ -789,22 +739,16 @@ function IDEPage() {
     setTimeout(() => setHighlightedFileId(null), 2000);
 
     try {
-      await axios.post(`${backendUrl}/v2/file/${encodeURIComponent(newPath)}`, 
-        { isFolder: type === 'folder' },
-        { headers: getAuthHeaders() }
-      );
-      
+      await webContainerFS.create(newPath, type === 'folder');
       console.log(`✅ [CREATE] File created successfully: ${newPath}`);
-      // Success - optimistic update is now the source of truth
-      
     } catch (err: any) {
       console.error('❌ [CREATE] Failed to create file:', err);
       // On error, revert the optimistic update
       setFiles(originalFiles);
-      setFilesError(`Failed to create ${type}: ${err.response?.data?.error || err.message}`);
+      setFilesError(`Failed to create ${type}: ${err.message || String(err)}`);
       
       // Re-throw the error so the FileExplorer can handle it
-      throw new Error(err.response?.data?.error || err.message || 'Failed to create file');
+      throw new Error(err.message || 'Failed to create file');
     }
   };
 
@@ -832,18 +776,13 @@ function IDEPage() {
 
     try {
       const deletePath = normalizeIdToPath(fileId);
-      await axios.delete(`${backendUrl}/v2/file/${encodeURIComponent(deletePath)}`, { 
-        headers: getAuthHeaders()
-      });
-      
+      await webContainerFS.delete(deletePath);
       console.log(`✅ [DELETE] File deleted successfully: ${fileId}`);
-      // Success - optimistic update is now the source of truth
-      
     } catch (err: any) {
       console.error('❌ [DELETE] Failed to delete file:', err);
       // On error, revert the optimistic update
       setFiles(originalFiles);
-      setFilesError(`Failed to delete: ${err.response?.data?.error || err.message}`);
+      setFilesError(`Failed to delete: ${err.message || String(err)}`);
     }
   };
 
@@ -911,186 +850,49 @@ function IDEPage() {
     };
   }, []);
   
-  // Set up WebSocket connection for file events (stabilized)
+  // Replace backend file-events with WebContainer FS watch
   useEffect(() => {
-    if (!session?.access_token) return;
-
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout | null = null;
-
-    const connectWebSocket = async () => {
-      // Prevent parallel connects
-      if (connectingRef.current) {
-        return;
-      }
-      // If an existing connection is open or connecting, skip
-      if (fileEventsWsRef.current && (fileEventsWsRef.current.readyState === WebSocket.OPEN || fileEventsWsRef.current.readyState === WebSocket.CONNECTING)) {
-        return;
-      }
-      connectingRef.current = true;
+    let unsubscribe: (() => void) | null = null;
+    (async () => {
       try {
-        // Always fetch a fresh token just-in-time
-        const freshToken = await getFreshAccessToken(supabase);
-        if (!freshToken) {
-          console.warn('📡 [FILE-EVENTS] No access token available yet');
-          connectingRef.current = false;
-          return;
-        }
-        const wsUrl = WS_BASE_URL
-        console.log('📡 [FILE-EVENTS] Attempting to connect to:', `${wsUrl}/file-events`);
-        const encodedToken = encodeURIComponent(freshToken);
-        const fullWsUrl = `${wsUrl}/file-events?access_token=${encodedToken}`;
-        console.log('📡 [FILE-EVENTS] Full WebSocket URL (token truncated):', fullWsUrl.replace(/access_token=[^&]*/, 'access_token=***REDACTED***'));
-        
-        ws = new WebSocket(fullWsUrl);
-        
-        ws.onopen = () => {
-          console.log('📡 [FILE-EVENTS] WebSocket connected successfully');
-          fileEventsWsRef.current = ws;
-          reconnectAttemptsRef.current = 0; // reset backoff
-          connectingRef.current = false;
-        };
-        
-        ws.onmessage = (event) => {
+        await webContainerFS.ensureReady();
+        unsubscribe = webContainerFS.watch((data) => {
           try {
-            const data = JSON.parse(event.data);
-            console.log('📡 [FILE-EVENTS] Received event:', data);
-            
-            if (data.type === 'connected') {
-              return; // Connection confirmation
+            if (data.type === 'file:created') {
+              const path = data.path;
+              setFiles(prevFiles => {
+                const existing = findNodeById(path, prevFiles);
+                if (existing) return prevFiles;
+                const parts = path.split('/');
+                const fileName = parts.pop() || '';
+                const parentPath = parts.length > 0 ? parts.join('/') : null;
+                const newNode: FileNode = {
+                  id: path,
+                  name: fileName,
+                  type: data.isFolder ? 'folder' : 'file',
+                  children: data.isFolder ? [] : undefined,
+                  language: data.isFolder ? undefined : getLanguageFromFileName(fileName)
+                };
+                return parentPath ? addFileToTree(prevFiles, parentPath, newNode) : [...prevFiles, newNode];
+              });
+            } else if (data.type === 'file:updated') {
+              // If current file updated externally, we could refresh content lazily
+            } else if (data.type === 'file:deleted') {
+              const path = data.path;
+              setFiles(prevFiles => removeFileFromTree(prevFiles, path));
+              if (selectedFile && selectedFile.id === path) setSelectedFile(null);
             }
-            
-            // Handle file events with optimistic updates
-            switch (data.type) {
-              case 'file:created':
-                console.log(`📁 [FILE-EVENTS] File created: ${data.path}`);
-                // Check if file already exists (to prevent duplicates from optimistic updates)
-                setFiles(prevFiles => {
-                  const existingFile = findNodeById(data.path, prevFiles);
-                  if (existingFile) {
-                    console.log(`📁 [FILE-EVENTS] File already exists, skipping: ${data.path}`);
-                    return prevFiles; // File already exists, don't add again
-                  }
+          } catch {}
+        });
+      } catch (e) {
+        console.warn('FS watch unavailable:', e);
+      }
+    })();
 
-                  console.log(`📁 [FILE-EVENTS] Adding new file to tree: ${data.path}`);
-                  
-                  // File doesn't exist, add it to the tree
-                  const parts = data.path.split('/');
-                  const fileName = parts.pop() || '';
-                  const parentPath = parts.length > 0 ? parts.join('/') : null;
-                  
-                  const newNode: FileNode = {
-                    id: data.path,
-                    name: fileName,
-                    type: data.isFolder ? 'folder' : 'file',
-                    children: data.isFolder ? [] : undefined,
-                    language: data.isFolder ? undefined : getLanguageFromFileName(fileName)
-                  };
-                  
-                  if (!parentPath) {
-                    return [...prevFiles, newNode];
-                  } else {
-                    return addFileToTree(prevFiles, parentPath, newNode);
-                  }
-                });
-                break;
-                
-              case 'file:updated':
-                console.log(`📝 [FILE-EVENTS] File updated: ${data.path}`);
-                // If this is the currently selected file, we might want to reload its content
-                if (selectedFileRef.current && selectedFileRef.current.id === data.path) {
-                  console.log('📝 [FILE-EVENTS] Current file was updated externally');
-                  // Could show a notification or reload the file
-                }
-                break;
-                
-              case 'file:deleted':
-                console.log(`🗑️ [FILE-EVENTS] File deleted: ${data.path}`);
-                // Remove the file from the tree
-                setFiles(prevFiles => removeFileFromTree(prevFiles, data.path));
-                // Clear selection if deleted file was selected
-                if (selectedFile && selectedFile.id === data.path) {
-                  setSelectedFile(null);
-                }
-                break;
-                
-              default:
-                console.log(`❓ [FILE-EVENTS] Unknown event type: ${data.type}`);
-            }
-            
-            // Don't schedule automatic refresh on every WebSocket event
-            // The optimistic updates above already keep the file tree in sync
-            // Only refresh if there's a real inconsistency detected
-            console.log('📡 [FILE-EVENTS] File tree updated optimistically - no refresh needed');
-          } catch (err) {
-            console.error('📡 [FILE-EVENTS] Error handling message:', err);
-          }
-        };
-        
-        ws.onerror = (error) => {
-          console.warn('📡 [FILE-EVENTS] WebSocket error (this is normal if backend is not running):', error);
-        };
-        
-        ws.onclose = (event) => {
-          console.log('📡 [FILE-EVENTS] WebSocket disconnected - Code:', event.code, 'Reason:', event.reason || 'No reason provided');
-          console.log('📡 [FILE-EVENTS] Close event details:', {
-            code: event.code,
-            reason: event.reason,
-            wasClean: event.wasClean,
-            type: event.type
-          });
-          
-          // Decode common close codes
-          const closeCodeMeaning: Record<string, string> = {
-            1000: 'Normal closure',
-            1001: 'Going away', 
-            1002: 'Protocol error',
-            1003: 'Unsupported data',
-            1006: 'Abnormal closure (no close frame)',
-            1011: 'Server error',
-            4001: 'Missing access token',
-            4002: 'Invalid access token',
-            4003: 'Access token expired'
-          };
-          const meaning = closeCodeMeaning[String(event.code)] || 'Unknown code';
-          console.log('📡 [FILE-EVENTS] Close code meaning:', meaning);
-          fileEventsWsRef.current = null;
-          connectingRef.current = false;
-          
-          // Only attempt to reconnect if it wasn't a manual close and we still have a session
-          if (event.code !== 1000 && session?.access_token) {
-            // Exponential backoff with cap at 30s
-            const attempt = Math.min(reconnectAttemptsRef.current + 1, 5);
-            reconnectAttemptsRef.current = attempt;
-            const delay = Math.min(30000, 2000 * Math.pow(2, attempt - 1));
-            console.log(`📡 [FILE-EVENTS] Attempting to reconnect in ${Math.round(delay/1000)}s... (attempt ${attempt})`);
-            reconnectTimeout = setTimeout(() => {
-              if (session?.access_token) {
-                // Fetch fresh token inside connect call
-                connectWebSocket();
-              }
-            }, delay);
-          }
-        };
-        
-      } catch (error) {
-        console.warn('📡 [FILE-EVENTS] Failed to establish WebSocket connection (backend may not be running):', error);
-        connectingRef.current = false;
-      }
-    };
-    
-    // Initial connection attempt
-    void connectWebSocket();
-    
     return () => {
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      if (ws) {
-        ws.close(1000, 'Component unmounting');
-      }
+      if (unsubscribe) unsubscribe();
     };
-  }, [session?.access_token]);
+  }, [session?.access_token, selectedFile]);
   
   const handleCodeChange = (value: string | undefined) => {
     if (selectedFile && value !== undefined) {
@@ -1107,16 +909,13 @@ function IDEPage() {
       
       autoSaveTimerRef.current = setTimeout(async () => {
         try {
-          await axios.put(`${backendUrl}/v2/file/${encodeURIComponent(selectedFile.id)}`, 
-            { content: value },
-            { headers: getAuthHeaders() }
-          );
+          await webContainerFS.writeFile(selectedFile.id, value);
           console.log(`✅ [AUTO-SAVE] File saved: ${selectedFile.name}`);
         } catch (err: any) {
           console.error('Failed to auto-save file:', err);
           setChatMessages(prev => [...prev, {
             type: 'assistant',
-            content: `Failed to save file: ${err.response?.data?.error || err.message}`,
+            content: `Failed to save file: ${err.message || String(err)}`,
             timestamp: new Date()
           }]);
         }
@@ -2317,7 +2116,7 @@ function IDEPage() {
   const [terminalInitialized, setTerminalInitialized] = useState(false);
 
   // Memoize the Terminal component so it is not remounted on tab switch
-  const memoizedTerminal = useMemo(() => <Terminal />, []);
+  const memoizedTerminal = useMemo(() => <WebContainerTerminal />, []);
 
   // New handler for returning to the chat from the steps preview
   const handleReturnToChat = () => {
