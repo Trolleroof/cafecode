@@ -621,6 +621,11 @@ const Terminal: React.FC = () => {
           </div>
         ))}
       </div>
+      {/* Lift prompt away from the very bottom for readability */}
+      <style>{`
+        .xterm .xterm-rows { padding-bottom: 24px !important; }
+        .xterm .xterm-screen { padding-bottom: 24px !important; }
+      `}</style>
     </div>
   );
 };

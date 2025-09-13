@@ -373,17 +373,9 @@ const WebContainerTerminal: React.FC<WebContainerTerminalProps> = ({
             <div
               ref={(node) => {
                 if (!node) return;
+                // Only attach once; do not attempt re-mount/open logic
                 if (!tab.isAttached) {
                   attachXterm(tab.id, node);
-                } else if (tab.xterm) {
-                  // Re-attach existing xterm to a new node after remounts
-                  try {
-                    // Some xterm versions allow re-opening onto a new element
-                    // If this throws, the terminal will still be visible from prior mounts
-                    tab.xterm.open(node);
-                    try { tab.xterm.focus(); } catch {}
-                    try { tab.fit?.fit(); } catch {}
-                  } catch {}
                 }
               }}
               onMouseDown={() => { try { tab.xterm?.focus(); } catch {} }}
@@ -414,12 +406,14 @@ const WebContainerTerminal: React.FC<WebContainerTerminalProps> = ({
         }
         .xterm .xterm-rows {
           line-height: 1.0 !important;
+          padding-bottom: 24px !important; /* lift prompt off the bottom */
         }
         .xterm .xterm-rows div {
           line-height: 1.0 !important;
         }
         .xterm .xterm-screen {
           line-height: 1.0 !important;
+          padding-bottom: 24px !important; /* extra breathing room at bottom */
         }
       `}</style>
     </div>

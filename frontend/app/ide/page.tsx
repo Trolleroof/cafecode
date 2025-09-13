@@ -2136,10 +2136,6 @@ function IDEPage() {
     proc: any | null;
     isAttached: boolean;
     isLoading: boolean;
-    // Persist terminal content across remounts
-    outputBuffer?: string;
-    // Track whether a single reader has been started for this proc
-    readerActive?: boolean;
   };
 
   const createTerminalId = () => `wct_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -2162,8 +2158,6 @@ function IDEPage() {
         proc: null,
         isAttached: false,
         isLoading: true,
-        outputBuffer: '',
-        readerActive: false,
       },
     ]);
     setActiveTerminalId(id);
