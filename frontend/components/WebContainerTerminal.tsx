@@ -231,6 +231,7 @@ const WebContainerTerminal: React.FC<WebContainerTerminalProps> = ({
     if (!tab?.fit || !tab?.proc) return;
     setTimeout(() => {
       try {
+        try { tab.xterm?.focus(); } catch {}
         tab.fit!.fit();
         const d = getSafeDims(tab.fit!);
         // @ts-ignore
@@ -373,9 +374,19 @@ const WebContainerTerminal: React.FC<WebContainerTerminalProps> = ({
             <div
               ref={(node) => {
                 if (!node) return;
-                // Only attach once; do not attempt re-mount/open logic
+                // First-time attach
                 if (!tab.isAttached) {
                   attachXterm(tab.id, node);
+                  return;
+                }
+                // If the DOM container is empty (e.g., after a remount or tab switch created a new node),
+                // re-open the existing xterm instance onto this node so history and input persist.
+                if (tab.xterm && node.childElementCount === 0) {
+                  try {
+                    tab.xterm.open(node);
+                    try { tab.xterm.focus(); } catch {}
+                    try { tab.fit?.fit(); } catch {}
+                  } catch {}
                 }
               }}
               onMouseDown={() => { try { tab.xterm?.focus(); } catch {} }}
