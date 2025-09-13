@@ -39,14 +39,14 @@ class WebContainerFileSystem {
       try {
         const now = new Set(await this.listPaths());
         // Detect additions
-        for (const p of now) {
+        for (const p of Array.from(now)) {
           if (!this.snapshot.has(p)) {
             const isFolder = p.endsWith('/');
             this.emit({ type: 'file:created', path: p.replace(/\/$/, ''), isFolder });
           }
         }
         // Detect deletions
-        for (const p of this.snapshot) {
+        for (const p of Array.from(this.snapshot)) {
           if (!now.has(p)) {
             this.emit({ type: 'file:deleted', path: p.replace(/\/$/, '') });
           }
