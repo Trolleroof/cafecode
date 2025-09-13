@@ -132,7 +132,7 @@ class DevServerManager {
     await this.ensureDependencies().catch(() => {});
     const finalCmd = command && command.length ? command : await this.detectCommand();
     const id = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    const dev: DevServer = { id, cmd: command, status: 'starting' };
+    const dev: DevServer = { id, cmd: finalCmd, status: 'starting' };
     this.servers.push(dev);
     this.pendingQueue.push(id);
     this.notify();

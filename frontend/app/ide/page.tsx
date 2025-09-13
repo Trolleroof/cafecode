@@ -2582,7 +2582,7 @@ function IDEPage() {
                         key={idx}
                         className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2${idx === 0 ? ' mt-0' : ''}`}
                       >
-                        <div className={`max-w-[85%] px-4 py-3 rounded-2xl shadow-lg ${msg.type === 'user' ? 'bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream text-base' : 'bg-white text-dark-charcoal border-2 border-cream-beige/50 shadow-md text-base'}`}
+                        <div className={`max-w-[85%] px-4 py-3 rounded-2xl shadow-lg ${msg.type === 'user' ? 'bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream text-sm' : 'bg-white text-dark-charcoal border-2 border-cream-beige/50 shadow-md text-sm'}`}
                           style={idx === 0 ? { marginTop: 0 } : {}}>
                           {msg.type === 'assistant' && (msg.content.includes('substantial') || msg.content.startsWith('🛠️ Fixing code')) ? (
                             <div className="text-base">
