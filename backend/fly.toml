@@ -17,15 +17,8 @@ primary_region = 'sjc'
   min_machines_running = 0
   processes = ['app']
   
-  # Health check configuration to prevent premature shutdowns
-  [http_service.checks]
-    grace_period = "10s"
-    interval = "30s"
-    timeout = "5s"
-    restart_limit = 3
-    
   # Health check endpoint
-  [[http_service.checks.http]]
+  [[http_service.checks]]
     grace_period = "10s"
     interval = "30s"
     timeout = "5s"
