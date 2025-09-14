@@ -9,6 +9,7 @@ import {
   IconMessage,
   IconCircleCheck,
   IconTrendingUp,
+  IconSparkles,
 } from '@tabler/icons-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -248,7 +249,7 @@ export default function Home() {
 
             {/* Hero Section */}
               <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-light-cream w-full py-16 sm:py-20">
-                <div className="relative z-10 w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="relative z-10 w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Project Counter - positioned at top for all screen sizes */}
                 {user && (
                   <div className="mb-10 md:mb-14 w-full max-w-md mx-auto md:mx-0 md:max-w-none">
@@ -260,22 +261,22 @@ export default function Home() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-12 items-center gap-10 md:gap-16 lg:gap-20 xl:gap-24">
+                <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-10 lg:gap-14 xl:gap-16">
                   {/* Left: Text Content */}
-                  <div className="md:col-span-5 flex flex-col items-center md:items-start text-center md:text-left max-w-xl md:max-w-3xl space-y-6 md:pr-6 lg:pr-10">
+                  <div className="lg:col-span-5 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 lg:pr-6">
                     {/* Main heading with coffee theme */}
-                    <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-semibold text-dark-charcoal tracking-tight md:leading-none">
-                      <div className="md:whitespace-nowrap">Ship Your Code.</div>
-                      <div className="text-medium-coffee md:whitespace-nowrap">Sip Your Coffee.</div>
+                    <h1 className="font-heading text-5xl sm:text-6xl lg:text-7xl xl:text-7xl font-bold text-dark-charcoal tracking-tight leading-[0.95]">
+                      <div className="lg:whitespace-nowrap">Ship Your Code.</div>
+                      <div className="text-medium-coffee lg:whitespace-nowrap">Sip Your Coffee.</div>
                     </h1>
                     
                     {/* Coffee-themed Subheading */}
-                    <p className="text-lg sm:text-xl lg:text-2xl text-medium-coffee max-w-2xl leading-relaxed font-medium">
+                    <p className="font-body text-lg sm:text-xl lg:text-2xl text-medium-coffee max-w-2xl leading-relaxed font-medium">
                       Actually learn to code projects in the time it takes to sip your morning coffee.
                     </p>
 
                     {/* Hero action buttons */}
-                    <div className="flex flex-col sm:flex-row gap-4 mt-2 md:mt-4">
+                    <div className="flex flex-col sm:flex-row gap-3 mt-3">
                       <button
                         onClick={() => {
                           if (!user) {
@@ -284,35 +285,81 @@ export default function Home() {
                             handleStartCoding();
                           }
                         }}
-                        className="px-10 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2 bg-deep-espresso text-light-cream hover:bg-deep-espresso/90 border-2 border-deep-espresso"
+                        className="px-8 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 bg-deep-espresso text-light-cream hover:bg-deep-espresso/90 hover:scale-[1.02] border-2 border-deep-espresso"
                         disabled={loadingButton !== null}
                       >
                         {loadingButton === 'ide' ? (
                           <>
-                            <div className="spinner-coffee h-5 w-5"></div>
+                            <div className="spinner-coffee h-6 w-6"></div>
                             Loading IDE...
                           </>
                         ) : (
-                          'Start Coding!'
+                          <>
+                            <IconCode className="h-5 w-5" />
+                            Start Coding!
+                          </>
                         )}
                       </button>
                       
-                      {/* Unlimited button removed; use Payment modal via ProjectCounter */}
-                      
-                      {/* Removed Dev-only duplicate button to avoid duplicates */}
+                      {/* Watch Demo Button */}
+                      <button
+                        onClick={() => {
+                          // Scroll to video or play video
+                          const videoElement = document.querySelector('#demo-video') as HTMLVideoElement;
+                          if (videoElement) {
+                            videoElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            videoElement.play();
+                          }
+                        }}
+                        className="px-7 py-4 text-lg xl:text-xl font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2 bg-transparent text-deep-espresso hover:bg-medium-coffee hover:text-light-cream border-2 border-medium-coffee hover:scale-[1.02]"
+                      >
+                        <IconSparkles className="h-5 w-5" />
+                        Watch Demo
+                      </button>
                     </div>
                   </div>
 
-                  {/* Right: Hero Image */}
-                  <div className="md:col-span-7 flex justify-center items-center w-full max-w-xl xl:max-w-2xl 2xl:max-w-3xl mx-auto relative md:pl-6 lg:pl-10">
-                    <Image
-                      src="/images/demo.png"
-                      alt="demo screen"
-                      width={1200}
-                      height={800}
-                      className="rounded-2xl shadow-xl object-contain max-w-full h-auto max-h-[320px] sm:max-h-[340px] md:max-h-[360px] lg:max-h-[380px] border-2 border-medium-coffee"
-                      style={{ maxWidth: '100%', height: 'auto' }}
-                    />
+                  {/* Right: Demo Video */}
+                  <div className="lg:col-span-7 flex justify-center items-center w-full">
+                    <div className="relative w-full max-w-4xl group">
+                      {/* Video Container */}
+                      <div className="relative aspect-video w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-medium-coffee/20 bg-gradient-to-br from-medium-coffee/10 to-deep-espresso/10">
+                        {/* Placeholder for video - you'll replace src with your demo video */}
+                        <video
+                          id="demo-video"
+                          className="w-full h-full object-cover rounded-2xl"
+                          poster="/images/demo.png"
+                          controls
+                          preload="metadata"
+                          playsInline
+                        >
+                          {/* Replace with your actual demo video URL */}
+                          <source src="/videos/demo.mp4" type="video/mp4" />
+                          <source src="/videos/demo.webm" type="video/webm" />
+                          {/* Fallback to image if video doesn't load */}
+                          Your browser doesn't support video playback.
+                        </video>
+                        
+                        {/* Video Overlay Elements */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"></div>
+                        
+                        {/* Play Button Overlay - only shows when video is paused */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                          <div className="bg-deep-espresso/80 rounded-full p-6 backdrop-blur-sm">
+                            <IconTrendingUp className="h-12 w-12 text-light-cream" />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Video Features Badges */}
+                      <div className="absolute -bottom-6 -left-6 flex flex-col gap-2">
+                        <div className="bg-light-cream border-2 border-medium-coffee/30 rounded-xl px-4 py-2 shadow-lg">
+                          <span className="text-deep-espresso font-semibold text-sm">✨ Live Demo</span>
+                        </div>
+                      </div>
+                      
+                      {/* Removed Real-time Coding badge */}
+                    </div>
                   </div>
                 </div>
               </div>

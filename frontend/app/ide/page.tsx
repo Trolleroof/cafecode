@@ -1414,29 +1414,8 @@ function IDEPage() {
         // Now set isInSetupPhase after questions are generated and loading is done
         setIsInSetupPhase(true);
 
-        // Kick off background preloading of steps for faster UX
-        try {
-          const signatureObj = { d: description, h: [] as string[] };
-          const sig = JSON.stringify(signatureObj);
-          setPreloadSignature(sig);
-          // Only preload if we don't already have matching steps
-          if (!preloadedSteps || preloadSignature !== sig) {
-            const preloadResp = await fetch('/api/guided/steps/generate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-              body: JSON.stringify({ projectDescription: description, history: [], projectFiles: files })
-            });
-            if (preloadResp.ok) {
-              const preloadData = await preloadResp.json();
-              if (Array.isArray(preloadData.steps)) {
-                setPreloadedSteps(preloadData.steps);
-                setPreloadSignature(sig);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[STEPS] Preload failed (non-blocking):', e);
-        }
+        // REMOVED: Step preloading is now handled after the Q&A flow is complete
+        // to ensure user answers are included in the step generation.
       } else if (result?.error) {
         setIsTyping(true);
         // Add a small delay to show the typing indicator
@@ -1470,96 +1449,71 @@ function IDEPage() {
 
   // Generate steps from the setup chat
   const handleSubmitAndGenerateSteps = async () => {
-    setStepsFlowError(null);
-    setIgnoreIncomingSetupResponses(true);
-    setIsTyping(false);
+    // If there's a message in the input, send it first to capture the last answer
+    if (chatInput.trim()) {
+      await handleSendMessage();
+    }
+
     setIsGeneratingSteps(true);
-    
-    // Reset follow-up flow state
+    setStepsFlowError(null);
+    setIsInSetupPhase(false); // End of setup Q&A
     setIsInFollowUpPhase(false);
-    setFollowUpSuggestions([]);
-    setFollowUpSummary('');
-    setShowSubmitButton(false);
+
+    // Give UI time to update
+    await new Promise(resolve => setTimeout(resolve, 100));
     
+    // Use a more robust history by filtering out setup messages that are not answers
+    const finalHistory = chatMessages.filter(m => m.type === 'user' || (m.type === 'assistant' && !m.content.includes('Question ')));
+    const description = setupDescription || 'User-defined project';
+
+    // Create a signature for caching/preloading based on description AND history
+    const signatureObj = { d: description, h: finalHistory.map(m => m.content) };
+    const sig = JSON.stringify(signatureObj);
+
+    // Check for cached/preloaded steps that match the full context
+    if (preloadedSteps && preloadSignature === sig) {
+      console.log('[STEPS] Using preloaded steps.');
+      setPreviewSteps(preloadedSteps);
+      setShowStepsPreviewModal(true);
+      setIsGeneratingSteps(false);
+      return;
+    }
+    
+    console.log('[STEPS] Generating new steps with full Q&A context.');
     try {
-      // If we're in follow-up phase, we need to create an enhanced project description
-      let enhancedDescription = setupDescription;
-      if (isInFollowUpPhase) {
-        // Extract user responses from the follow-up chat to enhance the project description
-        const userResponses = chatMessages
-          .filter(msg => msg.type === 'user' && msg.content !== '')
-          .slice(-5) // Take last 5 user messages to avoid too much context
-          .map(msg => msg.content)
-          .join('. ');
-        
-        if (userResponses) {
-          enhancedDescription = `${setupDescription}\n\nAdditional requirements from user: ${userResponses}`;
-        }
-      }
-      
-      // Compute a simple signature of inputs to detect no-change situations
-      const signatureObj = { d: enhancedDescription, h: isInFollowUpPhase ? chatMessages.map(m => m.content) : [] };
-      const currentSignature = JSON.stringify(signatureObj);
-
-      // Fast path 1: Inputs unchanged and we already have generated steps
-      if (!isInFollowUpPhase && lastGenerationSignature && lastGenerationSignature === currentSignature && Array.isArray(originalSteps) && originalSteps.length > 0) {
-        setPreviewSteps(originalSteps);
-        setShowStepsPreviewModal(true);
-        setIsInSetupPhase(false);
-        return;
-      }
-
-      // Fast path 2: Use preloaded steps if available and inputs match preload
-      if (!isInFollowUpPhase && preloadedSteps && preloadSignature === currentSignature) {
-        setOriginalSteps(preloadedSteps);
-        setPreviewSteps(preloadedSteps);
-        setShowStepsPreviewModal(true);
-        setIsInSetupPhase(false);
-        setLastGenerationSignature(currentSignature);
-        return;
-      }
-
       const response = await fetch('/api/guided/steps/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ 
-          projectDescription: enhancedDescription, 
-          history: chatMessages, 
-          projectFiles: files 
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          projectDescription: description,
+          history: finalHistory, // Send the full Q&A history
+          projectFiles: files
         })
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
-      if (response.ok && Array.isArray(result.steps)) {
-        // Store the original steps for comparison later
-        setOriginalSteps(result.steps);
+
+      if (result.steps && result.steps.length > 0) {
         setPreviewSteps(result.steps);
         setShowStepsPreviewModal(true);
-        setIsInSetupPhase(false);
-        setLastGenerationSignature(currentSignature);
-        // Refresh preload cache to match latest
+        // Cache the newly generated steps
         setPreloadedSteps(result.steps);
-        setPreloadSignature(currentSignature);
+        setPreloadSignature(sig);
       } else {
-        if (response.status === 500) {
-          setStepsFlowError('Server error occurred. Please press "Generate Steps" again to retry.');
-          // Also add to chat
-          setChatMessages(prev => [...prev, {
-            type: 'assistant',
-            content: '❌ **Server Error**: The step generation failed. Please press "Generate Steps" again to retry.',
-            timestamp: new Date()
-          }]);
-        } else {
-          setStepsFlowError(result?.error || 'An error happened. Please try again.');
-        }
+        setStepsFlowError('The AI failed to generate steps. Please try rephrasing your project idea.');
+        setChatMessages(prev => [...prev, { type: 'assistant', content: '🤔 I had trouble creating steps for that. Could you describe your project a bit differently?', timestamp: new Date() }]);
       }
-    } catch (e) {
-      setStepsFlowError('Server error occurred. Please press "Generate Steps" again to retry.');
-      // Also add to chat
-      setChatMessages(prev => [...prev, {
-        type: 'assistant',
-        content: '❌ **Server Error**: The step generation failed. Please press "Generate Steps" again to retry.',
-        timestamp: new Date()
-      }]);
+    } catch (error) {
+      console.error('Error generating steps:', error);
+      setStepsFlowError('A server error occurred. Please press "Generate Steps" again to retry.');
+       setChatMessages(prev => [...prev, { type: 'assistant', content: '❌ **Server Error**: The step generation failed. Please press "Generate Steps" again to retry.', timestamp: new Date() }]);
     } finally {
       setIsGeneratingSteps(false);
     }
@@ -2323,31 +2277,28 @@ function IDEPage() {
     <ProtectedRoute>
       <div className={`flex flex-col h-screen bg-light-cream text-dark-charcoal transition-colors duration-150 ${isInSetupPhase ? 'dim-layout' : ''}`}>
         {/* Header */}
-        <header className="flex items-center justify-between p-3 border-b border-cream-beige bg-light-cream shadow-lg ide-dimmable">
-    
-                 <div className="flex items-center space-x-1">
-           <button 
-            onClick={() => {
-              setIsNavigatingBack(true);
-              router.replace('/');
-            }} 
-            className="p-1.5 rounded-full hover:bg-cream-beige transition-colors duration-150 disabled:opacity-50"
-            disabled={isNavigatingBack}
-          >
-            {isNavigatingBack ? (
-              <IconLoader2 className="h-4 w-4 text-deep-espresso animate-spin" />
-            ) : (
-            <IconArrowLeft className="h-4 w-4 text-deep-espresso" />
-            )}
-          </button>
-          <div className="w-7 h-7 flex items-center justify-center">
-            <Image src="/images/logo-trans.png" alt="Cafécode Logo" width={56} height={56} className="h-7 w-7 object-contain rounded-xl" />
-          </div>
-              <div className="flex items-center justify-left">
-                <h1 className="text-lg font-bold text-deep-espresso">
-                Project Brewer
-              </h1>
-          </div>
+        <header className="flex items-center justify-between px-6 py-4 border-b border-cream-beige bg-light-cream shadow-lg ide-dimmable">
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => {
+                setIsNavigatingBack(true);
+                router.replace('/');
+              }} 
+              className="p-2 rounded-full hover:bg-cream-beige transition-colors duration-150 disabled:opacity-50"
+              disabled={isNavigatingBack}
+            >
+              {isNavigatingBack ? (
+                <IconLoader2 className="h-4 w-4 text-deep-espresso animate-spin" />
+              ) : (
+                <IconArrowLeft className="h-4 w-4 text-deep-espresso" />
+              )}
+            </button>
+            <div className="w-8 h-8 flex items-center justify-center">
+              <Image src="/images/logo-trans.png" alt="Cafécode Logo" width={56} height={56} className="h-8 w-8 object-contain rounded-xl" />
+            </div>
+            <h1 className="text-xl font-bold text-deep-espresso">
+              Project Brewer
+            </h1>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -2423,18 +2374,18 @@ function IDEPage() {
                   setActiveTab(val);
                   if (val === 'terminal') setTerminalInitialized(true);
                 }} className="flex-1 flex flex-col">
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-cream-beige bg-cream-beige">
-                    <TabsList className="bg-light-cream border border-cream-beige">
-                      <TabsTrigger value="editor" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
+                  <div className="flex items-center justify-between px-6 py-3 border-b border-cream-beige bg-cream-beige">
+                    <TabsList className="bg-light-cream border border-cream-beige h-10">
+                      <TabsTrigger value="editor" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream px-4 py-2">
                         <IconCode className="mr-2 h-4 w-4" />
                         Editor
                       </TabsTrigger>
                       
-                      <TabsTrigger value="terminal" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
+                      <TabsTrigger value="terminal" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream px-4 py-2">
                         <IconTerminal className="mr-2 h-4 w-4" />
                         Terminal
                       </TabsTrigger>
-                      <TabsTrigger value="preview" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream">
+                      <TabsTrigger value="preview" className="text-deep-espresso/80 hover:text-deep-espresso data-[state=active]:bg-medium-coffee data-[state=active]:text-light-cream px-4 py-2">
                         <IconBolt className="mr-2 h-4 w-4" />
                         Preview
                       </TabsTrigger>
@@ -2588,13 +2539,13 @@ function IDEPage() {
             >
               <div className={`w-full h-full flex flex-col bg-cream-beige border-l border-cream-beige ${isExplorerCollapsed ? 'flex-shrink-0' : ''}`}>
                 {/* Chat Header */}
-                <div className="flex items-center justify-between p-2 border-b-2 border-cream-beige bg-light-cream">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-6 h-6 bg-medium-coffee rounded-full flex items-center justify-center">
-                      <IconCoffee className="h-3 w-3 text-light-cream" />
+                <div className="flex items-center justify-between px-4 py-3 border-b-2 border-cream-beige bg-light-cream">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-medium-coffee rounded-full flex items-center justify-center">
+                      <IconCoffee className="h-4 w-4 text-light-cream" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-deep-espresso text-sm">Cody</h3>
+                      <h3 className="font-semibold text-deep-espresso text-base">Cody</h3>
                     </div>
                   </div>
                 </div>
@@ -2602,11 +2553,11 @@ function IDEPage() {
           
                 <div className="flex-1 overflow-hidden transition-all duration-300 relative">
                   {/* Chat messages area */}
-                  <div className="flex-1 overflow-y-auto px-4 pt-4 pb-0 space-y-3 bg-cream-beige" style={{paddingTop: '1.5rem', height: 'calc(100% - 140px)'}}>
+                  <div className="flex-1 overflow-y-auto px-5 pt-5 pb-0 space-y-4 bg-cream-beige" style={{paddingTop: '1.5rem', height: 'calc(100% - 140px)'}}>
                     {chatMessages.map((msg, idx) => (
                       <div
                         key={idx}
-                        className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-2${idx === 0 ? ' mt-0' : ''}`}
+                        className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} mb-3${idx === 0 ? ' mt-0' : ''}`}
                       >
                         <div className={`max-w-[85%] px-4 py-3 rounded-2xl shadow-lg ${msg.type === 'user' ? 'bg-gradient-to-r from-medium-coffee to-deep-espresso text-light-cream text-sm' : 'bg-white text-dark-charcoal border-2 border-cream-beige/50 shadow-md text-sm'}`}
                           style={idx === 0 ? { marginTop: 0 } : {}}>
@@ -2649,30 +2600,40 @@ function IDEPage() {
                   
                   
                   {/* Always show chat input and action buttons at the bottom */}
-                  <div className="absolute bottom-0 left-0 right-0 pt-4 pb-4 px-4 border-t border-cream-beige bg-light-cream">
+                  <div className="absolute bottom-0 left-0 right-0 pt-5 pb-5 px-5 border-t border-cream-beige bg-light-cream">
                     <div className="flex space-x-3 items-center">
-                      <div className="flex-1 flex space-x-2 items-center">
-                      <input
-                        type="text"
+                      <div className="flex-1 flex space-x-3 items-center">
+                      <textarea
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                          placeholder="Ask me anything"
-                          className="flex-1 bg-white border-2 border-medium-coffee/30 rounded-2xl px-3 py-2 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200 shadow-md h-10 text-base"
-                          disabled={false}
+                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                        placeholder="Type in here..."
+                        className="flex-1 bg-white border-2 border-medium-coffee/30 rounded-2xl px-4 py-3 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200 shadow-md text-base resize-none min-h-[44px] max-h-32 overflow-y-auto"
+                        disabled={false}
+                        rows={1}
+                        style={{
+                          height: 'auto',
+                          minHeight: '44px',
+                          maxHeight: '128px'
+                        }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+                        }}
                           title=""
                       />
                       <Button
                         onClick={handleSendMessage}
                           disabled={false}
-                          className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-3 py-2 rounded-2xl transition-all duration-200 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg h-10 text-sm"
+                          className="bg-medium-coffee hover:bg-deep-espresso text-light-cream px-4 py-3 rounded-2xl transition-all duration-200 transform disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg h-11 text-sm"
                           title=""
                       >
                           <IconArrowRight className="h-4 w-4" />
                       </Button>
                       </div>
                     </div>
-                    <div className="flex items-center justify-center mt-4 space-x-3">
+                    <div className="flex items-center justify-center mt-5 space-x-4">
                  
                     
                       
@@ -2683,7 +2644,7 @@ function IDEPage() {
                             onClick={handleSubmitAndGenerateSteps}
                             variant="outline"
                             size="sm"
-                            className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-sm"
+                            className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-4 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-sm font-medium"
                           >
                             Generate Steps
                           </Button>
@@ -2694,7 +2655,7 @@ function IDEPage() {
                         onClick={handleGetHint}
                         variant="outline"
                         size="sm"
-                        className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                        className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-4 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-sm font-medium"
                         disabled={false}
                         title=""
                       >
@@ -2705,7 +2666,7 @@ function IDEPage() {
                         onClick={handleFixCode}
                         variant="outline"
                         size="sm"
-                        className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                        className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-4 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-sm font-medium"
                         disabled={false}
                         title=""
                       >
@@ -2716,7 +2677,7 @@ function IDEPage() {
                         onClick={handleExplainCode}
                         variant="outline"
                         size="sm"
-                        className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-3 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-base"
+                        className="bg-white hover:bg-light-cream border-2 border-medium-coffee/30 text-medium-coffee hover:text-deep-espresso px-4 py-3 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-md text-sm font-medium"
                         disabled={false}
                         title=""
                       >

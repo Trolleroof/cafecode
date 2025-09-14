@@ -1214,11 +1214,63 @@ router.post('/steps/generate', async (req, res) => {
         return res.status(500).json({ error: 'An error happened. Please try again.' });
       }
     }
+    // Parse step count from chat history
+    const parseStepCountFromHistory = (history) => {
+      if (!Array.isArray(history)) return null;
+      
+      // Look through all messages for step count requests
+      for (const message of history) {
+        if (message.type === 'user' && message.content) {
+          const content = message.content.toLowerCase();
+          
+          // Look for numeric patterns: "25 steps", "twenty five steps", "25", etc.
+          const numericMatch = content.match(/(\d+)\s*steps?/i);
+          if (numericMatch) {
+            const num = parseInt(numericMatch[1]);
+            if (num >= 2 && num <= 50) {
+              return num;
+            }
+          }
+          
+          // Look for written number patterns
+          const writtenNumbers = {
+            'twenty five': 25, 'twenty-five': 25, 'twentyfive': 25,
+            'twenty four': 24, 'twenty-four': 24, 'twentyfour': 24,
+            'twenty three': 23, 'twenty-three': 23, 'twentythree': 23,
+            'twenty two': 22, 'twenty-two': 22, 'twentytwo': 22,
+            'twenty one': 21, 'twenty-one': 21, 'twentyone': 21,
+            'twenty': 20, 'nineteen': 19, 'eighteen': 18, 'seventeen': 17,
+            'sixteen': 16, 'fifteen': 15, 'fourteen': 14, 'thirteen': 13,
+            'twelve': 12, 'eleven': 11, 'ten': 10, 'nine': 9, 'eight': 8,
+            'seven': 7, 'six': 6, 'five': 5, 'four': 4, 'three': 3, 'two': 2
+          };
+          
+          for (const [word, number] of Object.entries(writtenNumbers)) {
+            if (content.includes(`${word} steps`) || content.includes(`${word} step`)) {
+              return number;
+            }
+          }
+        }
+      }
+      return null;
+    };
+
+    const requestedStepCount = parseStepCountFromHistory(history);
+    console.log(`[STEP COUNT] Parsed step count from history: ${requestedStepCount}`);
+
     // Use the main prompt file with custom inputs
-    const customPrompt = guidedProjectPrompt
+    let customPrompt = guidedProjectPrompt
       .replace('${projectDescription}', projectDescription)
       .replace('${projectContext}', projectContext)
       .replace('Coding Task:', `Coding Task:\n${projectDescription}\n\nSpecific answers from user:\n${answersSummary || 'No specific answers provided.'}\n\n`);
+
+    // Add step count requirement to the prompt if user requested specific count
+    if (requestedStepCount !== null) {
+      customPrompt += `\n\n🚨 CRITICAL STEP COUNT REQUIREMENT 🚨
+You MUST return EXACTLY ${requestedStepCount} steps. No more, no fewer.
+If you cannot complete the task in ${requestedStepCount} steps, you must break it down differently or combine steps to match the exact count.
+This is NON-NEGOTIABLE - your response will be rejected if you don't return exactly ${requestedStepCount} steps.`;
+    }
     const result = await req.geminiService.model.generateContent(customPrompt);
     const responseText = (await result.response).text();
     let steps;
