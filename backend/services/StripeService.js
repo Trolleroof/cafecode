@@ -22,6 +22,8 @@ export class StripeService {
       
       console.log(`Creating checkout session for user: ${userId}`);
       
+      const frontendUrl = 'https://trycafecode.xyz';
+
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
@@ -30,20 +32,15 @@ export class StripeService {
             product_data: {
               name: 'Unlimited Projects Access',
               description: 'One-time payment to unlock unlimited project creation on Cafécode',
-              images: ['https://trycafecode.xyz/logo.png'], // Your logo URL
+              images: ['https://trycafecode.xyz/logo.png'],
             },
-            unit_amount: 499, // $19.99 in cents (Stripe uses cents)
+            unit_amount: 499, 
           },
           quantity: 1,
         }],
         mode: 'payment', // One-time payment (not subscription)
-        // Include payment status flag so frontend can detect successful return
-        // success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment-success?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-        // cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/ide?payment=canceled`,
-
-        //GLOBAL VERSION
-        success_url: 'http://trycafecode.xyz/payment-success?payment=success&session_id={CHECKOUT_SESSION_ID}',
-        cancel_url: 'http://trycafecode.xyz/ide?payment=canceled',
+        success_url: `${frontendUrl}/payment-success?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${frontendUrl}/ide?payment=canceled`,
         
         client_reference_id: userId, // This helps you track which user made the payment
         metadata: {

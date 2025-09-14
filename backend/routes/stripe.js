@@ -4,6 +4,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
 
+// Simple in-memory idempotency store for processed Stripe event IDs.
+// Note: This is per-process and non-persistent. Consider a persistent store for multi-instance deployments.
+const processedStripeEvents = new Set();
+
 // Initialize Supabase client (use service role for server-side updates)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -100,13 +104,51 @@ router.post('/webhook', async (req, res) => {
   }
 
   try {
+      const eventId = event?.id;
+      const eventType = event?.type;
+      if (!eventId) {
+        console.error('[Stripe] Event missing id. Rejecting.');
+        return res.status(400).json({ error: 'Invalid event: missing id' });
+      }
+
+      // Idempotency: skip already-processed events
+      if (processedStripeEvents.has(eventId)) {
+        console.log(`[Stripe] Duplicate event received. Skipping: ${eventType} (${eventId})`);
+        return res.json({ received: true, idempotent: true });
+      }
+
+      console.log(`[Stripe] Processing event: ${eventType} (${eventId})`);
+
       // Handle the event
       switch (event.type) {
        
         case 'checkout.session.completed': {
           const session = event.data.object;
           const userId = session.client_reference_id;
-          console.log('Payment completed for user');
+          console.log('[Stripe] checkout.session.completed details', {
+            sessionId: session.id,
+            userId,
+            amount_total: session.amount_total,
+            currency: session.currency,
+            payment_status: session.payment_status,
+          });
+
+          // Validate required fields
+          if (!userId) {
+            console.error('[Stripe] Missing client_reference_id in session');
+            return res.status(400).json({ error: 'Missing user reference' });
+          }
+          if (session.payment_status !== 'paid') {
+            console.warn('[Stripe] Session completed but not paid:', session.payment_status);
+            return res.status(400).json({ error: 'Payment not completed' });
+          }
+          // Optional: validate expected amount and currency
+          if (typeof session.amount_total === 'number' && session.amount_total !== 499) {
+            console.warn('[Stripe] Unexpected amount_total for session', session.amount_total);
+          }
+          if (session.currency && session.currency.toLowerCase() !== 'usd') {
+            console.warn('[Stripe] Unexpected currency for session', session.currency);
+          }
   
 
           // Primary path: RPC function updates profiles consistently
@@ -164,10 +206,21 @@ router.post('/webhook', async (req, res) => {
           break;
         }
         
+      case 'checkout.session.expired': {
+        const session = event.data.object;
+        console.log('[Stripe] checkout.session.expired', { sessionId: session.id });
+        // Optional: clean up any pending state in your DB if needed
+        break;
+      }
+        
       case 'payment_intent.succeeded':
         {
           const paymentIntent = event.data.object;
-          console.log(`Payment succeeded: ${paymentIntent.id}`);
+          console.log('[Stripe] payment_intent.succeeded', {
+            paymentIntentId: paymentIntent.id,
+            amount_received: paymentIntent.amount_received,
+            currency: paymentIntent.currency,
+          });
           try {
             // If metadata contains userId, update profile as a fallback path
             const userId = paymentIntent.metadata?.userId;
@@ -217,7 +270,7 @@ router.post('/webhook', async (req, res) => {
       case 'payment_intent.payment_failed':
         {
           const failedPayment = event.data.object;
-          console.log(`Payment failed: ${failedPayment.id}`);
+          console.log('[Stripe] payment_intent.payment_failed', { paymentIntentId: failedPayment.id });
           try {
             const userId = failedPayment.metadata?.userId;
             if (userId) {
@@ -232,9 +285,37 @@ router.post('/webhook', async (req, res) => {
         }
         break;
         
+      case 'payment_intent.canceled':
+        {
+          const canceled = event.data.object;
+          console.log('[Stripe] payment_intent.canceled', { paymentIntentId: canceled.id });
+          try {
+            const userId = canceled.metadata?.userId;
+            if (userId) {
+              await supabase
+                .from('profiles')
+                .update({ payment_status: 'unpaid', updated_at: new Date().toISOString() })
+                .eq('id', userId);
+            }
+          } catch (e) {
+            console.warn('[Stripe] payment_intent.canceled handler error:', e.message);
+          }
+        }
+        break;
+        
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
+
+    // Mark event as processed (best-effort). Note: process memory scoped.
+    try {
+      processedStripeEvents.add(eventId);
+      // Optional: cap the size to avoid unbounded growth
+      if (processedStripeEvents.size > 1000) {
+        // Clear all as a simple cap strategy (replace with LRU in persistent store if needed)
+        processedStripeEvents.clear();
+      }
+    } catch (_) {}
 
     res.json({ received: true });
   } catch (error) {

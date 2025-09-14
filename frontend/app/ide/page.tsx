@@ -934,9 +934,48 @@ function IDEPage() {
             timestamp: new Date()
           }]);
         }
+        // Clear timer after successful write so the indicator shows as Saved
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current);
+          autoSaveTimerRef.current = null;
+        }
       }, 1000);
     }
   };
+
+  // Manual save handler: saves immediately and flips the indicator to green
+  const saveSelectedFileNow = async () => {
+    if (!selectedFile) return;
+    try {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+      await webContainerFS.writeFile(selectedFile.id, selectedFile.content || '');
+      console.log(`💾 [SAVE] File saved: ${selectedFile.name}`);
+      // Optional terminal log to provide feedback
+      setOutput(prev => [...prev, `💾 Saved: ${selectedFile.name}`]);
+      // Briefly highlight the file item in the explorer to indicate success
+      setHighlightedFileId(selectedFile.id);
+      setTimeout(() => setHighlightedFileId(null), 1200);
+    } catch (err: any) {
+      console.error('Save error:', err);
+      setChatMessages(prev => [...prev, {
+        type: 'assistant',
+        content: `Failed to save file: ${err.message || String(err)}`,
+        timestamp: new Date()
+      }]);
+    }
+  };
+
+  // Wire up global Save button events
+  useEffect(() => {
+    const listener = () => { saveSelectedFileNow(); };
+    window.addEventListener('saveFile', listener as EventListener);
+    return () => {
+      window.removeEventListener('saveFile', listener as EventListener);
+    };
+  }, [selectedFile]);
 
 
   // Prevent default Cmd+S download behavior
@@ -2516,9 +2555,6 @@ function IDEPage() {
                         highlightedLines={highlightedLines}
                         readOnly={isEditorReadOnly}
                         onEditorMount={(editor, monaco) => {
-                          console.log('🔍 [IDE] MonacoEditor mounted for file:', selectedFile.name);
-                          console.log('🔍 [IDE] Language:', selectedFile.language || 'plaintext');
-                          console.log('🔍 [IDE] Available Monaco languages:', monaco.languages.getLanguages().map((l: any) => l.id));
                         }}
                       />
                     ) : isInSetupPhase ? (

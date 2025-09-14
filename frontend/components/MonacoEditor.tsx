@@ -71,11 +71,11 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   const handleEditorDidMount = (editor: any, monaco: any) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
-    console.log('🔍 [MonacoEditor] Editor mounted with language:', language);
     
-    // Add Cmd+S / Ctrl+S to trigger save
+    // Add Cmd+S / Ctrl+S to trigger a global save (handled by IDE page)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      handleSave();
+      try { window.dispatchEvent(new CustomEvent('saveFile')); } catch {}
+      handleSave(); // keep local state in sync (saved indicator inside editor)
     });
     
     // Configure TypeScript for better IntelliSense while avoiding worker errors
@@ -143,7 +143,6 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     customLanguages.forEach(lang => {
       if (!registeredLanguages.includes(lang.id)) {
         monaco.languages.register(lang);
-        console.log(`📝 [MonacoEditor] Registered language: ${lang.id}`);
       }
     });
 
