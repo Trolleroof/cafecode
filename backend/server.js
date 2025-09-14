@@ -276,6 +276,15 @@ app.use('/api/search', authenticateUser, searchRoutes);
 app.use('/api/sync', authenticateUser, syncRoutes);
 // --- End authentication enforcement ---
 
+// Health check endpoint for Fly.io (no auth required)
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // Lightweight status check for WebContainer Cloud integration
 app.get('/api/webcontainer/status', authenticateUser, (req, res) => {
   const enabled = !!process.env.WEBCONTAINER_API;

@@ -12,10 +12,28 @@ primary_region = 'sjc'
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = 'stop'
+  auto_stop_machines = "stop"
   auto_start_machines = true
   min_machines_running = 0
   processes = ['app']
+  
+  # Health check configuration to prevent premature shutdowns
+  [http_service.checks]
+    grace_period = "10s"
+    interval = "30s"
+    timeout = "5s"
+    restart_limit = 3
+    
+  # Health check endpoint
+  [[http_service.checks.http]]
+    grace_period = "10s"
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/health"
+    protocol = "http"
+    tls_skip_verify = false
+
 
 [[vm]]
   size = 'shared-cpu-2x'
