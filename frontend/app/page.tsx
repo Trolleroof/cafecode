@@ -606,9 +606,9 @@ export default function Home() {
                     },
                     {
                       name: 'Cold Brew',
-                      price: '$4.99',
+                      price: hasUnlimitedAccess ? 'Active' : '$4.99',
                       period: 'lifetime',
-                      description: 'Unlimited projects & priority support',
+                      description: hasUnlimitedAccess ? 'You have unlimited access!' : 'Unlimited projects & priority support',
                       features: [
                         'Everything in Starter',
                         'Unlimited Project creation',
@@ -616,7 +616,7 @@ export default function Home() {
                         'Priority support from founder',
                         'AI Conversational Video Mentor'
                       ],
-                      cta: 'Get Cold Brew Access',
+                      cta: hasUnlimitedAccess ? 'Start Coding in IDE' : 'Get Cold Brew Access',
                       popular: false,
                       color: 'from-medium-coffee to-deep-espresso'
                     }
@@ -660,10 +660,16 @@ export default function Home() {
                           try {
                             setLoadingPlan(plan.name);
                             if (plan.name === 'Cold Brew') {
-                              // Open payment modal for Cold Brew tier
-                              setShowPaymentModal(true);
-                              // brief visual confirmation
-                              setTimeout(() => setLoadingPlan(null), 500);
+                              if (hasUnlimitedAccess) {
+                                // User already has access, go to IDE
+                                router.push('/ide');
+                                setTimeout(() => setLoadingPlan(null), 500);
+                              } else {
+                                // Open payment modal for Cold Brew tier
+                                setShowPaymentModal(true);
+                                // brief visual confirmation
+                                setTimeout(() => setLoadingPlan(null), 500);
+                              }
                             } else if (plan.name === 'Starter') {
                               // Handle Starter tier (Start Coding Free button)
                               if (!user) {
@@ -687,7 +693,7 @@ export default function Home() {
                         {loadingPlan === plan.name ? (
                           <>
                             <div className="spinner-coffee h-4 w-4"></div>
-                            {plan.name === 'Cold Brew' ? 'Loading...' : 'Preparing...'}
+                            {plan.name === 'Cold Brew' ? (hasUnlimitedAccess ? 'Opening IDE...' : 'Loading...') : 'Preparing...'}
                           </>
                         ) : (
                           plan.cta
