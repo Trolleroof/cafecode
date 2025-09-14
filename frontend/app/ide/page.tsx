@@ -2655,6 +2655,7 @@ function IDEPage() {
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyPress={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault(); // Prevent new line creation
                             handleSendMessage();
                             // Reset textarea height after sending
                             setTimeout(() => {

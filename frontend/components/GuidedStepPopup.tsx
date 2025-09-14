@@ -81,18 +81,16 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         ref={popupRef}
         style={{
           position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
+          bottom: '20px',
+          left: '20px',
           zIndex: 2147483647,
-          width: '80%',
-          maxWidth: '500px',
-          maxHeight: '70vh',
+          width: '350px',
+          maxHeight: '60vh',
           overflow: 'auto',
-          backgroundColor: '#F3E4D4',
-          borderRadius: '16px',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.25)',
-          border: '1px solid #A36A3E',
+          backgroundColor: '#f5f1eb',
+          borderRadius: '12px',
+          boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+          border: '1px solid #d4c4a8',
           cursor: dragging ? 'grabbing' : 'grab',
         }}
         onMouseDown={handleMouseDown}
@@ -100,42 +98,47 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         {/* Header */}
         <div
           style={{
-            padding: '16px 20px 12px',
+            padding: '12px 16px 8px',
             cursor: dragging ? 'grabbing' : 'grab',
+            background: '#f5f1eb',
+            borderTopLeftRadius: '12px',
+            borderTopRightRadius: '12px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ 
-                width: '28px', 
-                height: '28px', 
+                width: '32px', 
+                height: '32px', 
                 borderRadius: '50%', 
-                backgroundColor: '#A36A3E',
+                background: '#8b4513',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#F3E4D4',
-                fontWeight: 'bold',
-                fontSize: '12px'
+                color: '#ffffff',
+                fontWeight: '700',
+                fontSize: '16px',
+                boxShadow: '0 2px 6px rgba(139, 69, 19, 0.3)',
               }}>
                 {stepNumber}
               </div>
               <div>
                 <h3 style={{ 
                   margin: 0, 
-                  fontSize: '16px', 
-                  fontWeight: '600', 
-                  color: '#2F2A25',
-                  lineHeight: '1.2'
+                  fontSize: '18px', 
+                  fontWeight: '700', 
+                  color: '#2c1810',
+                  lineHeight: '1.2',
                 }}>
                   Step {stepNumber} of {totalSteps}
                 </h3>
                 {completedSteps !== undefined && totalCompleted !== undefined && (
                   <p style={{ 
-                    margin: '4px 0 0', 
-                    fontSize: '12px', 
-                    color: '#2F2A25',
-                    lineHeight: '1.2'
+                    margin: '2px 0 0', 
+                    fontSize: '14px', 
+                    color: '#8b7355',
+                    lineHeight: '1.3',
+                    fontWeight: '500'
                   }}>
                     {completedSteps} of {totalCompleted} steps completed
                   </p>
@@ -148,9 +151,13 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: '4px',
-                  color: '#2F2A25',
-                  fontSize: '12px',
-                  fontWeight: '500'
+                  color: '#34c759',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  padding: '4px 8px',
+                  backgroundColor: 'rgba(52, 199, 89, 0.15)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(52, 199, 89, 0.3)'
                 }}>
                   <CheckCircle className="h-4 w-4" />
                   Complete
@@ -161,29 +168,40 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         </div>
 
         {/* Content */}
-        <div style={{ padding: '16px 20px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ 
-              fontSize: '14px', 
-              lineHeight: '1.5', 
-              color: '#2F2A25'
-            }}>
+        <div style={{ padding: '8px 16px' }}>
+          <div style={{ marginBottom: '8px' }}>
+            <div 
+              style={{ 
+                fontSize: '16px', 
+                lineHeight: '1.5', 
+                color: '#2c1810',
+                fontWeight: '400',
+                userSelect: 'text',
+                cursor: 'text',
+                padding: '8px',
+                backgroundColor: '#ffffff',
+                borderRadius: '6px',
+                border: '1px solid #d4c4a8'
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  p: ({ children }) => <p style={{ margin: '0 0 12px', lineHeight: '1.6' }}>{children}</p>,
-                  ul: ({ children }) => <ul style={{ margin: '0 0 12px', paddingLeft: '20px' }}>{children}</ul>,
-                  ol: ({ children }) => <ol style={{ margin: '0 0 12px', paddingLeft: '20px' }}>{children}</ol>,
+                  p: ({ children }) => <p style={{ margin: '0 0 8px', lineHeight: '1.6' }}>{children}</p>,
+                  ul: ({ children }) => <ul style={{ margin: '0 0 8px', paddingLeft: '20px' }}>{children}</ul>,
+                  ol: ({ children }) => <ol style={{ margin: '0 0 8px', paddingLeft: '20px' }}>{children}</ol>,
                   li: ({ children }) => <li style={{ margin: '0 0 4px', lineHeight: '1.5' }}>{children}</li>,
                   code: ({ children, className, ...props }: any) => {
                     const isInline = !className || !className.includes('language-');
                     return isInline ? (
                       <code style={{ 
-                        backgroundColor: '#e5e7eb', 
+                        backgroundColor: '#f3f4f6', 
                         padding: '2px 6px', 
                         borderRadius: '4px', 
-                        fontSize: '14px',
-                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
+                        fontSize: '16px',
+                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+                        userSelect: 'all'
                       }}>
                         {children}
                       </code>
@@ -191,12 +209,13 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
                       <pre style={{ 
                         backgroundColor: '#1f2937', 
                         color: '#f9fafb', 
-                        padding: '12px', 
+                        padding: '8px', 
                         borderRadius: '6px', 
                         overflow: 'auto',
-                        fontSize: '14px',
+                        fontSize: '16px',
                         fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                        margin: '12px 0'
+                        margin: '8px 0',
+                        userSelect: 'all'
                       }}>
                         <code>{children}</code>
                       </pre>
@@ -214,43 +233,73 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
 
         {/* Footer */}
         <div style={{ 
-          padding: '12px 20px 16px', 
+          padding: '8px 16px 12px', 
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'center',
           alignItems: 'center',
-          gap: '8px'
+          background: '#f5f1eb',
+          borderBottomLeftRadius: '12px',
+          borderBottomRightRadius: '12px',
         }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '6px',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%'
+          }}>
             {stepNumber > 1 && (
-            <Button
-              onClick={onPreviousStep}
-              variant="outline"
-              className="flex items-center gap-2"
-              style={{ 
-                borderColor: '#A36A3E',
-                color: '#2F2A25',
-                backgroundColor: '#F3E4D4'
-              }}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Previous
-            </Button>
+              <Button
+                onClick={onPreviousStep}
+                variant="outline"
+                className="flex items-center gap-1"
+                style={{ 
+                  borderColor: '#8b7355',
+                  color: '#2c1810',
+                  backgroundColor: '#f5f1eb',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                  border: '1px solid #8b7355',
+                  minWidth: '70px'
+                }}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Previous
+              </Button>
             )}
             
             <Button
               onClick={onCheckStep}
               disabled={isChecking}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1"
               style={{ 
-                backgroundColor: '#A36A3E',
-                color: '#F3E4D4',
-                border: 'none'
+                background: isComplete 
+                  ? '#34c759'
+                  : '#8b4513',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '6px 12px',
+                fontSize: '14px',
+                fontWeight: '600',
+                boxShadow: isComplete 
+                  ? '0 2px 6px rgba(52, 199, 89, 0.3)'
+                  : '0 2px 6px rgba(139, 69, 19, 0.3)',
+                minWidth: '80px'
               }}
             >
               {isChecking ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Checking...
+                </>
+              ) : isComplete ? (
+                <>
+                  <CheckCircle className="h-4 w-4" />
+                  Checked
                 </>
               ) : (
                 <>
@@ -259,38 +308,54 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
                 </>
               )}
             </Button>
-          </div>
 
-          {stepNumber === totalSteps ? (
-            onFinish ? (
+            {stepNumber === totalSteps ? (
+              onFinish ? (
+                <Button
+                  onClick={onFinish}
+                  className="flex items-center gap-1"
+                  style={{ 
+                    background: '#34c759',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    boxShadow: '0 2px 6px rgba(52, 199, 89, 0.3)',
+                    minWidth: '70px'
+                  }}
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Finish
+                </Button>
+              ) : null
+            ) : (
               <Button
-                onClick={onFinish}
-                className="flex items-center gap-2"
+                onClick={onNextStep}
+                disabled={!isComplete}
+                className="flex items-center gap-1"
                 style={{ 
-                  backgroundColor: '#A36A3E',
-                  color: '#F3E4D4',
-                  border: 'none'
+                  background: !isComplete 
+                    ? '#d4c4a8' 
+                    : '#8b4513',
+                  color: !isComplete ? '#8b7355' : '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  boxShadow: !isComplete 
+                    ? '0 1px 3px rgba(0, 0, 0, 0.1)' 
+                    : '0 2px 6px rgba(139, 69, 19, 0.3)',
+                  minWidth: '70px'
                 }}
               >
-                <CheckCircle className="h-4 w-4" />
-                Finish Project
+                <ArrowRight className="h-4 w-4" />
+                Next
               </Button>
-            ) : null
-          ) : (
-            <Button
-              onClick={onNextStep}
-              disabled={!isComplete}
-              className="flex items-center gap-2"
-              style={{ 
-                backgroundColor: !isComplete ? '#D1D5DB' : '#A36A3E',
-                color: !isComplete ? '#6B7280' : '#F3E4D4',
-                border: 'none'
-              }}
-            >
-              <ArrowRight className="h-4 w-4" />
-              Next
-            </Button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </>,

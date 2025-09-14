@@ -452,9 +452,49 @@ function extractFileTargetsFromInstruction(instruction) {
   return Array.from(targets).map((t) => String(t).replace(/^\.\//, ''));
 }
 
+// Helper function to check if a directory exists in project files
+function checkDirectoryExists(projectFiles, directoryName) {
+  if (!projectFiles || projectFiles.length === 0) return false;
+  
+  // Check if any file has a path that starts with the directory name
+  return projectFiles.some(file => {
+    const path = file.path || file.name || '';
+    return path.startsWith(directoryName + '/') || path === directoryName;
+  });
+}
+
 // Comprehensive step type analysis function
 function analyzeStepType(instruction, projectFiles, userId = null) {
   const lowered = instruction.toLowerCase();
+  
+  // Check for terminal commands first
+  const isTerminalCommand = /\b(run|open the terminal|execute|npm create|npx create|pip install|npm install)\b/i.test(instruction);
+  
+  if (isTerminalCommand) {
+    // Handle specific terminal commands
+    if (lowered.includes('npm create vite') || lowered.includes('npx create vite')) {
+      // Extract the project name from the vite command
+      const viteMatch = instruction.match(/npm create vite@latest\s+([^\s]+)/i) || instruction.match(/npx create vite@latest\s+([^\s]+)/i);
+      const projectName = viteMatch ? viteMatch[1] : 'your-app-name';
+      
+      return {
+        type: 'terminal-command',
+        exists: checkDirectoryExists(projectFiles, projectName),
+        targetName: projectName,
+        requiresContent: false,
+        commandType: 'vite-create'
+      };
+    }
+    
+    // Handle other terminal commands
+    return {
+      type: 'terminal-command',
+      exists: false, // Terminal commands don't have file existence checks
+      targetName: 'terminal-command',
+      requiresContent: false,
+      commandType: 'generic'
+    };
+  }
   
   // Intent detection patterns
   const isCreateIntent = /\b(create|make|new)\b/i.test(instruction);
@@ -609,6 +649,30 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
   }
   
   switch (stepType.type) {
+    case 'terminal-command':
+      if (stepType.commandType === 'vite-create') {
+        if (actualExists) {
+          return {
+            completed: true,
+            feedback: `Excellent! You've successfully created the React application '${stepType.targetName}' using Vite.`,
+            suggestion: 'You can proceed to the next step.'
+          };
+        } else {
+          return {
+            completed: false,
+            feedback: `Please run the terminal command to create the React application '${stepType.targetName}'.`,
+            suggestion: 'Open the terminal and run the npm create vite command as instructed.'
+          };
+        }
+      } else {
+        // For other terminal commands, we can't easily verify completion
+        return {
+          completed: null, // Indicates need for AI analysis
+          feedback: 'Terminal command execution detected',
+          suggestion: 'AI will analyze the command execution'
+        };
+      }
+    
     case 'folder':
       if (actualExists) {
         return {
