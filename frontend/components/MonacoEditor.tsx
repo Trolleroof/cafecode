@@ -190,29 +190,6 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
   return (
     <div className="relative h-full">
-      {/* Save Status Indicator */}
-      <div className="absolute top-3 right-3 z-10">
-        {hasChanges ? (
-          <button
-            onClick={handleSave}
-            disabled={readOnly}
-            className="group flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
-            title="Click to save changes"
-          >
-            <Save className="h-3 w-3" />
-            Save
-          </button>
-        ) : (
-          <div 
-            className="group flex items-center gap-1.5 px-2.5 py-1.5 bg-green-500 text-white rounded-full text-xs font-medium transition-all duration-200 shadow-lg cursor-pointer"
-            title="Saved"
-            onClick={handleSave}
-          >
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-            <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">Saved</span>
-          </div>
-        )}
-      </div>
 
       <Editor
         height="100%"

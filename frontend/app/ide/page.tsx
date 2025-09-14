@@ -18,6 +18,7 @@ import {
   IconCopy,
   IconLoader2,
   IconArrowLeft,
+  Save,
   IconRefresh,
   IconCoffee
 } from '@tabler/icons-react';
@@ -983,7 +984,12 @@ function IDEPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session?.access_token}`
           },
-          body: JSON.stringify({ projectDescription: setupDescription, history: [...chatMessages, userMessage], projectFiles: files })
+          body: JSON.stringify({ 
+            projectDescription: setupDescription, 
+            history: [...chatMessages, userMessage], 
+            projectFiles: files,
+            terminalOutput: output.slice(-50) // Include last 20 lines of terminal output
+          })
         });
         result = await response.json();
         if (!ignoreIncomingSetupResponses && result?.response?.content) {
@@ -1043,7 +1049,9 @@ function IDEPage() {
           'Authorization': `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({ 
-          history: [{ type: 'user', content: userMessage.content }]
+          history: [{ type: 'user', content: userMessage.content }],
+          terminalOutput: output.slice(-20), // Include last 20 lines of terminal output
+          projectFiles: files
         })
       });
       result = await response.json();
@@ -2433,17 +2441,35 @@ function IDEPage() {
                     </TabsList>
 
                     {selectedFile && (
-                      <div className="flex items-center space-x-2 text-sm text-deep-espresso">
-                        {/* Pulsing save dot */}
-                        <span
-                          className="inline-block w-2.5 h-2.5 rounded-full"
-                          style={{
-                            background: autoSaveTimerRef.current ? '#ef4444' : '#16a34a',
-                            boxShadow: autoSaveTimerRef.current ? '0 0 8px rgba(239,68,68,0.7)' : '0 0 6px rgba(22,163,74,0.7)',
-                            transition: 'all 180ms ease-in-out'
-                          }}
-                          title={autoSaveTimerRef.current ? 'unsaved' : 'saved'}
-                        />
+                      <div className="flex items-center space-x-4 text-sm text-deep-espresso">
+                        {/* Save Status Indicator */}
+                        {autoSaveTimerRef.current ? (
+                          <button
+                            onClick={() => {
+                              // Trigger save
+                              const event = new CustomEvent('saveFile');
+                              window.dispatchEvent(event);
+                            }}
+                            className="group flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                            title="Click to save changes"
+                          >
+                            <Save className="h-3 w-3" />
+                            Save
+                          </button>
+                        ) : (
+                          <div 
+                            className="group flex items-center gap-1.5 px-2.5 py-1.5 bg-green-500 text-white rounded-full text-xs font-medium transition-all duration-200 shadow-lg cursor-pointer"
+                            title="Saved"
+                            onClick={() => {
+                              // Trigger save
+                              const event = new CustomEvent('saveFile');
+                              window.dispatchEvent(event);
+                            }}
+                          >
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                            <span>Saved</span>
+                          </div>
+                        )}
                         <span className="font-mono">{selectedFile.name}</span>
                       </div>
                     )}

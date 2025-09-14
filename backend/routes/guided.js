@@ -993,7 +993,7 @@ Return ONLY the JSON array.`;
 // --- Setup flow: continued chat without generating steps ---
 router.post('/setup/chat', async (req, res) => {
   try {
-    const { projectDescription, history, projectFiles } = req.body;
+    const { projectDescription, history, projectFiles, terminalOutput } = req.body;
     if (!history || !projectDescription) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
@@ -1026,6 +1026,10 @@ router.post('/setup/chat', async (req, res) => {
       // Generate a dynamic, encouraging acknowledgment for the user's answer
       let acknowledgment = `Got it, thanks! Let's move to the next question.`; // Fallback response
       try {
+        const terminalContext = terminalOutput && Array.isArray(terminalOutput) && terminalOutput.length > 0 
+          ? `\n\n**Terminal Output (last ${terminalOutput.length} lines):**\n${terminalOutput.join('\n')}` 
+          : '';
+
         const ackPrompt = `You are a friendly and encouraging coding mentor. A user has just answered a question to help define a project they want to build. Your task is to provide a short, positive, and conversational acknowledgment of their answer before you ask the next question.
 
 - **Keep it concise:** 1-2 sentences maximum.
@@ -1037,7 +1041,7 @@ router.post('/setup/chat', async (req, res) => {
 **Context:**
 - **Initial Project Idea:** "${projectDescription}"
 - **The Question You Asked:** "${session.questions[currentIndex]}"
-- **The User's Answer:** "${answer}"
+- **The User's Answer:** "${answer}"${terminalContext}
 
 **Example based on a similar conversation:**
 - User's Answer: "react js for the frontend"
@@ -1810,7 +1814,7 @@ Is the code correct for the instruction? Return ONLY a JSON array with one objec
 // Simple chat for non-guided users
 router.post("/simple-chat", async (req, res) => {
   try {
-    const { history, projectFiles, guidedProject, currentCode, currentLanguage } = req.body;
+    const { history, projectFiles, guidedProject, currentCode, currentLanguage, terminalOutput } = req.body;
     if (!history) {
       return res.status(400).json({ error: "Missing required parameters" });
     }
@@ -1819,6 +1823,9 @@ router.post("/simple-chat", async (req, res) => {
     const projectContext = createProjectContext(projectFiles);
     const guidedContext = guidedProject ? `\n\nCurrent Guided Project: ${guidedProject.steps[guidedProject.currentStep]?.instruction || 'No active step'}` : '';
     const codeContext = currentCode ? `\n\nCurrent Code (${currentLanguage}):\n${currentCode}` : '';
+    const terminalContext = terminalOutput && Array.isArray(terminalOutput) && terminalOutput.length > 0 
+      ? `\n\nTerminal Output (last ${terminalOutput.length} lines):\n${terminalOutput.join('\n')}` 
+      : '';
 
     // Get or create chat session for question tracking
     let chatSession = chatSessions.get(userId) || {
@@ -1840,6 +1847,8 @@ router.post("/simple-chat", async (req, res) => {
     let acknowledgment = "Thanks for sharing that!";
     try {
       const ackPrompt = `Generate a warm, encouraging 1-sentence acknowledgment for this user message: "${userMessage}"
+
+${terminalContext}
 
 The acknowledgment should:
 - Be genuinely enthusiastic and supportive
@@ -1867,6 +1876,11 @@ npm install --save-dev ajv@^7
 \`\`\`
 
 After running the install command, try running your code again!"
+
+TERMINAL ERROR HANDLING: If there are terminal errors in the context, acknowledge them specifically:
+- "I see there's a terminal error - let me help fix that!"
+- "I notice the terminal output shows an issue - let's solve it!"
+- "I can see the error in your terminal - here's the solution!"
 
 IMPORTANT: Do NOT use emojis in your response. Keep it text-only.
 
