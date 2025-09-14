@@ -76,20 +76,6 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
   // Render via portal to avoid being hidden by parent stacking contexts/overlays
   return typeof document !== 'undefined' ? createPortal(
     <>
-      {/* Dimming backdrop */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.3)',
-          zIndex: 2147483646,
-          pointerEvents: 'none',
-        }}>
-      </div>
-      
       {/* Popup content */}
       <div
         ref={popupRef}
@@ -99,14 +85,14 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           left: '50%',
           transform: 'translate(-50%, -50%)',
           zIndex: 2147483647,
-          width: '90%',
-          maxWidth: '600px',
-          maxHeight: '80vh',
+          width: '80%',
+          maxWidth: '500px',
+          maxHeight: '70vh',
           overflow: 'auto',
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-          border: '1px solid #e5e7eb',
+          backgroundColor: '#F3E4D4',
+          borderRadius: '16px',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.25)',
+          border: '1px solid #A36A3E',
           cursor: dragging ? 'grabbing' : 'grab',
         }}
         onMouseDown={handleMouseDown}
@@ -114,35 +100,32 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         {/* Header */}
         <div
           style={{
-            padding: '20px 24px 16px',
-            borderBottom: '1px solid #e5e7eb',
-            backgroundColor: '#f9fafb',
-            borderRadius: '12px 12px 0 0',
+            padding: '16px 20px 12px',
             cursor: dragging ? 'grabbing' : 'grab',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ 
-                width: '32px', 
-                height: '32px', 
+                width: '28px', 
+                height: '28px', 
                 borderRadius: '50%', 
-                backgroundColor: isComplete ? '#10b981' : '#6b7280',
+                backgroundColor: '#A36A3E',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'white',
+                color: '#F3E4D4',
                 fontWeight: 'bold',
-                fontSize: '14px'
+                fontSize: '12px'
               }}>
                 {stepNumber}
               </div>
               <div>
                 <h3 style={{ 
                   margin: 0, 
-                  fontSize: '18px', 
+                  fontSize: '16px', 
                   fontWeight: '600', 
-                  color: '#111827',
+                  color: '#2F2A25',
                   lineHeight: '1.2'
                 }}>
                   Step {stepNumber} of {totalSteps}
@@ -150,8 +133,8 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
                 {completedSteps !== undefined && totalCompleted !== undefined && (
                   <p style={{ 
                     margin: '4px 0 0', 
-                    fontSize: '14px', 
-                    color: '#6b7280',
+                    fontSize: '12px', 
+                    color: '#2F2A25',
                     lineHeight: '1.2'
                   }}>
                     {completedSteps} of {totalCompleted} steps completed
@@ -165,8 +148,8 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: '4px',
-                  color: '#10b981',
-                  fontSize: '14px',
+                  color: '#2F2A25',
+                  fontSize: '12px',
                   fontWeight: '500'
                 }}>
                   <CheckCircle className="h-4 w-4" />
@@ -178,25 +161,12 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
         </div>
 
         {/* Content */}
-        <div style={{ padding: '20px 24px' }}>
-          <div style={{ marginBottom: '20px' }}>
-            <h4 style={{ 
-              margin: '0 0 12px', 
-              fontSize: '16px', 
-              fontWeight: '600', 
-              color: '#111827',
-              lineHeight: '1.3'
-            }}>
-              Instructions:
-            </h4>
+        <div style={{ padding: '16px 20px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <div style={{ 
-              fontSize: '15px', 
-              lineHeight: '1.6', 
-              color: '#374151',
-              backgroundColor: '#f9fafb',
-              padding: '16px',
-              borderRadius: '8px',
-              border: '1px solid #e5e7eb'
+              fontSize: '14px', 
+              lineHeight: '1.5', 
+              color: '#2F2A25'
             }}>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
@@ -244,30 +214,27 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
 
         {/* Footer */}
         <div style={{ 
-          padding: '16px 24px 20px', 
-          borderTop: '1px solid #e5e7eb', 
-          backgroundColor: '#f9fafb',
-          borderRadius: '0 0 12px 12px',
+          padding: '12px 20px 16px', 
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '12px'
+          gap: '8px'
         }}>
           <div style={{ display: 'flex', gap: '8px' }}>
             {stepNumber > 1 && (
-              <Button
-                onClick={onPreviousStep}
-                variant="outline"
-                className="flex items-center gap-2"
-                style={{ 
-                  borderColor: '#d1d5db',
-                  color: '#374151',
-                  backgroundColor: 'white'
-                }}
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Previous
-              </Button>
+            <Button
+              onClick={onPreviousStep}
+              variant="outline"
+              className="flex items-center gap-2"
+              style={{ 
+                borderColor: '#A36A3E',
+                color: '#2F2A25',
+                backgroundColor: '#F3E4D4'
+              }}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Previous
+            </Button>
             )}
             
             <Button
@@ -275,8 +242,8 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
               disabled={isChecking}
               className="flex items-center gap-2"
               style={{ 
-                backgroundColor: isComplete ? '#10b981' : '#3b82f6',
-                color: 'white',
+                backgroundColor: '#A36A3E',
+                color: '#F3E4D4',
                 border: 'none'
               }}
             >
@@ -300,8 +267,8 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
                 onClick={onFinish}
                 className="flex items-center gap-2"
                 style={{ 
-                  backgroundColor: '#10b981',
-                  color: 'white',
+                  backgroundColor: '#A36A3E',
+                  color: '#F3E4D4',
                   border: 'none'
                 }}
               >
@@ -313,9 +280,14 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
             <Button
               onClick={onNextStep}
               disabled={!isComplete}
-              className={`flex-1 ${isComplete ? 'bg-medium-coffee hover:bg-deep-espresso text-light-cream' : 'bg-gray-300 text-gray-500 cursor-not-allowed'} transition-all duration-200 rounded-lg text-lg font-semibold py-3 px-4`}
+              className="flex items-center gap-2"
+              style={{ 
+                backgroundColor: !isComplete ? '#D1D5DB' : '#A36A3E',
+                color: !isComplete ? '#6B7280' : '#F3E4D4',
+                border: 'none'
+              }}
             >
-              <ArrowRight className="h-5 w-5 mr-2" />
+              <ArrowRight className="h-4 w-4" />
               Next
             </Button>
           )}

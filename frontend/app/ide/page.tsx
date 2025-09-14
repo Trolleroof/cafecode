@@ -1084,6 +1084,20 @@ function IDEPage() {
 
   // Chat action buttons functionality
   const handleGetHint = async () => {
+    // Check if no project is started first
+    if (!guidedProject) {
+      setIsTyping(true);
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: 'Please start a guided project to recieve hints!',
+          timestamp: new Date()
+        }]);
+        setIsTyping(false);
+      }, 600);
+      return;
+    }
+
     if (!selectedFile || !selectedFile.content) {
       setIsTyping(true);
       // Add a small delay to show the typing indicator
@@ -1162,6 +1176,20 @@ function IDEPage() {
   const [isEditorReadOnly, setIsEditorReadOnly] = useState(false);
 
   const handleFixCode = async () => {
+    // Check if no project is started first
+    if (!guidedProject) {
+      setIsTyping(true);
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: 'Please start a guided project to recieve code fixes!',
+          timestamp: new Date()
+        }]);
+        setIsTyping(false);
+      }, 600);
+      return;
+    }
+
     if (!selectedFile || !selectedFile.content || selectedFile.content.trim().length < 10) {
       setIsTyping(true);
       // Add a small delay to show the typing indicator
@@ -1176,8 +1204,8 @@ function IDEPage() {
       return;
     }
 
-    // Only allow Fix Code if a guided project is active and the current step is not complete
-    if (!guidedProject || stepComplete) {
+    // Only allow Fix Code if the current step is not complete
+    if (stepComplete) {
       setIsTyping(true);
       // Add a small delay to show the typing indicator
       setTimeout(() => {
@@ -1327,6 +1355,20 @@ function IDEPage() {
   };
 
   const handleExplainCode = async () => {
+    // Check if no project is started first
+    if (!guidedProject) {
+      setIsTyping(true);
+      setTimeout(() => {
+        setChatMessages(prev => [...prev, {
+          type: 'assistant',
+          content: 'Please start a guided project to recieve code explanations!',
+          timestamp: new Date()
+        }]);
+        setIsTyping(false);
+      }, 600);
+      return;
+    }
+
     if (!selectedFile || !selectedFile.content) {
       setChatMessages(prev => [...prev, {
         type: 'assistant',
@@ -1452,6 +1494,11 @@ function IDEPage() {
     // If there's a message in the input, send it first to capture the last answer
     if (chatInput.trim()) {
       await handleSendMessage();
+      // Reset textarea height after sending
+      const textarea = document.querySelector('textarea[placeholder="Type in here..."]') as HTMLTextAreaElement;
+      if (textarea) {
+        textarea.style.height = '44px';
+      }
     }
 
     setIsGeneratingSteps(true);
@@ -2606,15 +2653,35 @@ function IDEPage() {
                       <textarea
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            handleSendMessage();
+                            // Reset textarea height after sending
+                            setTimeout(() => {
+                              const target = e.target as HTMLTextAreaElement;
+                              target.style.height = '44px';
+                            }, 0);
+                          }
+                        }}
                         placeholder="Type in here..."
-                        className="flex-1 bg-white border-2 border-medium-coffee/30 rounded-2xl px-4 py-3 text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200 shadow-md text-base resize-none min-h-[44px] max-h-32 overflow-y-auto"
+                        className="flex-1 bg-white border-2 border-medium-coffee/30 rounded-2xl px-4 py-[10px] text-dark-charcoal placeholder-deep-espresso/70 focus:outline-none focus:ring-2 focus:ring-medium-coffee focus:border-transparent transition-all duration-200 shadow-md text-base resize-none min-h-[44px] max-h-32 overflow-hidden"
                         disabled={false}
                         rows={1}
                         style={{
-                          height: 'auto',
+                          height: '44px',
                           minHeight: '44px',
-                          maxHeight: '128px'
+                          maxHeight: '128px',
+                          scrollbarWidth: 'none', // Firefox
+                          msOverflowStyle: 'none', // IE/Edge
+                        }}
+                        ref={(textarea) => {
+                          if (textarea) {
+                            // Hide scrollbar for WebKit browsers
+                            textarea.style.setProperty('scrollbar-width', 'none', 'important');
+                            textarea.style.setProperty('-ms-overflow-style', 'none', 'important');
+                            // Add CSS class for WebKit scrollbar hiding
+                            textarea.classList.add('hide-scrollbar');
+                          }
                         }}
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement;

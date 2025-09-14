@@ -194,6 +194,16 @@ STEP CREATION RULES:
 - Use simple, everyday words that a 12-year-old would understand
 - If you must use a technical term, immediately explain it in simple terms in parentheses
 
+🚨 STEP LENGTH AND COMPLEXITY REQUIREMENTS 🚨
+- Each step instruction must be SHORT and SIMPLE (maximum 2 sentences)
+- Break down complex actions into multiple smaller steps
+- Each step should do ONE thing only
+- Avoid long, complex sentences with multiple actions
+- Use simple vocabulary that beginners can understand
+- If a step seems too long, split it into 2-3 separate steps
+- Each step should be easy to read and understand at a glance
+- Focus on the most basic action possible for each step
+
 🚨 STEP INSTRUCTION FORMAT RULES 🚨:
 - NEVER say "Click the '+' button" or "Select 'New Folder'"
 - NEVER say "Click on the folder icon" or "Use the file explorer"

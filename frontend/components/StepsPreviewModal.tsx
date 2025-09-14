@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Button } from './ui/button';
-import { IconGripVertical, IconTrash, IconPlus } from '@tabler/icons-react';
+// Removed unused icons - steps are read-only
 import ProjectSetupLoader from './ProjectSetupLoader';
 
 export interface PreviewStep {
@@ -35,11 +35,7 @@ export default function StepsPreviewModal({
   const [localSteps, setLocalSteps] = useState<PreviewStep[]>(steps);
   const [progress, setProgress] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [draggedStep, setDraggedStep] = useState<number | null>(null);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [addingStepIndex, setAddingStepIndex] = useState<number | null>(null);
-  const [deletingStepIndex, setDeletingStepIndex] = useState<number | null>(null);
+  // Removed drag/drop state - steps are read-only
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,130 +75,8 @@ export default function StepsPreviewModal({
     };
   }, []);
 
-  const updateStepIds = (steps: PreviewStep[]) => {
-    return steps.map((step, index) => ({
-      ...step,
-      id: String(index + 1)
-    }));
-  };
+  // Removed drag/drop functions - steps are read-only
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedStep(index);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleContainerDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (!scrollContainerRef.current) return;
-
-    const container = scrollContainerRef.current;
-    const rect = container.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-
-    const scrollThreshold = 60;
-    const scrollSpeed = 3; // Slower auto-scrolling
-
-    if (y < scrollThreshold) {
-      container.scrollTop -= scrollSpeed;
-    } else if (y > rect.height - scrollThreshold) {
-      container.scrollTop += scrollSpeed;
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    if (draggedStep === null) return;
-
-    const newSteps = [...localSteps];
-    const [draggedItem] = newSteps.splice(draggedStep, 1);
-    
-    const effectiveDropIndex = draggedStep < dropIndex ? dropIndex - 1 : dropIndex;
-
-    newSteps.splice(effectiveDropIndex, 0, draggedItem);
-    
-    const updatedSteps = updateStepIds(newSteps);
-    setLocalSteps(updatedSteps);
-    onStepsChange(updatedSteps);
-    setDraggedStep(null);
-    setDropIndex(null);
-  };
-  
-  const handleDragEnd = () => {
-    setDraggedStep(null);
-    setDropIndex(null);
-  };
-
-  // Calculate the visual position for each step during drag
-  const getStepTransform = (index: number) => {
-    if (draggedStep === null || dropIndex === null) return '';
-    
-    if (draggedStep === index) {
-      // Dragged step becomes semi-transparent and slightly larger
-      return 'opacity-50 scale-105';
-    }
-    
-    // Calculate where other steps should move to make space
-    if (draggedStep < dropIndex) {
-      // Dragging down: steps before drop point move up, steps after move down
-      if (index < draggedStep) {
-        return 'transform -translate-y-4';
-      } else if (index >= dropIndex) {
-        return 'transform translate-y-4';
-      }
-    } else {
-      // Dragging up: steps after drop point move down, steps before move up
-      if (index > draggedStep) {
-        return 'transform translate-y-4';
-      } else if (index <= dropIndex) {
-        return 'transform -translate-y-4';
-      }
-    }
-    
-    return '';
-  };
-
-  // Check if we should show the + icon
-  const shouldShowPlusIcon = (index: number) => {
-    // Don't show during drag operations
-    if (draggedStep !== null) return false;
-    // Only show when hovering over this specific row
-    return hoveredIndex === index;
-  };
-
-  // Handle deleting a step with animation
-  const handleDeleteStepWithAnimation = (index: number) => {
-    setDeletingStepIndex(index);
-    
-    // Animate out, then delete after animation completes
-    setTimeout(() => {
-      handleDeleteStep(index);
-      setDeletingStepIndex(null);
-    }, 300);
-  };
-
-  // Handle adding a step with animation
-  const handleAddStepWithAnimation = (index: number) => {
-    
-    // Add the step after a brief delay to show the animation
-    setTimeout(() => {
-      handleAddStep(index);
-      
-      // Auto-scroll to show the new step
-      setTimeout(() => {
-        if (scrollContainerRef.current) {
-          const container = scrollContainerRef.current;
-          const stepElement = container.children[index] as HTMLElement;
-          if (stepElement) {
-            stepElement.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'center',
-              inline: 'nearest'
-            });
-          }
-        }
-      }, 100);
-    }, 300);
-  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout | undefined;
@@ -227,28 +101,7 @@ export default function StepsPreviewModal({
 
   if (!isOpen) return null;
 
-  // Removed handleInstructionChange - steps are now read-only
-
-  const handleAddStep = (index?: number) => {
-    const newStep = { id: '', instruction: '', lineRanges: [1, 3] };
-    let updated;
-    if (index !== undefined) {
-      updated = [...localSteps];
-      updated.splice(index, 0, newStep);
-    } else {
-      updated = [...localSteps, newStep];
-    }
-    const updatedWithIds = updateStepIds(updated);
-    setLocalSteps(updatedWithIds);
-    onStepsChange(updatedWithIds);
-  };
-
-  const handleDeleteStep = (index: number) => {
-    const updated = localSteps.filter((_, i) => i !== index);
-    const updatedWithIds = updateStepIds(updated);
-    setLocalSteps(updatedWithIds);
-    onStepsChange(updatedWithIds);
-  };
+  // Steps are read-only - no add/delete functionality
 
   // Handle confirm with AI generation for blank steps
   const handleConfirmWithAI = async () => {
@@ -337,60 +190,20 @@ export default function StepsPreviewModal({
         <div
           className="max-h-[60vh] overflow-y-auto space-y-2 pr-1 relative group/list"
           ref={scrollContainerRef}
-          onDragOver={handleContainerDragOver}
-          onDragEnd={handleDragEnd}
         >
           {!isSubmitting && localSteps.map((step, index) => (
             <div key={step.id}>
               <div
-                className={`border border-[#7A5A43] rounded-2xl p-4 bg-[#7A5A43] shadow-md transition-all duration-200 ${
-                  getStepTransform(index)
-                } ${
-                  deletingStepIndex === index ? 'animate-delete' : ''
-                }`}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
+                className="border border-[#7A5A43] rounded-2xl p-4 bg-[#7A5A43] shadow-md transition-all duration-200"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <IconGripVertical className="text-gray-400 cursor-not-allowed" />
+                <div className="flex items-center gap-2 mb-3">
                     <div className="w-9 h-9 rounded-full bg-[#4A3A2A] text-[#F9EFE6] font-bold flex items-center justify-center shadow">{index + 1}</div>
                     <span className="text-[16px] text-[#F9EFE6] font-medium">Step {index + 1}</span>
-                  </div>
-                  <button 
-                    disabled 
-                    className="text-gray-400 text-sm font-semibold cursor-not-allowed opacity-50"
-                    title="Steps are read-only"
-                  >
-                    <IconTrash size={18} />
-                  </button>
                 </div>
                 <div
                   className="w-full bg-gray-50 text-[#2F2A25] border border-[#4A3A2A] rounded-lg px-3 py-2 text-[15px] leading-6 min-h-[72px] flex items-start"
                 >
                   {step.instruction}
-                </div>
-              </div>
-              <div
-                className="relative h-8 flex items-center justify-center"
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
-              >
-                {draggedStep !== null && dropIndex === index + 1 && (
-                  <div className="absolute inset-0 h-1 bg-blue-400 rounded-md transition-all" />
-                )}
-                <div className={`w-full flex items-center justify-center transition-opacity duration-200 ${
-                  shouldShowPlusIcon(index) ? 'opacity-100' : 'opacity-0'
-                }`}>
-                  <div className="h-px w-full bg-[#7A5A43]/30 relative">
-                    <button
-                      disabled
-                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-200 p-1.5 rounded-full text-gray-400 shadow-md z-10 cursor-not-allowed opacity-50"
-                      title="Steps are read-only"
-                    >
-                      <IconPlus size={14} />
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>

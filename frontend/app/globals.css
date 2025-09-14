@@ -724,3 +724,13 @@
 .animation-delay-400 {
   animation-delay: 400ms;
 }
+
+/* Hide scrollbar for textarea */
+.hide-scrollbar {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none !important; /* WebKit browsers */
+}
