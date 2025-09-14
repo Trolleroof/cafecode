@@ -45,6 +45,8 @@ const nextConfig = {
         http: false,
         https: false,
         zlib: false,
+        bufferutil: false,
+        'utf-8-validate': false,
       };
     }
 

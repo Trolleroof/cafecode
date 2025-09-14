@@ -18,7 +18,7 @@ import {
   IconCopy,
   IconLoader2,
   IconArrowLeft,
-  Save,
+  IconDeviceFloppy,
   IconRefresh,
   IconCoffee
 } from '@tabler/icons-react';
@@ -2453,7 +2453,7 @@ function IDEPage() {
                             className="group flex items-center gap-1.5 px-2.5 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
                             title="Click to save changes"
                           >
-                            <Save className="h-3 w-3" />
+                            <IconDeviceFloppy className="h-3 w-3" />
                             Save
                           </button>
                         ) : (
