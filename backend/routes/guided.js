@@ -82,7 +82,223 @@ router.post('/test-static-checker', async (req, res) => {
 const setupSessions = new Map();
 const chatSessions = new Map();
 const analysisCache = new Map();
-const activeProjects = new Map(); 
+const activeProjects = new Map();
+// In-memory cache for generated steps keyed by input signature
+const stepsCache = new Map();
+
+// Helper: stable stringify for signatures
+function stableStringify(obj) {
+  try {
+    return JSON.stringify(obj, Object.keys(obj).sort());
+  } catch (_) {
+    // Fallback best-effort stringify
+    return JSON.stringify(obj);
+  }
+}
+
+// Helper: Create a cache key for step generation inputs
+function makeStepsCacheKey({ userId, projectDescription, history, projectFiles }) {
+  const trimmedDesc = String(projectDescription || '').trim();
+  const hist = Array.isArray(history)
+    ? history.map((m) => ({ t: m.type, c: m.content })).slice(-12) // last 12 msgs
+    : [];
+  const filesSig = Array.isArray(projectFiles)
+    ? projectFiles.map((f) => ({ n: f.name, t: f.type })).slice(0, 50)
+    : [];
+  return stableStringify({ u: userId || 'anon', d: trimmedDesc, h: hist, f: filesSig });
+}
+
+// Fallback: Simple deterministic step generator when AI fails
+function fallbackGenerateSteps(projectDescription, requestedCount = null) {
+  const desc = String(projectDescription || '').toLowerCase();
+  let type = 'generic';
+  if (/react|react\.js|reactjs/.test(desc)) type = 'react';
+  else if (/next\.js|nextjs/.test(desc)) type = 'next';
+  else if (/express|node(\.js)?\b|api server/.test(desc)) type = 'node';
+  else if (/python|flask|django/.test(desc)) type = 'python';
+  else if (/vue/.test(desc)) type = 'vue';
+  else if (/angular/.test(desc)) type = 'angular';
+
+  const n = Math.max(2, Math.min(20, Number.isInteger(requestedCount) ? requestedCount : 10));
+
+  const steps = [];
+  const push = (instruction) => steps.length < n && steps.push({
+    id: String(steps.length + 1),
+    instruction,
+    lineRanges: [1, 3],
+  });
+
+  // Ensure all creation steps use explicit names, no UI verbs, and no code blocks
+  switch (type) {
+    case 'react': {
+      push("Create a folder called 'src'");
+      push("Create a file called 'index.html' in 'src'");
+      push("Create a file called 'main.jsx' in 'src'");
+      push("Create a file called 'App.jsx' in 'src'");
+      push("Create a folder called 'components' inside 'src'");
+      push("Create a file called 'Button.jsx' in 'src/components'");
+      push("Modify 'App.jsx' to render 'Button' with a click counter");
+      push("Create a file called 'styles.css' in 'src'");
+      push("Modify 'index.html' to mount the React app at 'root'");
+      push("Modify 'main.jsx' to render 'App' into the 'root' element");
+      break;
+    }
+    case 'next': {
+      push("Create a folder called 'app'");
+      push("Create a file called 'layout.tsx' in 'app'");
+      push("Create a file called 'page.tsx' in 'app'");
+      push("Create a folder called 'components' inside 'app'");
+      push("Create a file called 'Header.tsx' in 'app/components'");
+      push("Modify 'layout.tsx' to include the 'Header' component");
+      push("Create a file called 'styles.css' in 'app'");
+      push("Modify 'page.tsx' to display a welcome message");
+      push("Create a folder called 'lib'");
+      push("Create a file called 'utils.ts' in 'lib' with a helper function");
+      break;
+    }
+    case 'node': {
+      push("Create a file called 'server.js' at project root");
+      push("Create a folder called 'routes'");
+      push("Create a file called 'routes/health.js'");
+      push("Modify 'server.js' to set up an HTTP server on port 3000");
+      push("Modify 'routes/health.js' to export a health handler that returns JSON");
+      push("Create a folder called 'controllers'");
+      push("Create a file called 'controllers/home.js'");
+      push("Modify 'server.js' to add a '/' route that uses the home controller");
+      push("Create a file called 'README.md' with project instructions");
+      push("Create a file called 'config.json' with a 'port' setting");
+      break;
+    }
+    case 'python': {
+      push("Create a folder called 'app'");
+      push("Create a file called 'app/main.py'");
+      push("Create a file called 'app/routes.py'");
+      push("Modify 'app/main.py' to start a simple HTTP server on port 5000");
+      push("Modify 'app/routes.py' to define a '/' route that returns JSON");
+      push("Create a file called 'README.md' with run instructions");
+      push("Create a file called 'config.json' with a 'debug' setting");
+      push("Create a folder called 'tests'");
+      push("Create a file called 'tests/test_basic.py'");
+      push("Modify 'app/main.py' to read 'config.json' at startup");
+      break;
+    }
+    case 'vue': {
+      push("Create a folder called 'src'");
+      push("Create a file called 'index.html' in 'src'");
+      push("Create a file called 'main.js' in 'src'");
+      push("Create a file called 'App.vue' in 'src'");
+      push("Create a folder called 'components' inside 'src'");
+      push("Create a file called 'HelloWorld.vue' in 'src/components'");
+      push("Modify 'App.vue' to render 'HelloWorld' with a prop");
+      push("Create a file called 'styles.css' in 'src'");
+      push("Modify 'index.html' to include a 'div' with id 'app'");
+      push("Modify 'main.js' to mount the app to '#app'");
+      break;
+    }
+    case 'angular': {
+      push("Create a folder called 'src'");
+      push("Create a file called 'index.html' in 'src'");
+      push("Create a folder called 'app' inside 'src'");
+      push("Create a file called 'app/app.module.ts' in 'src'");
+      push("Create a file called 'app/app.component.ts' in 'src'");
+      push("Create a file called 'app/app.component.html' in 'src'");
+      push("Modify 'app/app.component.ts' to define a title property");
+      push("Modify 'app/app.component.html' to show the title");
+      push("Create a file called 'styles.css' in 'src'");
+      push("Modify 'index.html' to bootstrap the Angular app");
+      break;
+    }
+    default: {
+      push("Create a folder called 'src'");
+      push("Create a file called 'index.html' in 'src'");
+      push("Create a file called 'styles.css' in 'src'");
+      push("Create a file called 'script.js' in 'src'");
+      push("Modify 'index.html' to include 'styles.css' and 'script.js'");
+      push("Create a folder called 'components' inside 'src'");
+      push("Create a file called 'components/widget.js' in 'src'");
+      push("Modify 'script.js' to render a greeting to the page");
+      push("Create a file called 'README.md' with usage notes");
+      push("Create a file called 'config.json' with an 'env' setting");
+    }
+  }
+
+  // If fewer than n steps defined for a type, pad with generic code-modification steps
+  while (steps.length < n) {
+    push(`Modify 'README.md' to document step ${steps.length + 1}`);
+  }
+
+  return steps;
+}
+
+// Helper: try Gemini with basic retry, then fallback
+async function generateStepsWithFallback(req, { projectDescription, history, projectFiles, userEditedSteps, requestedCount }) {
+  const userId = req.user?.id || 'anonymous';
+  const cacheKey = makeStepsCacheKey({ userId, projectDescription, history, projectFiles });
+  if (stepsCache.has(cacheKey)) {
+    return { steps: stepsCache.get(cacheKey), source: 'cache' };
+  }
+
+  // Attempt Gemini up to 2 tries
+  const tryGemini = async () => {
+    const projectContext = createProjectContext(projectFiles);
+    const chatHistory = Array.isArray(history)
+      ? history.map(m => `${m.type === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n')
+      : '';
+    const session = setupSessions.get(userId);
+    const answersSummary = session && session.answers
+      ? Object.entries(session.answers).map(([key, value], index) => `Q${index + 1}: ${value}`).join('\n')
+      : '';
+
+    if (Array.isArray(userEditedSteps) && userEditedSteps.length > 0) {
+      const cleanupPrompt = `***STRICT FORMAT REQUIREMENT:***\nReturn ONLY a JSON array of steps [ ... ].\n\nPOLISH the provided steps for Cafecode IDE WITHOUT changing the total number of steps.\n- Keep exactly ${userEditedSteps.length} steps.\n- Preserve the original order as much as possible.\n- Only improve clarity, grammar, numbering (1..N), and ensure each step is small and actionable.\n- Follow Cafecode IDE constraints (use "+" button for files/folders, green "Run" button for execution).\n- IMPORTANT: Use built-in terminal for installing tools and libraries instead of manually creating files.\n- Do NOT manually create package.json, requirements.txt, or other configuration files.\n- Do NOT require external terminals or system commands.\n\n🚨 STEP INSTRUCTION FORMAT RULES 🚨:\n- NEVER say "Open 'filename' and add the following code" - users are already in the file\n- NEVER say "Navigate to file" or "Go to file" - focus on content creation\n- NEVER say "Click the '+' button" or "Select 'New Folder'"\n- NEVER explain UI navigation or button clicking\n- Focus on WHAT to create, not HOW to create it\n\nCRITICAL NAMING REQUIREMENTS:\n- EVERY folder creation step MUST specify an exact folder name (e.g., "Create a folder called 'src'", NOT "Create a folder")\n- EVERY file creation step MUST specify an exact filename (e.g., "Create a file called 'index.html'", NOT "Create a file")\n- Use quotes around names for clarity: "Create a folder called 'components'", "Create a file called 'styles.css'"\n- NEVER create generic steps like "Create a folder" or "Create a file" without names\n- Folder names should be descriptive: 'src', 'components', 'styles', 'utils', 'assets', 'public', 'backend', 'frontend'\n- File names should include extensions: 'index.html', 'styles.css', 'script.js', 'main.py', 'server.js'\n\nProject idea:\n${projectDescription}\n\n${answersSummary ? `Specific answers from user:\n${answersSummary}\n\n` : ''}${projectContext}\n\nSteps to polish:\n${JSON.stringify(userEditedSteps)}\n\nReturn the polished steps as a JSON array.`;
+
+      const result = await req.geminiService.model.generateContent(cleanupPrompt);
+      const responseText = (await result.response).text();
+      const clean = extractJsonFromResponse(responseText);
+      let cleaned = robustJsonParse(clean);
+      if (!Array.isArray(cleaned)) throw new Error('Not an array');
+      cleaned = cleaned.map((s, i) => ({ id: String(i + 1), instruction: s.instruction || `Step ${i + 1}`, lineRanges: Array.isArray(s.lineRanges) ? s.lineRanges : [1, 3] }));
+      return cleaned;
+    }
+
+    // Main generation prompt
+    let customPrompt = guidedProjectPrompt
+      .replace('${projectDescription}', projectDescription)
+      .replace('${projectContext}', projectContext)
+      .replace('Coding Task:', `Coding Task:\n${projectDescription}\n\nSpecific answers from user:\n${answersSummary || 'No specific answers provided.'}\n\n`);
+    if (Number.isInteger(requestedCount)) {
+      customPrompt += `\n\n🚨 CRITICAL STEP COUNT REQUIREMENT 🚨\nYou MUST return EXACTLY ${requestedCount} steps. No more, no fewer.\nIf you cannot complete the task in ${requestedCount} steps, you must break it down differently or combine steps to match the exact count.\nThis is NON-NEGOTIABLE - your response will be rejected if you don't return exactly ${requestedCount} steps.`;
+    }
+    const result = await req.geminiService.model.generateContent(customPrompt);
+    const responseText = (await result.response).text();
+    let cleanResponse = extractJsonFromResponse(responseText);
+    if (!cleanResponse.trim().startsWith('[')) cleanResponse = `[${cleanResponse}]`;
+    let steps = robustJsonParse(cleanResponse);
+    if (!Array.isArray(steps)) throw new Error('Not an array');
+    steps = steps.map((s, i) => ({ id: String(i + 1), instruction: s.instruction || `Step ${i + 1}`, lineRanges: Array.isArray(s.lineRanges) ? s.lineRanges : [1, 3] }));
+    return steps;
+  };
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const aiSteps = await tryGemini();
+      stepsCache.set(cacheKey, aiSteps);
+      return { steps: aiSteps, source: 'ai' };
+    } catch (e) {
+      const msg = String(e?.message || e);
+      console.warn(`[STEPS] AI attempt ${attempt + 1} failed: ${msg}`);
+      if (/quota|429|Too Many Requests/i.test(msg)) {
+        // If quota, stop retrying
+        break;
+      }
+    }
+  }
+
+  // Fallback deterministic steps
+  const steps = fallbackGenerateSteps(projectDescription, requestedCount);
+  stepsCache.set(cacheKey, steps);
+  return { steps, source: 'fallback' };
+}
 
 // Helper function to robustly extract JSON from Gemini responses
 const extractJsonFromResponse = (responseText) => {
@@ -730,67 +946,19 @@ You must determine the appropriate number of steps for this project. Consider th
     // }
 
     if (!steps) {
-      // --- Comment out Gemini prompt usage for new/similar problem generation (if any) ---
-      // (No explicit similar problem generation found in this file, but if any Gemini prompt for new/similar, comment it out)
-      const result = await req.geminiService.model.generateContent(prompt);
-      const response = await result.response;
-      const responseText = response.text();
-      console.log("[Gemini RAW response]", responseText);
-      let cleanResponse;
       try {
-        cleanResponse = extractJsonFromResponse(responseText);
-        console.log("[Gemini Extracted JSON for parsing]", cleanResponse);
-        // More robust fallback: If the extracted string looks like a sequence of objects, wrap in array
-        if (
-          !cleanResponse.trim().startsWith('[') &&
-          /^{[\s\S]*},\s*{[\s\S]*}$/.test(cleanResponse.trim())
-        ) {
-          cleanResponse = `[${cleanResponse}]`;
-          console.log('[Gemini Fallback] Wrapped sequence of objects in array brackets.');
-        }
-        // If it starts with [ and ends with ], but parsing fails, try to repair
-        try {
-          steps = robustJsonParse(cleanResponse);
-        } catch (e) {
-          if (cleanResponse.trim().startsWith('[') && cleanResponse.trim().endsWith(']')) {
-            // Attempt to repair: remove trailing commas
-            let repaired = cleanResponse.replace(/,\s*\]/g, ']');
-            try {
-              steps = robustJsonParse(repaired);
-              console.log('[Gemini Repair] Removed trailing comma before closing bracket.');
-            } catch (e2) {
-              // Attempt to filter out non-object lines
-              let lines = cleanResponse.split('\n').filter(line => line.trim().startsWith('{') && line.trim().endsWith('}'));
-              if (lines.length > 0) {
-                let joined = `[${lines.join(',')}]`;
-                try {
-                  steps = robustJsonParse(joined);
-                  console.log('[Gemini Repair] Filtered to only object lines.');
-                } catch (e3) {
-                  throw e3;
-                }
-              } else {
-                throw e2;
-              }
-            }
-          } else {
-            throw e;
-          }
-        }
-        // Validate the steps format
-        if (!Array.isArray(steps) || steps.length === 0) {
-          throw new Error("Invalid steps format: not an array or empty array");
-        }
-        // Simple step mapping without complex validation
-        steps = steps.map((step, index) => ({
-          id: String(index + 1),
-          instruction: step.instruction || `Step ${index + 1}`,
-          lineRanges: Array.isArray(step.lineRanges) ? step.lineRanges : [1, 3],
-        }));
+        const { steps: genSteps, source } = await generateStepsWithFallback(req, {
+          projectDescription,
+          history: null,
+          projectFiles,
+          userEditedSteps: null,
+          requestedCount: requestedStepCount,
+        });
+        steps = genSteps;
+        console.log(`[START PROJECT] Steps generated via ${source}. Count=${steps.length}`);
       } catch (parseError) {
-        console.error("[Gemini Parsing Error]", parseError);
-        console.error("[Gemini Problematic String]", typeof cleanResponse !== "undefined" ? cleanResponse : "(no cleanResponse)");
-        return res.status(500).json({ error: "Failed to parse steps from AI response." });
+        console.error('[START PROJECT] Step generation failed, using deterministic fallback:', parseError?.message);
+        steps = fallbackGenerateSteps(projectDescription, requestedStepCount);
       }
     }
 
@@ -1182,69 +1350,26 @@ router.post('/steps/generate', async (req, res) => {
     if (!projectDescription) {
       return res.status(400).json({ error: 'Project description is required' });
     }
-    const projectContext = createProjectContext(projectFiles);
-    const chatHistory = Array.isArray(history)
-      ? history.map(m => `${m.type === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n')
-      : '';
-    // Include captured answers from setup session (if any)
-    const userId = req.user?.id || 'anonymous';
-    const session = setupSessions.get(userId);
-    const answersSummary = session && session.answers ? Object.entries(session.answers).map(([key, value], index) => `Q${index + 1}: ${value}`).join('\n') : '';
 
-    // If user provided steps, POLISH them instead of generating new ones
-    if (Array.isArray(userEditedSteps) && userEditedSteps.length > 0) {
-      try {
-        const cleanupPrompt = `***STRICT FORMAT REQUIREMENT:***\nReturn ONLY a JSON array of steps [ ... ].\n\nPOLISH the provided steps for Cafecode IDE WITHOUT changing the total number of steps.\n- Keep exactly ${userEditedSteps.length} steps.\n- Preserve the original order as much as possible.\n- Only improve clarity, grammar, numbering (1..N), and ensure each step is small and actionable.\n- Follow Cafecode IDE constraints (use "+" button for files/folders, green "Run" button for execution).\n- IMPORTANT: Use built-in terminal for installing tools and libraries instead of manually creating files.\n- Use terminal commands like "npm init -y", "npm install express", "npx create-react-app", "pip install" etc.\n- Do NOT manually create package.json, requirements.txt, or other configuration files.\n- Do NOT require external terminals or system commands.\n\n🚨 STEP INSTRUCTION FORMAT RULES 🚨:\n- NEVER say "Open 'filename' and add the following code" - users are already in the file\n- NEVER say "Navigate to file" or "Go to file" - focus on content creation\n- NEVER say "Click the '+' button" or "Select 'New Folder'"\n- NEVER explain UI navigation or button clicking\n- Focus on WHAT to create, not HOW to create it\n\nCRITICAL NAMING REQUIREMENTS:\n- EVERY folder creation step MUST specify an exact folder name (e.g., "Create a folder called 'src'", NOT "Create a folder")\n- EVERY file creation step MUST specify an exact filename (e.g., "Create a file called 'index.html'", NOT "Create a file")\n- Use quotes around names for clarity: "Create a folder called 'components'", "Create a file called 'styles.css'"\n- NEVER create generic steps like "Create a folder" or "Create a file" without names\n- Folder names should be descriptive: 'src', 'components', 'styles', 'utils', 'assets', 'public', 'backend', 'frontend'\n- File names should include extensions: 'index.html', 'styles.css', 'script.js', 'main.py', 'server.js'\n\nProject idea:\n${projectDescription}\n\n${answersSummary ? `Specific answers from user:\n${answersSummary}\n\n` : ''}${projectContext}\n\nSteps to polish:\n${JSON.stringify(userEditedSteps)}\n\nReturn the polished steps as a JSON array.`;
-
-        const result = await req.geminiService.model.generateContent(cleanupPrompt);
-        const responseText = (await result.response).text();
-        let cleaned;
-        const clean = extractJsonFromResponse(responseText);
-        cleaned = robustJsonParse(clean);
-        if (!Array.isArray(cleaned)) throw new Error('Not an array');
-        // Simple step mapping without complex validation
-        cleaned = cleaned.map((s, i) => ({
-          id: String(i + 1),
-          instruction: s.instruction || `Step ${i + 1}`,
-          lineRanges: Array.isArray(s.lineRanges) ? s.lineRanges : [1, 3],
-        }));
-        return res.json({ steps: cleaned });
-      } catch (e) {
-        console.error('Error polishing steps in steps/generate:', e);
-        return res.status(500).json({ error: 'An error happened. Please try again.' });
-      }
-    }
-    // Parse step count from chat history
-    const parseStepCountFromHistory = (history) => {
-      if (!Array.isArray(history)) return null;
-      
-      // Look through all messages for step count requests
-      for (const message of history) {
+    // Infer requested count from the conversation
+    const parseStepCountFromHistory = (h) => {
+      if (!Array.isArray(h)) return null;
+      for (const message of h) {
         if (message.type === 'user' && message.content) {
           const content = message.content.toLowerCase();
-          
-          // Look for numeric patterns: "25 steps", "twenty five steps", "25", etc.
           const numericMatch = content.match(/(\d+)\s*steps?/i);
           if (numericMatch) {
             const num = parseInt(numericMatch[1]);
-            if (num >= 2 && num <= 50) {
-              return num;
-            }
+            if (num >= 2 && num <= 50) return num;
           }
-          
-          // Look for written number patterns
           const writtenNumbers = {
-            'twenty five': 25, 'twenty-five': 25, 'twentyfive': 25,
-            'twenty four': 24, 'twenty-four': 24, 'twentyfour': 24,
-            'twenty three': 23, 'twenty-three': 23, 'twentythree': 23,
-            'twenty two': 22, 'twenty-two': 22, 'twentytwo': 22,
-            'twenty one': 21, 'twenty-one': 21, 'twentyone': 21,
-            'twenty': 20, 'nineteen': 19, 'eighteen': 18, 'seventeen': 17,
-            'sixteen': 16, 'fifteen': 15, 'fourteen': 14, 'thirteen': 13,
+            'twenty five': 25, 'twenty-five': 25, 'twenty four': 24, 'twenty-four': 24,
+            'twenty three': 23, 'twenty-three': 23, 'twenty two': 22, 'twenty-two': 22,
+            'twenty one': 21, 'twenty-one': 21, 'twenty': 20, 'nineteen': 19, 'eighteen': 18,
+            'seventeen': 17, 'sixteen': 16, 'fifteen': 15, 'fourteen': 14, 'thirteen': 13,
             'twelve': 12, 'eleven': 11, 'ten': 10, 'nine': 9, 'eight': 8,
             'seven': 7, 'six': 6, 'five': 5, 'four': 4, 'three': 3, 'two': 2
           };
-          
           for (const [word, number] of Object.entries(writtenNumbers)) {
             if (content.includes(`${word} steps`) || content.includes(`${word} step`)) {
               return number;
@@ -1255,47 +1380,20 @@ router.post('/steps/generate', async (req, res) => {
       return null;
     };
 
-    const requestedStepCount = parseStepCountFromHistory(history);
-    console.log(`[STEP COUNT] Parsed step count from history: ${requestedStepCount}`);
-
-    // Use the main prompt file with custom inputs
-    let customPrompt = guidedProjectPrompt
-      .replace('${projectDescription}', projectDescription)
-      .replace('${projectContext}', projectContext)
-      .replace('Coding Task:', `Coding Task:\n${projectDescription}\n\nSpecific answers from user:\n${answersSummary || 'No specific answers provided.'}\n\n`);
-
-    // Add step count requirement to the prompt if user requested specific count
-    if (requestedStepCount !== null) {
-      customPrompt += `\n\n🚨 CRITICAL STEP COUNT REQUIREMENT 🚨
-You MUST return EXACTLY ${requestedStepCount} steps. No more, no fewer.
-If you cannot complete the task in ${requestedStepCount} steps, you must break it down differently or combine steps to match the exact count.
-This is NON-NEGOTIABLE - your response will be rejected if you don't return exactly ${requestedStepCount} steps.`;
-    }
-    const result = await req.geminiService.model.generateContent(customPrompt);
-    const responseText = (await result.response).text();
-    let steps;
-    let cleanResponse;
-    try {
-      cleanResponse = extractJsonFromResponse(responseText);
-      if (!cleanResponse.trim().startsWith('[')) {
-        cleanResponse = `[${cleanResponse}]`;
-      }
-      steps = robustJsonParse(cleanResponse);
-      if (!Array.isArray(steps)) throw new Error('Not an array');
-      // Simple step mapping without complex validation
-      steps = steps.map((s, i) => ({
-        id: String(i + 1),
-        instruction: s.instruction || `Step ${i + 1}`,
-        lineRanges: Array.isArray(s.lineRanges) ? s.lineRanges : [1, 3],
-      }));
-    } catch (e) {
-      console.error('Error parsing steps from generate:', e, responseText);
-      return res.status(500).json({ error: 'An error happened. Please try again.' });
-    }
-    return res.json({ steps });
+    const requestedCount = parseStepCountFromHistory(history);
+    const { steps, source } = await generateStepsWithFallback(req, {
+      projectDescription,
+      history,
+      projectFiles,
+      userEditedSteps,
+      requestedCount,
+    });
+    return res.json({ steps, source });
   } catch (error) {
     console.error('Error in steps/generate:', error);
-    return res.status(500).json({ error: 'An error happened. Please try again.' });
+    // As a last resort, return minimal generic steps so UI doesn't break
+    const steps = fallbackGenerateSteps(req.body?.projectDescription, null);
+    return res.json({ steps, source: 'fallback-last-resort' });
   }
 });
 
