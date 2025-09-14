@@ -340,6 +340,59 @@ function robustJsonParse(jsonString) {
   }
 }
 
+// AI-first step judge: lets the model classify the step and verify completion using context
+async function aiJudgeStep(geminiService, { instruction, projectContext, code, language, terminalOutput, chatHistory }) {
+  if (!geminiService || !geminiService.model) {
+    throw new Error('Gemini service unavailable');
+  }
+
+  const terminalText = Array.isArray(terminalOutput)
+    ? terminalOutput.slice(-120).join('\n')
+    : String(terminalOutput || '');
+
+  const chatText = Array.isArray(chatHistory)
+    ? chatHistory.map(m => `${m.type === 'user' ? 'User' : 'Assistant'}: ${m.content}`).slice(-8).join('\n')
+    : '';
+
+  const codeBlock = code ? `\n\nCODE (${language || 'text'}):\n\`\`\`${language || ''}\n${code}\n\`\`\`\n` : '';
+
+  const prompt = `You are an automated step judge inside a web IDE. Determine what the current step expects and whether it is completed based on the provided context. Be decisive and practical.
+
+INSTRUCTION:\n${instruction}
+
+PROJECT CONTEXT (files and brief content previews):\n${projectContext}
+
+TERMINAL (most recent lines):\n${terminalText}
+${codeBlock}
+RECENT CHAT:\n${chatText}
+
+Respond ONLY as JSON with this exact schema (no markdown code fences):
+{
+  "kind": "navigate|install|terminal|file_create|file_modify|folder_create|clean_file|generic",
+  "target": "string or null",
+  "completed": true/false,
+  "rationale": "short explanation of why",
+  "hint": "one short next action or confirmation"
+}
+
+Rules:
+- If the step is navigating folders, set kind=navigate and typically completed=true (no file changes required).
+- If the step installs dependencies, set kind=install and infer completion from terminal logs (lenient).
+- If the step asks to remove default code/styles, set kind=clean_file and consider empty/minimal content as completed.
+- For file edits, set kind=file_modify and judge completion from provided code/content.
+- Keep output concise.`;
+
+  const result = await geminiService.model.generateContent(prompt);
+  const responseText = (await result.response).text();
+  const clean = extractJsonFromResponse(responseText);
+  const parsed = robustJsonParse(clean);
+  // Basic shape validation
+  if (!parsed || typeof parsed !== 'object' || typeof parsed.completed !== 'boolean') {
+    throw new Error('AI returned invalid shape');
+  }
+  return parsed;
+}
+
 const checkFileExists = (projectFiles, targetName, type = 'file', userId = null) => {
   // If we have a userId, try the static indexer first (much faster)
   if (userId) {
@@ -483,6 +536,21 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
         targetName: projectName,
         requiresContent: false,
         commandType: 'vite-create'
+      };
+    }
+    
+    // Detect simple navigation steps like "cd crypto-tracker" or "navigate into 'crypto-tracker'"
+    const cdMatch = instruction.match(/\bcd\s+([\w\-_.\/]+)/i);
+    const navigateMatch = instruction.match(/navigate\s+(?:into|to|inside)\s+['"`]?(.*?)['"`]?\b/i);
+    const navTarget = (cdMatch && cdMatch[1]) || (navigateMatch && navigateMatch[1]) || null;
+    if (navTarget) {
+      const clean = String(navTarget).replace(/^\.\//, '');
+      return {
+        type: 'terminal-command',
+        exists: checkDirectoryExists(projectFiles, clean),
+        targetName: clean,
+        requiresContent: false,
+        commandType: 'navigate'
       };
     }
     
@@ -725,6 +793,15 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '', i
             suggestion: 'Open the terminal and run the npm create vite command as instructed.'
           };
         }
+      } else if (stepType.commandType === 'navigate') {
+        // Be lenient: navigating doesn't change files; consider it complete.
+        return {
+          completed: true,
+          feedback: stepType.exists
+            ? `You're in good shape — the folder '${stepType.targetName}' exists. Navigation step acknowledged.`
+            : `Navigation step acknowledged. If the folder '${stepType.targetName}' doesn't exist yet, you'll create it in a later step.`,
+          suggestion: 'Proceed to the next step.'
+        };
       } else {
         // Lenient dependency installation check using terminal history
         const looksLikeInstall = /\b(install|add)\b/i.test(instruction);
@@ -1661,16 +1738,44 @@ router.post("/analyzeStep", async (req, res) => {
     const filesForAnalysis = projectFiles || project.projectFiles || [];
     console.log(`[ANALYZE STEP] Using projectFiles with ${filesForAnalysis.length} items for analysis`);
     
-    // Phase 1: Comprehensive step type analysis
+    // PHASE 1: AI-first step judgement (model determines the step type and completion)
+    try {
+      const aiVerdict = await aiJudgeStep(req.geminiService, {
+        instruction: currentStep.instruction,
+        projectContext: createProjectContext(filesForAnalysis),
+        code,
+        language,
+        terminalOutput: Array.isArray(req.body?.terminalOutput) ? req.body.terminalOutput : [],
+        chatHistory: []
+      });
+
+      console.log('[ANALYZE STEP][AI] Verdict:', aiVerdict);
+
+      const correct = !!aiVerdict.completed;
+      const analysisType = aiVerdict.kind || 'ai-judgement';
+      const targetName = aiVerdict.target || null;
+      const rationale = aiVerdict.rationale || '';
+      const hint = aiVerdict.hint || '';
+
+      return res.json({
+        feedback: [{ line: 1, correct, suggestion: correct ? (hint || 'Great work!') : (hint || 'Please follow the hint to complete this step.') }],
+        chatMessage: { type: 'assistant', content: `${rationale}${hint ? `\n\n${hint}` : ''}` },
+        analysisType,
+        targetName,
+        exists: correct
+      });
+    } catch (aiError) {
+      console.warn('[ANALYZE STEP] AI-first judgement failed or was inconclusive. Falling back to static analysis. Reason:', aiError.message);
+    }
+
+    // PHASE 2: Static heuristics (fallback)
     const stepType = analyzeStepType(currentStep.instruction, filesForAnalysis, req.user.id);
-    
-    process.stdout.write("\n\n\n================ BACKEND STEP ANALYSIS ================\n");
+    process.stdout.write("\n\n\n================ BACKEND STEP ANALYSIS (FALLBACK) ================\n");
     process.stdout.write(`Instruction: ${currentStep.instruction}\n`);
     process.stdout.write(`ProjectFiles count: ${filesForAnalysis.length}\n`);
     process.stdout.write(`Step Type Analysis: ${JSON.stringify(stepType, null, 2)}\n`);
-    process.stdout.write("=======================================================\n\n\n");
-    
-    // Phase 2: Validate step completion based on type
+    process.stdout.write("===============================================================\n\n\n");
+
     const validation = validateStepCompletion(
       stepType,
       stepType.targetName,
@@ -1679,30 +1784,20 @@ router.post("/analyzeStep", async (req, res) => {
       currentStep.instruction,
       Array.isArray(req.body?.terminalOutput) ? req.body.terminalOutput : []
     );
-    
-    console.log(`[ANALYZE STEP] Validation result:`, validation);
-    
-    // If validation provides a clear answer, return it
+
+    console.log(`[ANALYZE STEP] Validation result (fallback):`, validation);
+
     if (validation.completed !== null) {
       return res.json({
-        feedback: [{
-          line: 1,
-          correct: validation.completed,
-          suggestion: validation.feedback
-        }],
-        chatMessage: {
-          type: 'assistant',
-          content: validation.completed ? 
-            `${validation.feedback} ${validation.suggestion}` : 
-            `${validation.feedback} ${validation.suggestion}`
-        },
+        feedback: [{ line: 1, correct: validation.completed, suggestion: validation.feedback }],
+        chatMessage: { type: 'assistant', content: `${validation.feedback} ${validation.suggestion}` },
         analysisType: stepType.type,
         targetName: stepType.targetName,
         exists: stepType.exists
       });
     }
 
-    // Phase 3: AI-powered content analysis for complex cases
+    // PHASE 3: AI-powered content analysis for complex cases
     console.log(`[ANALYZE STEP] Requires AI content analysis for: ${stepType.type}`);
 
     // Fallback to AI creation intent analysis for unclear creation steps
