@@ -84,10 +84,8 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           bottom: '20px',
           left: '20px',
           zIndex: 2147483647,
-          width: '380px', // Reduced width for better proportions
-          maxWidth: '90vw',
-          minHeight: '80px',
-          maxHeight: '320px', // Maximum height to prevent overflow
+          width: '380px', // Fixed width
+          height: '280px', // Fixed height to prevent expanding/contracting
           backgroundColor: '#f5f1eb',
           borderRadius: '12px',
           boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',

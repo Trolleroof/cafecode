@@ -1764,7 +1764,8 @@ function IDEPage() {
           stepId: guidedProject.steps[guidedProject.currentStep].id,
           code: selectedFile?.content || '', // Can be empty for creation steps
           language: selectedFile?.language || 'plaintext',
-          projectFiles: files
+          projectFiles: files,
+          terminalOutput: output.slice(-100)
         })
       });
 

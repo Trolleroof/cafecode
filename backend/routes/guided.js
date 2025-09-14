@@ -654,7 +654,49 @@ function checkFileExistsInProjectTree(projectFiles, targetName, type = 'file') {
 }
 
 // Validate step completion based on type and requirements
-function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
+// Lenient terminal check for dependency installs
+function wasDependencyInstalledFromLogs(instruction = '', terminalOutput = []) {
+  try {
+    const logs = Array.isArray(terminalOutput) ? terminalOutput.join('\n').toLowerCase() : String(terminalOutput || '').toLowerCase();
+    if (!logs) return false;
+
+    // Look for common success markers
+    const successMarkers = [
+      'added ', // e.g., added 5 packages
+      'up to date',
+      'audited ',
+      'resolved',
+      'installing',
+      'installed ',
+      'packages are looking for funding'
+    ];
+
+    const hasInstallAction = /\b(npm\s+(install|i)|yarn\s+add|pnpm\s+add)\b/.test(logs);
+    const hasSuccess = successMarkers.some(m => logs.includes(m));
+
+    // Try to extract explicit package names from the instruction and verify presence in logs (lenient)
+    const pkgRegexes = [
+      /npm\s+(?:install|i)\s+([^\n]+)/i,
+      /yarn\s+add\s+([^\n]+)/i,
+      /pnpm\s+add\s+([^\n]+)/i
+    ];
+    let pkgs = [];
+    for (const r of pkgRegexes) {
+      const m = instruction.match(r);
+      if (m && m[1]) {
+        pkgs = m[1].split(/\s+/).filter(Boolean).map(s => s.replace(/[,;]/g, ''));
+        break;
+      }
+    }
+    const packagesMentioned = pkgs.length === 0 || pkgs.some(p => logs.includes(p.toLowerCase()));
+
+    return hasInstallAction && hasSuccess && packagesMentioned;
+  } catch (_) {
+    return false;
+  }
+}
+
+function validateStepCompletion(stepType, targetName, projectFiles, code = '', instruction = '', terminalOutput = []) {
   console.log(`[VALIDATE STEP] Type: ${stepType.type}, Target: ${stepType.targetName}, Exists: ${stepType.exists}`);
   
   // Enhanced validation: if static checker says file doesn't exist, double-check with projectFiles tree
@@ -684,7 +726,17 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
           };
         }
       } else {
-        // For other terminal commands, we can't easily verify completion
+        // Lenient dependency installation check using terminal history
+        const looksLikeInstall = /\b(install|add)\b/i.test(instruction);
+        const installed = wasDependencyInstalledFromLogs(instruction, terminalOutput);
+        if (looksLikeInstall && installed) {
+          return {
+            completed: true,
+            feedback: 'Dependency installation detected in terminal output.',
+            suggestion: 'Great! You can proceed to the next step.'
+          };
+        }
+        // Otherwise, defer to AI if needed
         return {
           completed: null, // Indicates need for AI analysis
           feedback: 'Terminal command execution detected',
@@ -754,13 +806,29 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
           suggestion: 'Create the file and add the required content.'
         };
       }
-      // For modification steps, we need content analysis
-      if (!code || code.trim() === '') {
+      // For modification steps, we need content analysis. However, if the
+      // instruction asks to remove/clear content, an empty file can be valid.
+      const isRemoval = /\b(remove|delete|clear|strip|cleanup|reset|erase)\b/i.test(instruction);
+      if ((!code || code.trim() === '') && !isRemoval) {
         return {
           completed: false,
           feedback: 'Please add code to the file for this step.',
           suggestion: 'Open the file and add the required content based on the step instruction.'
         };
+      }
+      if (isRemoval) {
+        // Treat empty-or-near-empty files as success for removal instructions.
+        const compact = String(code || '').replace(/\s+/g, '');
+        const isCss = typeof targetName === 'string' && /\.(css|scss|sass)$/i.test(targetName);
+        const isTiny = compact.length === 0 || compact.length <= 4;
+        const isMinimalCss = isCss && compact.length > 0 && compact.length <= 120; // allow tiny resets
+        if (isTiny || isMinimalCss) {
+          return {
+            completed: true,
+            feedback: `Looks good — '${stepType.targetName}' has been cleared as requested.`,
+            suggestion: 'You can proceed to the next step.'
+          };
+        }
       }
       // This will require AI analysis for complex content validation
       return {
@@ -1603,7 +1671,14 @@ router.post("/analyzeStep", async (req, res) => {
     process.stdout.write("=======================================================\n\n\n");
     
     // Phase 2: Validate step completion based on type
-    const validation = validateStepCompletion(stepType, stepType.targetName, filesForAnalysis, code);
+    const validation = validateStepCompletion(
+      stepType,
+      stepType.targetName,
+      filesForAnalysis,
+      code,
+      currentStep.instruction,
+      Array.isArray(req.body?.terminalOutput) ? req.body.terminalOutput : []
+    );
     
     console.log(`[ANALYZE STEP] Validation result:`, validation);
     
