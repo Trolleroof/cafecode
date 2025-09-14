@@ -34,7 +34,7 @@ export class StripeService {
               description: 'One-time payment to unlock unlimited project creation on Cafécode',
               images: ['https://trycafecode.xyz/logo.png'],
             },
-            unit_amount: 499, 
+            unit_amount: 0, // $0.00 for testing 
           },
           quantity: 1,
         }],
