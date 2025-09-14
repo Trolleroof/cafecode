@@ -143,7 +143,7 @@ router.post('/webhook', async (req, res) => {
             return res.status(400).json({ error: 'Payment not completed' });
           }
           // Optional: validate expected amount and currency
-          if (typeof session.amount_total === 'number' && session.amount_total !== 1) {
+          if (typeof session.amount_total === 'number' && session.amount_total !== 50) {
             console.warn('[Stripe] Unexpected amount_total for session', session.amount_total);
           }
           if (session.currency && session.currency.toLowerCase() !== 'usd') {
