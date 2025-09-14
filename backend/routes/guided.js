@@ -498,7 +498,10 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
   
   // Intent detection patterns
   const isCreateIntent = /\b(create|make|new)\b/i.test(instruction);
-  const isModifyIntent = /\b(update|edit|modify|change|write|insert|replace|append|add|implement)\b/i.test(instruction);
+  // Broaden modification verbs to better capture real-world phrasing
+  const isModifyIntent = /\b(update|edit|modify|change|write|insert|replace|append|add|implement|remove|delete|clear|strip|cleanup|simplify|refactor|reset|erase)\b/i.test(instruction);
+  // Strong signals that imply working with an existing file/content
+  const strongModifySignal = /\b(open|remove|delete|clear|strip|cleanup|replace|simplify|refactor|reset|erase)\b/i.test(instruction);
   const hasModificationContext = /\b(to|with|in|inside|into)\b/i.test(instruction);
   const isExplicitFolderIntent = /(folder|directory|dir)\b/i.test(instruction);
 
@@ -543,21 +546,34 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
       
       console.log(`[ANALYZE STEP TYPE] Checking "${cleanName}": file=${fileExists}, folder=${folderExists}, isLikelyFile=${isLikelyFile}`);
       
-      // Prioritize creation semantics first
+      // Prefer modification when the instruction clearly implies editing an existing file
+      if (isLikelyFile && (isModifyIntent || strongModifySignal || (hasModificationContext && !isCreateIntent))) {
+        return {
+          type: 'file-modify',
+          exists: fileExists,
+          targetName: cleanName,
+          requiresContent: true,
+          modifySignal: true
+        };
+      }
+
+      // Prioritize creation semantics next
       if (isCreateIntent) {
         if (isExplicitFolderIntent && !isLikelyFile) {
           return {
             type: 'folder',
             exists: folderExists,
             targetName: cleanName,
-            requiresContent: false
+            requiresContent: false,
+            modifySignal: false
           };
         }
         return {
           type: 'file-create',
           exists: fileExists,
           targetName: cleanName,
-          requiresContent: false
+          requiresContent: false,
+          modifySignal: false
         };
       }
       
@@ -567,7 +583,8 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
           type: 'file-modify',
           exists: fileExists,
           targetName: cleanName,
-          requiresContent: true
+          requiresContent: true,
+          modifySignal: isModifyIntent || strongModifySignal
         };
       }
       
@@ -577,7 +594,8 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
           type: 'file-reference',
           exists: fileExists,
           targetName: cleanName,
-          requiresContent: false
+          requiresContent: false,
+          modifySignal: false
         };
       }
     }
@@ -607,7 +625,8 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
     type: 'generic',
     exists: true,
     targetName: null,
-    requiresContent: true
+    requiresContent: true,
+    modifySignal: isModifyIntent || strongModifySignal
   };
 }
 
@@ -689,6 +708,15 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '') {
       }
     
     case 'file-create':
+      // If the instruction looked like a modification (e.g., "open", "remove", "replace"),
+      // defer to AI content analysis instead of forcing a creation outcome.
+      if (stepType.modifySignal) {
+        return {
+          completed: null,
+          feedback: 'Content analysis required for this step',
+          suggestion: 'AI will analyze the file contents to verify the change.'
+        };
+      }
       if (actualExists) {
         return {
           completed: true,
@@ -1603,7 +1631,8 @@ router.post("/analyzeStep", async (req, res) => {
     console.log(`[ANALYZE STEP] Requires AI content analysis for: ${stepType.type}`);
 
     // Fallback to AI creation intent analysis for unclear creation steps
-    if (stepType.type === 'generic' || stepType.type === 'file-create') {
+    // Skip this when the instruction strongly suggests a modification to an existing file
+    if ((stepType.type === 'generic' || stepType.type === 'file-create') && !stepType.modifySignal) {
       try {
         // Phase 3a: Try static analysis first (faster, no AI cost)
         console.log(`\n⚡ [ANALYZE STEP] Trying static analysis for step: "${currentStep.instruction}"`);
@@ -2024,6 +2053,65 @@ Is the code correct for the instruction? Return ONLY a JSON array with one objec
 //     res.status(500).json({ error: "Failed to process chat" });
 //   }
 // });
+
+// Rich project chat for active guided projects (no acknowledgments)
+router.post("/project-chat", async (req, res) => {
+  try {
+    const { history, projectFiles, guidedProject, currentCode, currentLanguage, terminalOutput } = req.body || {};
+
+    if (!guidedProject || typeof guidedProject !== 'object') {
+      return res.status(400).json({ error: "Active guided project is required" });
+    }
+
+    const projectContext = createProjectContext(projectFiles);
+    const chatContext = Array.isArray(history)
+      ? history.map(m => `${m.type === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n')
+      : '';
+    const stepIndex = Number(guidedProject.currentStep) || 0;
+    const currentStepText = guidedProject.steps?.[stepIndex]?.instruction || 'No current step';
+    const stepsList = Array.isArray(guidedProject.steps)
+      ? guidedProject.steps.map((s, i) => `Step ${i + 1}: ${s.instruction}`).join('\n')
+      : 'No steps available';
+    const terminalContext = Array.isArray(terminalOutput) && terminalOutput.length > 0
+      ? `\n\nTerminal (last ${terminalOutput.length} lines):\n${terminalOutput.join('\n')}`
+      : '';
+    const codeContext = currentCode ? `\n\nCurrent File (${currentLanguage || 'text'}):\n${currentCode.slice(0, 4000)}` : '';
+
+    const prompt = `You are a focused coding assistant inside a web IDE. The user is actively working on a guided project. Answer the user's question directly with concrete help. Do NOT produce generic acknowledgments or filler.
+
+PROJECT CONTEXT:\n${projectContext}
+
+GUIDED STEPS:\n${stepsList}
+
+CURRENT STEP:\n${currentStepText}
+${terminalContext}
+${codeContext}
+
+CHAT (most recent first):\n${chatContext}
+
+Instructions:
+- Prioritize helping with the CURRENT STEP while still answering their question.
+- If terminal shows an error, diagnose and provide exact commands or code fixes.
+- If a command is needed, provide it in a fenced code block marked bash.
+- If code is needed, provide minimal, copyable snippets.
+- Keep responses concise, practical, and free of fluff.
+- Use markdown; no emojis; no acknowledgments-only replies.`;
+
+    const result = await req.geminiService.model.generateContent(prompt);
+    const responseText = (await result.response).text();
+    const content = String(responseText || '').trim();
+    if (!content) {
+      return res.status(500).json({ error: 'Empty response from AI' });
+    }
+
+    return res.json({
+      response: { type: 'assistant', content }
+    });
+  } catch (error) {
+    console.error('Error in project-chat:', error);
+    return res.status(500).json({ error: 'Failed to process project chat' });
+  }
+});
 
 // Simple chat for non-guided users
 router.post("/simple-chat", async (req, res) => {

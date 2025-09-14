@@ -406,7 +406,7 @@ const WebContainerTerminal: React.FC<WebContainerTerminalProps> = ({
         ))}
       </div>
       
-      {/* Hide scrollbars and reduce line spacing */}
+      {/* Hide scrollbars and add comfortable bottom padding */}
       <style>{`
         .xterm-viewport::-webkit-scrollbar {
           display: none;
@@ -414,17 +414,21 @@ const WebContainerTerminal: React.FC<WebContainerTerminalProps> = ({
         .xterm-viewport {
           -ms-overflow-style: none;
           scrollbar-width: none;
+          padding-bottom: 56px !important; /* extra breathing room at bottom */
         }
         .xterm .xterm-rows {
           line-height: 1.0 !important;
-          padding-bottom: 24px !important; /* lift prompt off the bottom */
+          padding-bottom: 56px !important; /* comfortable spacing */
         }
         .xterm .xterm-rows div {
           line-height: 1.0 !important;
         }
         .xterm .xterm-screen {
           line-height: 1.0 !important;
-          padding-bottom: 24px !important; /* extra breathing room at bottom */
+          padding-bottom: 56px !important; /* extra breathing room at bottom */
+        }
+        .xterm .xterm-cursor-layer {
+          padding-bottom: 56px !important; /* ensure cursor is also lifted */
         }
       `}</style>
     </div>

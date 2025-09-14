@@ -78,17 +78,44 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       handleSave();
     });
     
-    // Disable TypeScript worker features that cause inmemory model errors
+    // Configure TypeScript for better IntelliSense while avoiding worker errors
     try {
       monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-        noSemanticValidation: true,
-        noSyntaxValidation: true,
-        noSuggestionDiagnostics: true,
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+        noSuggestionDiagnostics: false,
       });
       monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-        noSemanticValidation: true,
-        noSyntaxValidation: true,
-        noSuggestionDiagnostics: true,
+        noSemanticValidation: false,
+        noSyntaxValidation: false,
+        noSuggestionDiagnostics: false,
+      });
+      
+      // Enable basic language features
+      monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ES2020,
+        allowNonTsExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        esModuleInterop: true,
+        jsx: monaco.languages.typescript.JsxEmit.React,
+        reactNamespace: 'React',
+        allowJs: true,
+        typeRoots: ['node_modules/@types']
+      });
+      
+      monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+        target: monaco.languages.typescript.ScriptTarget.ES2020,
+        allowNonTsExtensions: true,
+        moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+        module: monaco.languages.typescript.ModuleKind.CommonJS,
+        noEmit: true,
+        esModuleInterop: true,
+        jsx: monaco.languages.typescript.JsxEmit.React,
+        reactNamespace: 'React',
+        allowJs: true,
+        typeRoots: ['node_modules/@types']
       });
       
       // Disable worker features that cause the inmemory model errors
@@ -210,16 +237,51 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           lineDecorationsWidth: 10,
           lineNumbersMinChars: 3,
           readOnly: readOnly,
-          // Disable features that cause worker errors
-          quickSuggestions: false,
-          suggestOnTriggerCharacters: false,
-          acceptSuggestionOnEnter: 'off',
-          tabCompletion: 'off',
-          wordBasedSuggestions: 'off',
-          parameterHints: { enabled: false },
-          hover: { enabled: false },
-          // Disable TypeScript language features
-          'semanticHighlighting.enabled': false,
+          // Enable autosuggestions and IntelliSense
+          quickSuggestions: {
+            other: true,
+            comments: false,
+            strings: false
+          },
+          suggestOnTriggerCharacters: true,
+          acceptSuggestionOnEnter: 'on',
+          tabCompletion: 'on',
+          wordBasedSuggestions: 'currentDocument',
+          parameterHints: { enabled: true },
+          hover: { enabled: true },
+          // Enable basic language features
+          'semanticHighlighting.enabled': true,
+          // Add padding to the editor
+          padding: { top: 16, bottom: 16 },
+          // Improve suggestions
+          suggest: {
+            showKeywords: true,
+            showSnippets: true,
+            showFunctions: true,
+            showConstructors: true,
+            showFields: true,
+            showVariables: true,
+            showClasses: true,
+            showStructs: true,
+            showInterfaces: true,
+            showModules: true,
+            showProperties: true,
+            showEvents: true,
+            showOperators: true,
+            showUnits: true,
+            showValues: true,
+            showConstants: true,
+            showEnums: true,
+            showEnumMembers: true,
+            showColors: true,
+            showFiles: true,
+            showReferences: true,
+            showFolders: true,
+            showTypeParameters: true,
+            showIssues: true,
+            showUsers: true,
+            showWords: true
+          }
         }}
       />
     </div>

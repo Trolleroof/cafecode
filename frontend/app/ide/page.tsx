@@ -1042,16 +1042,20 @@ function IDEPage() {
     setIsTyping(true);
     let result: any = null;
     try {
-      const response = await fetch('/api/guided/simple-chat', {
+      const recentHistory = [...chatMessages, userMessage].slice(-8);
+      const response = await fetch('/api/guided/project-chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({ 
-          history: [{ type: 'user', content: userMessage.content }],
-          terminalOutput: output.slice(-20), // Include last 20 lines of terminal output
-          projectFiles: files
+          history: recentHistory,
+          terminalOutput: output.slice(-40), // Include last 40 lines of terminal output
+          projectFiles: files,
+          guidedProject: guidedProject,
+          currentCode: selectedFile?.content || '',
+          currentLanguage: selectedFile?.language || ''
         })
       });
       result = await response.json();
@@ -1286,7 +1290,9 @@ function IDEPage() {
         let i = 0;
         // Helper: Summarize code changes deterministically from diff/fixes
         const summarizeChanges = (diff: string | undefined, fixes: any[] | undefined, fileName: string) => {
-          const bullets: string[] = [];
+          const parts: string[] = [];
+          
+          // File update summary with better formatting
           if (diff && typeof diff === 'string') {
             const lines = diff.split('\n');
             const added = lines.filter(l => l.startsWith('+') && !l.startsWith('+++')).length;
@@ -1298,22 +1304,48 @@ function IDEPage() {
               const m = plusPlus.match(/\+\+\+\s+[ab]\/(.*)$/);
               if (m && m[1]) file = m[1];
             }
-            bullets.push(`Updated ${file} (${added} added, ${removed} removed, ${hunks} hunk${hunks === 1 ? '' : 's'})`);
+            
+            parts.push(`## 📝 **File Updated: \`${file}\`**`);
+            parts.push('');
+            parts.push(`**Changes Summary:**`);
+            parts.push(`- ➕ **${added}** lines added`);
+            parts.push(`- ➖ **${removed}** lines removed`);
+            parts.push(`- 🔧 **${hunks}** section${hunks === 1 ? '' : 's'} modified`);
+            parts.push('');
           } else {
-            bullets.push(`Updated ${fileName}`);
+            parts.push(`## 📝 **File Updated: \`${fileName}\`**`);
+            parts.push('');
           }
+          
+          // Detailed fixes with better formatting
           if (Array.isArray(fixes) && fixes.length) {
-            const topFixes = fixes.slice(0, 6).map((f: any, idx: number) => {
-              const ln = typeof f?.line_number === 'number' ? `line ${f.line_number}: ` : '';
+            parts.push(`## 🔧 **Fixes Applied (${fixes.length}):**`);
+            parts.push('');
+            
+            const topFixes = fixes.slice(0, 8).map((f: any, idx: number) => {
+              const lineNum = typeof f?.line_number === 'number' ? f.line_number : null;
               const desc = typeof f?.description === 'string' && f.description.trim().length > 0
                 ? f.description.trim()
                 : (typeof f?.change === 'string' ? f.change : 'Applied a targeted fix');
-              return `- ${ln}${desc}`;
+              
+              const lineInfo = lineNum ? `**Line ${lineNum}:**` : `**Fix ${idx + 1}:**`;
+              return `### ${lineInfo}\n${desc}`;
             });
-            bullets.push('Fixes applied:');
-            bullets.push(...topFixes);
+            
+            parts.push(...topFixes);
+            
+            if (fixes.length > 8) {
+              parts.push('');
+              parts.push(`*... and ${fixes.length - 8} more fixes*`);
+            }
+            
+            parts.push('');
+            parts.push('---');
+            parts.push('');
+            parts.push('✅ **All fixes have been applied successfully!**');
           }
-          return bullets.join('\n');
+          
+          return parts.join('\n');
         };
 
         const animate = () => {
@@ -1329,7 +1361,7 @@ function IDEPage() {
             
             // Summarize deterministically from diff/fixes and post to chat
             const summaryText = summarizeChanges(result.diff, result.fixes_applied, selectedFile.name);
-            const formatted = `Here are the changes:\n\n${summaryText}`;
+            const formatted = `# 🎉 **Code Fixes Complete!**\n\n${summaryText}`;
             setChatMessages(prev => [...prev, { type: 'assistant', content: formatted, timestamp: new Date() }]);
           }
         };
