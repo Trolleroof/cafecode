@@ -1597,7 +1597,6 @@ function IDEPage() {
       return;
     }
     
-    console.log('[STEPS] Generating new steps with full Q&A context.');
     try {
       const response = await fetch('/api/guided/steps/generate', {
         method: 'POST',
@@ -2896,7 +2895,6 @@ function IDEPage() {
           isOpen={showProjectModal}
           onClose={() => setShowProjectModal(false)}
           onSubmit={(desc) => {
-            window.console.log('[GUIDE-LOG] ProjectDescriptionModal submitted with:', desc);
             handleStartProjectSetup(desc);
           }}
           isStartingProject={isStartingProject}

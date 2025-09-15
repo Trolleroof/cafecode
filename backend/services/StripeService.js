@@ -126,13 +126,21 @@ export class StripeService {
         // no-op if masking fails
       }
 
-      const isBuffer = Buffer.isBuffer(body);
-      const isString = typeof body === 'string';
-      if (!isBuffer && !isString) {
-        console.warn('[Stripe] Webhook body is not raw Buffer/string. Type:', typeof body);
+      // Ensure we have a Buffer - this is the key fix
+      let payload;
+      if (Buffer.isBuffer(body)) {
+        payload = body;
+        console.log(`[Stripe] Webhook body is Buffer, length: ${payload.length}`);
+      } else if (typeof body === 'string') {
+        payload = Buffer.from(body, 'utf8');
+        console.log(`[Stripe] Webhook body is string, converted to Buffer, length: ${payload.length}`);
+      } else {
+        // If it's already parsed JSON, we need to stringify it back
+        payload = Buffer.from(JSON.stringify(body), 'utf8');
+        console.log(`[Stripe] Webhook body is ${typeof body}, stringified to Buffer, length: ${payload.length}`);
       }
-      // Pass the exact raw payload (Buffer preferred)
-      const payload = isBuffer ? body : (isString ? body : JSON.stringify(body));
+
+      console.log(`[Stripe] Webhook signature header: ${signature ? 'present' : 'missing'}`);
 
       return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
     } catch (error) {

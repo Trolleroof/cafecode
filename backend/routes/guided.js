@@ -131,16 +131,18 @@ function fallbackGenerateSteps(projectDescription, requestedCount = null) {
   // Ensure all creation steps use explicit names, no UI verbs, and no code blocks
   switch (type) {
     case 'react': {
-      push("Create a folder called 'src'");
-      push("Create a file called 'index.html' in 'src'");
-      push("Create a file called 'main.jsx' in 'src'");
-      push("Create a file called 'App.jsx' in 'src'");
-      push("Create a folder called 'components' inside 'src'");
-      push("Create a file called 'Button.jsx' in 'src/components'");
-      push("Modify 'App.jsx' to render 'Button' with a click counter");
-      push("Create a file called 'styles.css' in 'src'");
-      push("Modify 'index.html' to mount the React app at 'root'");
-      push("Modify 'main.jsx' to render 'App' into the 'root' element");
+      // Prefer a Vite-first React workflow with lenient terminal-based checks
+      push("Open the terminal and run: npm create vite@latest crypto-tracker -- --template react");
+      push("Navigate into the project folder: cd 'crypto-tracker'");
+      push("Install dependencies by running: npm install");
+      push("Create a folder called 'src/components'");
+      push("Create a file called 'PriceTicker.jsx' in 'src/components'");
+      push("Modify 'src/App.jsx' to import and render 'PriceTicker'");
+      push("Create a folder called 'src/services'");
+      push("Create a file called 'api.js' in 'src/services'");
+      push("Modify 'src/services/api.js' to export a 'fetchPrices' function");
+      push("Modify 'src/App.css' to add basic layout styles");
+      push("Start the dev server by running: npm run dev");
       break;
     }
     case 'next': {
@@ -380,7 +382,11 @@ Rules:
 - If the step installs dependencies, set kind=install and infer completion from terminal logs (lenient).
 - If the step asks to remove default code/styles, set kind=clean_file and consider empty/minimal content as completed.
 - For file edits, set kind=file_modify and judge completion from provided code/content.
-- Keep output concise.`;
+- Keep output concise.
+
+Special handling:
+- If instruction includes "npm create vite" or "npx create vite" followed by a project name (e.g., crypto-tracker), inspect the project tree. If a folder with that name exists AND contains typical Vite files like package.json and index.html, plus either src/main.jsx|src/main.tsx or vite.config.js, set completed=true, kind=terminal, target=<project folder>.
+- For navigation like "cd <name>" or "navigate into '<name>'", consider terminal logs: if logs show a matching "cd" command or a "pwd" that ends with the folder, mark completed=true; otherwise be lenient but prefer completed=false if clear evidence is missing.`;
 
   const result = await geminiService.model.generateContent(prompt);
   const responseText = (await result.response).text();
@@ -780,7 +786,9 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '', i
   switch (stepType.type) {
     case 'terminal-command':
       if (stepType.commandType === 'vite-create') {
-        if (actualExists) {
+        // Stronger detection for Vite project creation by inspecting typical structure
+        const viteLooksReady = checkViteProjectCreated(projectFiles, stepType.targetName);
+        if (actualExists || viteLooksReady) {
           return {
             completed: true,
             feedback: `Excellent! You've successfully created the React application '${stepType.targetName}' using Vite.`,
@@ -794,13 +802,21 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '', i
           };
         }
       } else if (stepType.commandType === 'navigate') {
-        // Be lenient: navigating doesn't change files; consider it complete.
+        // Lenient: approve if terminal history shows 'cd' or 'pwd' in target, or the folder exists
+        const navigated = wasNavigationPerformedFromLogs(stepType.targetName, terminalOutput);
+        if (navigated || stepType.exists) {
+          return {
+            completed: true,
+            feedback: navigated
+              ? `Navigation confirmed to '${stepType.targetName}' based on terminal history.`
+              : `Navigation acknowledged — folder '${stepType.targetName}' exists.`,
+            suggestion: 'Proceed to the next step.'
+          };
+        }
         return {
-          completed: true,
-          feedback: stepType.exists
-            ? `You're in good shape — the folder '${stepType.targetName}' exists. Navigation step acknowledged.`
-            : `Navigation step acknowledged. If the folder '${stepType.targetName}' doesn't exist yet, you'll create it in a later step.`,
-          suggestion: 'Proceed to the next step.'
+          completed: false,
+          feedback: `I couldn't confirm navigation to '${stepType.targetName}'.`,
+          suggestion: `Run: cd ${stepType.targetName}`
         };
       } else {
         // Lenient dependency installation check using terminal history
@@ -928,6 +944,55 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '', i
         feedback: 'Unknown step type',
         suggestion: 'Please review the step instruction'
       };
+  }
+}
+
+// Detect if a Vite project appears to be created by inspecting expected files
+function checkViteProjectCreated(projectFiles, projectName) {
+  try {
+    if (!projectFiles || !projectName) return false;
+    const files = flattenProjectFilesTree(projectFiles);
+    const lower = String(projectName).toLowerCase();
+    const has = (p) => files.some(f => String(f.path || '').toLowerCase().replace(/\\/g, '/') === p);
+    const hasUnder = (suffix) => has(`${lower}/${suffix}`);
+    const hasPkg = hasUnder('package.json');
+    const hasIndex = hasUnder('index.html');
+    const hasEntry = hasUnder('src/main.jsx') || hasUnder('src/main.tsx');
+    const hasViteConfig = hasUnder('vite.config.js') || hasUnder('vite.config.ts');
+    return Boolean(hasPkg && hasIndex && (hasEntry || hasViteConfig));
+  } catch (_) {
+    return false;
+  }
+}
+
+// Lenient detection of navigation based on terminal history
+function wasNavigationPerformedFromLogs(targetName, terminalOutput = []) {
+  try {
+    if (!targetName) return false;
+    const logs = Array.isArray(terminalOutput) ? terminalOutput.join('\n') : String(terminalOutput || '');
+    const lowerLogs = logs.toLowerCase();
+    const name = String(targetName).toLowerCase();
+
+    // Direct cd commands
+    const cdPatterns = [
+      new RegExp(`\\bcd\\s+['\"\`]??\.?/?${name}['\"\`]??\\b`),
+      new RegExp(`\\bcd\\s+.*${name}\\b`)
+    ];
+    const cdSeen = cdPatterns.some(r => r.test(lowerLogs));
+    if (cdSeen) return true;
+
+    // pwd output ending with the folder
+    const pwdEnding = new RegExp(`[\\/\\\]${name}\s*$`);
+    const anyPwdLine = lowerLogs.split(/\r?\n/).some(line => pwdEnding.test(line.trim()));
+    if (anyPwdLine) return true;
+
+    // Heuristic: explicit confirmation strings sometimes printed by tools
+    if (lowerLogs.includes(`now running inside '${name}'`) || lowerLogs.includes(`running inside "${name}"`)) {
+      return true;
+    }
+    return false;
+  } catch (_) {
+    return false;
   }
 }
 
