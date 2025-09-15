@@ -552,12 +552,36 @@ const FileTreeNode: React.FC<{
             const iconClass = isSelected ? 'h-4 w-4 text-light-cream' : 'h-4 w-4 text-deep-espresso';
             return (
               <>
+                {node.type === 'folder' && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCreateFile(node.id, 'file', '');
+                      }}
+                      className={`${btnBase} hover:bg-deep-espresso/10 rounded-full transition-all duration-200 hover:scale-110`}
+                      title="Create File in Folder"
+                    >
+                      <Plus className={iconClass} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCreateFolder(node.id, 'folder', '');
+                      }}
+                      className={`${btnBase} hover:bg-deep-espresso/10 rounded-full transition-all duration-200 hover:scale-110`}
+                      title="Create Folder in Folder"
+                    >
+                      <Folder className={iconClass} />
+                    </button>
+                  </>
+                )}
                 <button
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(node.id);
               }}
-              className={`${btnBase}`}
+              className={`${btnBase} hover:bg-red-500/10 rounded-full transition-all duration-200 hover:scale-110`}
               title="Delete"
             >
               <Trash2 className={iconClass} />
@@ -903,14 +927,27 @@ export default function FileExplorer({
         </div>
         <div className="flex gap-0.5">
           <button
+            onClick={() => handleShowCreate(null, 'file')}
+            className="p-1 hover:bg-deep-espresso/10 rounded-full transition-all duration-200 hover:scale-110"
+            title="Create File"
+          >
+            <Plus className="h-4 w-4 text-deep-espresso" />
+          </button>
+          <button
+            onClick={() => handleShowCreate(null, 'folder')}
+            className="p-1 hover:bg-deep-espresso/10 rounded-full transition-all duration-200 hover:scale-110"
+            title="Create Folder"
+          >
+            <Folder className="h-4 w-4 text-deep-espresso" />
+          </button>
+          <button
             onClick={handleRefresh}
-            className="p-1 hover:bg-cream-beige rounded"
+            className="p-1 hover:bg-deep-espresso/10 rounded-full transition-all duration-200 hover:scale-110"
             title="Smart Refresh File List"
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 text-deep-espresso ${isLoading ? 'animate-spin' : ''}`} />
           </button>
-
         </div>
       </div>
 

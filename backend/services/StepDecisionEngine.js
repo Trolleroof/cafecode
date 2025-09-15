@@ -98,6 +98,25 @@ export async function runDecisionTree({
     const what = kind === 'folder_create' ? 'folder' : 'file';
     const targets = aiTarget ? [aiTarget] : extractFileTargetsFromInstruction(instruction);
     const targetName = targets[0] || null;
+
+    // Super-lenient: ask AI to validate existence based on full directory snapshot
+    try {
+      const dirSnapshot = snapshotDirectory(projectFiles);
+      const aiStruct = await aiValidateStructure(geminiService, { instruction, snapshot: dirSnapshot });
+      if (aiStruct && aiStruct.exists === true) {
+        const pathGuess = aiStruct.matchedPath || targetName || null;
+        const msg = `Looks good — ${what} ${pathGuess ? `'${pathGuess}'` : ''} appears to exist.`.trim();
+        return { handled: true, classification, result: { feedback: [{ line: 1, correct: true, suggestion: msg }], chatMessage: { type: 'assistant', content: msg }, analysisType: kind, targetName: pathGuess, exists: true } };
+      }
+      // If AI infers a more precise target, adopt it
+      if (!targetName && aiStruct && aiStruct.targetGuess) {
+        targets.push(aiStruct.targetGuess);
+      }
+    } catch (_) {
+      // Ignore AI errors here and continue with static checks
+    }
+
+    // If AI didn't confirm, fall back to static checks
     if (!targetName) {
       return {
         handled: true,
@@ -111,7 +130,12 @@ export async function runDecisionTree({
         }
       };
     }
-    const exists = checkFileExists(projectFiles, targetName, what, userId);
+
+    // Lenient static existence (path or basename under likely parent)
+    let exists = checkFileExists(projectFiles, targetName, what, userId);
+    if (!exists) {
+      exists = lenientExistence(projectFiles, targetName, what);
+    }
     if (kind === 'file_delete') {
       if (!exists) {
         const msg = `Nice! '${targetName}' has been deleted.`;
@@ -162,6 +186,67 @@ export async function runDecisionTree({
 
   // Not handled here — let caller perform AI content analysis
   return { handled: false, classification };
+}
+
+// Snapshot the directory structure (folders and files) as simple path list
+function snapshotDirectory(projectFiles) {
+  const out = { folders: [], files: [] };
+  const norm = (p) => String(p || '').replace(/\\/g, '/').replace(/^\.\/+/, '').replace(/\/+/g, '/');
+  const walk = (nodes, base = '') => {
+    if (!Array.isArray(nodes)) return;
+    for (const n of nodes) {
+      const isFolder = n.type === 'folder' || n.isDirectory === true;
+      const name = n.name || '';
+      const nodePath = norm(n.id || n.path || (base ? `${base}/${name}` : name));
+      if (isFolder) {
+        out.folders.push(nodePath);
+        if (n.children) walk(n.children, nodePath);
+      } else {
+        out.files.push(nodePath);
+      }
+    }
+  };
+  walk(projectFiles, '');
+  return out;
+}
+
+// Very lenient existence check: allow basename match and typical parent folders
+function lenientExistence(projectFiles, targetName, what) {
+  try {
+    const snap = snapshotDirectory(projectFiles);
+    const lowerTarget = String(targetName || '').toLowerCase();
+    const base = lowerTarget.split('/').pop();
+    if (!base) return false;
+    const haystack = what === 'folder' ? snap.folders : snap.files;
+    const lowered = haystack.map(p => p.toLowerCase());
+    if (lowered.some(p => p === lowerTarget || p.endsWith('/' + lowerTarget))) return true;
+    if (lowered.some(p => p.endsWith('/' + base))) return true;
+    // Common React structure: src/components/<Name>
+    if (what === 'folder' && base) {
+      if (lowered.some(p => p.includes('/src/') && p.endsWith('/' + base))) return true;
+    }
+    return false;
+  } catch { return false; }
+}
+
+// Ask AI to validate whether the instruction's target exists, given only directory snapshot
+async function aiValidateStructure(geminiService, { instruction, snapshot }) {
+  if (!geminiService || !geminiService.model) return null;
+  const listText = `Folders:\n- ${snapshot.folders.slice(0, 400).join('\n- ')}\nFiles:\n- ${snapshot.files.slice(0, 400).join('\n- ')}`;
+  const prompt = `Given ONLY this directory listing, decide if the instruction has been satisfied. Respond JSON only.
+Instruction: ${instruction}
+${listText}
+
+Return exactly:
+{ "exists": true|false, "matchedPath": "string or null", "targetGuess": "string or null" }`;
+  try {
+    const result = await geminiService.model.generateContent(prompt);
+    const responseText = (await result.response).text();
+    const clean = extractJsonFromResponseSafe(responseText);
+    const parsed = robustJsonParseSafe(clean);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return { exists: Boolean(parsed.exists), matchedPath: parsed.matchedPath || null, targetGuess: parsed.targetGuess || null };
+  } catch { return null; }
 }
 
 // Minimal JSON extract that tolerates models returning extra text

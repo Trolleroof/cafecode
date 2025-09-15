@@ -2216,7 +2216,14 @@ Instructions:
 - If a command is needed, provide it in a fenced code block marked bash.
 - If code is needed, provide minimal, copyable snippets.
 - Keep responses concise, practical, and free of fluff.
-- Use markdown; no emojis; no acknowledgments-only replies.`;
+- Use markdown; no emojis; no acknowledgments-only replies.
+
+FILE/FOLDER CREATION:
+- When users ask how to create files or folders, tell them to use the sidebar buttons:
+  - Use the "+" button in the file explorer header to create files/folders at the root level
+  - Use the "+" button that appears when hovering over any folder to create files/folders inside that folder
+  - Use the folder icon button to create folders specifically
+- Do NOT provide terminal commands for file/folder creation - use the IDE interface instead.`;
 
     const result = await req.geminiService.model.generateContent(prompt);
     const responseText = (await result.response).text();
@@ -2299,6 +2306,12 @@ npm install --save-dev ajv@^7
 \`\`\`
 
 After running the install command, try running your code again!"
+
+FILE/FOLDER CREATION: If the user asks about creating files or folders, respond with:
+"To create files or folders, use the sidebar buttons in the file explorer:
+- Click the '+' button in the header to create at the root level
+- Hover over any folder and click the '+' button to create inside that folder
+- Use the folder icon button to create folders specifically"
 
 TERMINAL ERROR HANDLING: If there are terminal errors in the context, acknowledge them specifically:
 - "I see there's a terminal error - let me help fix that!"

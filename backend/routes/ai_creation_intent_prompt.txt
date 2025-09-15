@@ -74,6 +74,13 @@ ${projectContext}
 - "Create 'package.json'" → file (has .json extension)
 - "Create 'public'" → folder (no extension)
 
+**FILE/FOLDER CREATION INSTRUCTIONS:**
+When users ask how to create files or folders, always direct them to use the IDE interface:
+- Use the "+" button in the file explorer header to create files/folders at the root level
+- Hover over any folder and click the "+" button to create files/folders inside that folder  
+- Use the folder icon button to create folders specifically
+- Do NOT provide terminal commands for file/folder creation - use the IDE interface instead
+
 **VALIDATION:**
 - Be strict: creation steps MUST include a concrete name
 - If the instruction says something like "Name it 'test-project'", extract test-project
