@@ -461,7 +461,6 @@ const checkFileExists = (projectFiles, targetName, type = 'file', userId = null)
 
   // Fallback: if target is a path, try basename-only match to be resilient
   // when the provided projectFiles tree is shallow or missing parent folders.
-  const normalizedTarget = normalizePath(targetName);
   const lastSlash = normalizedTarget.lastIndexOf('/');
   const baseName = lastSlash >= 0 ? normalizedTarget.slice(lastSlash + 1) : normalizedTarget;
   if (baseName && baseName !== normalizedTarget) {

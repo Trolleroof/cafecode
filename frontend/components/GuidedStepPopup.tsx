@@ -313,21 +313,17 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           ) : (
             <Button
               onClick={onNextStep}
-              disabled={!isComplete}
+              disabled={false}
               className="flex items-center gap-1"
               style={{ 
-                background: !isComplete 
-                  ? '#d4c4a8' 
-                  : '#8b4513',
-                color: !isComplete ? '#8b7355' : '#ffffff',
+                background: '#8b4513',
+                color: '#ffffff',
                 border: 'none',
                 borderRadius: '8px',
                 padding: '8px 16px',
                 fontSize: '15px',
                 fontWeight: '600',
-                boxShadow: !isComplete 
-                  ? '0 1px 3px rgba(0, 0, 0, 0.1)' 
-                  : '0 2px 6px rgba(139, 69, 19, 0.3)',
+                boxShadow: '0 2px 6px rgba(139, 69, 19, 0.3)',
                 minWidth: '80px'
               }}
             >
