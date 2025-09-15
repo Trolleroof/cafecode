@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { UserFileService } from '../services/UserFileService.js';
+import { runDecisionTree as runDecisionTreeService } from '../services/StepDecisionEngine.js';
 import { staticCreationChecker } from '../services/StaticCreationChecker.js';
 import { timeStamp } from "console";
 
@@ -454,7 +455,35 @@ const checkFileExists = (projectFiles, targetName, type = 'file', userId = null)
     return false;
   };
 
-  return searchInFiles(projectFiles);
+  // First pass: attempt to match full or suffix path
+  const found = searchInFiles(projectFiles);
+  if (found) return true;
+
+  // Fallback: if target is a path, try basename-only match to be resilient
+  // when the provided projectFiles tree is shallow or missing parent folders.
+  const normalizedTarget = normalizePath(targetName);
+  const lastSlash = normalizedTarget.lastIndexOf('/');
+  const baseName = lastSlash >= 0 ? normalizedTarget.slice(lastSlash + 1) : normalizedTarget;
+  if (baseName && baseName !== normalizedTarget) {
+    const matchByBasename = (files) => {
+      for (const node of files) {
+        const nodeName = String(node.name || '').toLowerCase();
+        const isFolder = node.type === 'folder';
+        const isFile = !isFolder;
+        if (nodeName === baseName) {
+          if (type === 'folder' && isFolder) return true;
+          if (type === 'file' && isFile) return true;
+        }
+        if (isFolder && Array.isArray(node.children) && node.children.length > 0) {
+          if (matchByBasename(node.children)) return true;
+        }
+      }
+      return false;
+    };
+    return matchByBasename(projectFiles);
+  }
+
+  return false;
 };
 
 // Helper function to create project context from files
@@ -765,12 +794,15 @@ function wasDependencyInstalledFromLogs(instruction = '', terminalOutput = []) {
 function validateStepCompletion(stepType, targetName, projectFiles, code = '', instruction = '', terminalOutput = []) {
   console.log(`[VALIDATE STEP] Type: ${stepType.type}, Target: ${stepType.targetName}, Exists: ${stepType.exists}`);
   
-  // Enhanced validation: if static checker says file doesn't exist, double-check with projectFiles tree
+  // Enhanced validation: if static checker says it doesn't exist, double-check using
+  // the robust path-aware checker with correct type mapping.
   let actualExists = stepType.exists;
   if (!actualExists && projectFiles && projectFiles.length > 0) {
-    const existsInTree = checkFileExistsInProjectTree(projectFiles, targetName, stepType.type === 'file-create' ? 'file' : 'folder');
-    if (existsInTree) {
-      console.log(`[VALIDATE STEP] File found in projectFiles tree: ${targetName}`);
+    // Map step types to existence check kind
+    const kind = stepType.type === 'folder' ? 'folder' : 'file';
+    const exists = checkFileExists(projectFiles, targetName, kind, null);
+    if (exists) {
+      console.log(`[VALIDATE STEP] Target found by robust check: ${targetName} (${kind})`);
       actualExists = true;
     }
   }
@@ -885,11 +917,19 @@ function validateStepCompletion(stepType, targetName, projectFiles, code = '', i
     
     case 'file-modify':
       if (!actualExists) {
-        return {
-          completed: false,
-          feedback: `The file '${stepType.targetName}' needs to be created or modified.`,
-          suggestion: 'Create the file and add the required content.'
-        };
+        // If we have non-empty code content for the target, infer the file exists.
+        // This handles cases where projectFiles is shallow or the path is slightly different
+        // (e.g., only the basename is present or parents are missing).
+        const hasCode = typeof code === 'string' && code.trim().length > 0;
+        if (hasCode) {
+          actualExists = true;
+        } else {
+          return {
+            completed: false,
+            feedback: `The file '${stepType.targetName}' needs to be created or modified.`,
+            suggestion: 'Create the file and add the required content.'
+          };
+        }
       }
       // For modification steps, we need content analysis. However, if the
       // instruction asks to remove/clear content, an empty file can be valid.
@@ -1797,73 +1837,28 @@ router.post("/analyzeStep", async (req, res) => {
     const filesForAnalysis = projectFiles || project.projectFiles || [];
     console.log(`[ANALYZE STEP] Using projectFiles with ${filesForAnalysis.length} items for analysis`);
     
-    // PHASE 1: AI-first step judgement (model determines the step type and completion)
-    try {
-      // Add timeout to AI analysis (5 seconds max)
-      const aiVerdict = await Promise.race([
-        aiJudgeStep(req.geminiService, {
-          instruction: currentStep.instruction,
-          projectContext: createProjectContext(filesForAnalysis),
-          code,
-          language,
-          terminalOutput: Array.isArray(req.body?.terminalOutput) ? req.body.terminalOutput : [],
-          chatHistory: []
-        }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('AI analysis timeout')), 5000)
-        )
-      ]);
-
-      console.log('[ANALYZE STEP][AI] Verdict:', aiVerdict);
-
-      const correct = !!aiVerdict.completed;
-      const analysisType = aiVerdict.kind || 'ai-judgement';
-      const targetName = aiVerdict.target || null;
-      const rationale = aiVerdict.rationale || '';
-      const hint = aiVerdict.hint || '';
-
-      return res.json({
-        feedback: [{ line: 1, correct, suggestion: correct ? (hint || 'Great work!') : (hint || 'Please follow the hint to complete this step.') }],
-        chatMessage: { type: 'assistant', content: `${rationale}${hint ? `\n\n${hint}` : ''}` },
-        analysisType,
-        targetName,
-        exists: correct
-      });
-    } catch (aiError) {
-      console.warn('[ANALYZE STEP] AI-first judgement failed or was inconclusive. Falling back to static analysis. Reason:', aiError.message);
-    }
-
-    // PHASE 2: Static heuristics (fallback)
-    const stepType = analyzeStepType(currentStep.instruction, filesForAnalysis, req.user.id);
-    process.stdout.write("\n\n\n================ BACKEND STEP ANALYSIS (FALLBACK) ================\n");
-    process.stdout.write(`Instruction: ${currentStep.instruction}\n`);
-    process.stdout.write(`ProjectFiles count: ${filesForAnalysis.length}\n`);
-    process.stdout.write(`Step Type Analysis: ${JSON.stringify(stepType, null, 2)}\n`);
-    process.stdout.write("===============================================================\n\n\n");
-
-    const validation = validateStepCompletion(
-      stepType,
-      stepType.targetName,
-      filesForAnalysis,
+    // PHASE 1: Decision tree module (AI classify + structural/terminal/fast-path handling)
+    const helpers = { checkFileExists, extractFileTargetsFromInstruction, wasNavigationPerformedFromLogs, checkDirectoryExists, wasDependencyInstalledFromLogs };
+    const decision = await runDecisionTreeService({
+      geminiService: req.geminiService,
+      instruction: currentStep.instruction,
+      projectFiles: filesForAnalysis,
       code,
-      currentStep.instruction,
-      Array.isArray(req.body?.terminalOutput) ? req.body.terminalOutput : []
-    );
+      language,
+      terminalOutput: Array.isArray(req.body?.terminalOutput) ? req.body.terminalOutput : [],
+      userId: req.user.id,
+      helpers
+    });
 
-    console.log(`[ANALYZE STEP] Validation result (fallback):`, validation);
-
-    if (validation.completed !== null) {
-      return res.json({
-        feedback: [{ line: 1, correct: validation.completed, suggestion: validation.feedback }],
-        chatMessage: { type: 'assistant', content: `${validation.feedback} ${validation.suggestion}` },
-        analysisType: stepType.type,
-        targetName: stepType.targetName,
-        exists: stepType.exists
-      });
+    if (decision && decision.handled && decision.result) {
+      // Cache and return
+      analysisCache.set(cacheKey, decision.result);
+      return res.json(decision.result);
     }
 
-    // PHASE 3: AI-powered content analysis for complex cases
-    console.log(`[ANALYZE STEP] Requires AI content analysis for: ${stepType.type}`);
+    const classification = decision?.classification || null;
+    const kind = String(classification?.kind || '').toLowerCase();
+    console.log(`[ANALYZE STEP] Content analysis path for kind: ${kind}`);
 
     // Fallback to AI creation intent analysis for unclear creation steps
     // Skip this when the instruction strongly suggests a modification to an existing file
@@ -1991,7 +1986,7 @@ router.post("/analyzeStep", async (req, res) => {
               .map(f => ({ name: f.name.split('/').pop(), path: f.name, content: f.content }));
           }
         }
-        const targets = extractFileTargetsFromInstruction(currentStep.instruction);
+        const targets = (classification?.target ? [classification.target] : []).concat(extractFileTargetsFromInstruction(currentStep.instruction));
         let chosen = null;
         for (const t of targets) {
           chosen = pickBestFileMatch(t, flatFiles);
