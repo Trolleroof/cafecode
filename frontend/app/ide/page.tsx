@@ -1307,7 +1307,9 @@ function IDEPage() {
         code: selectedFile.content,
         language: selectedFile.language,
         error_message: errorMessage,
-        projectFiles: files
+        projectFiles: files,
+        // Focus fixes on the current guided step only
+        instruction: guidedProject?.steps[guidedProject.currentStep]?.instruction || undefined,
       };
       const response = await fetch('/api/code/fix', {
         method: 'POST',

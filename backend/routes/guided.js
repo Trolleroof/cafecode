@@ -2214,7 +2214,8 @@ Instructions:
 - Prioritize helping with the CURRENT STEP while still answering their question.
 - If terminal shows an error, diagnose and provide exact commands or code fixes.
 - If a command is needed, provide it in a fenced code block marked bash.
-- If code is needed, provide minimal, copyable snippets.
+- IMPORTANT: Do NOT include code unless the user explicitly asks for code.
+- If the user asks "how to do the step" or similar guidance, provide high-level, descriptive steps WITHOUT any code blocks or inline code.
 - Keep responses concise, practical, and free of fluff.
 - Use markdown; no emojis; no acknowledgments-only replies.
 

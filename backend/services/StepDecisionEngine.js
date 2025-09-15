@@ -146,9 +146,15 @@ export async function runDecisionTree({
     // file_create or folder_create
     if (exists) {
       const msg = `Great! You've created the ${what} '${targetName}'.`;
-      return { handled: true, classification, result: { feedback: [{ line: 1, correct: true, suggestion: msg }], chatMessage: { type: 'assistant', content: msg }, analysisType: kind, targetName, exists: true } };
+      // Prompt the user to do something next with the created target
+      const followUp = targetName ? ` Now open '${targetName}' and continue with the current step.` : ' Now open it and continue with the current step.';
+      const suggestion = msg + followUp;
+      return { handled: true, classification, result: { feedback: [{ line: 1, correct: true, suggestion }], chatMessage: { type: 'assistant', content: suggestion }, analysisType: kind, targetName, exists: true } };
     }
-    return { handled: true, classification, result: { feedback: [{ line: 1, correct: false, suggestion: `Please create the ${what} '${targetName}'.` }], chatMessage: { type: 'assistant', content: `I don't see the ${what} '${targetName}' yet. Please create it.` }, analysisType: kind, targetName, exists: false } };
+    // Encourage action with explicit follow-up
+    const createMsg = `Please create the ${what} '${targetName}'.`;
+    const nextMsg = ` After creating it, open '${targetName}' and follow the step instructions to proceed.`;
+    return { handled: true, classification, result: { feedback: [{ line: 1, correct: false, suggestion: createMsg + nextMsg }], chatMessage: { type: 'assistant', content: createMsg + nextMsg }, analysisType: kind, targetName, exists: false } };
   }
 
   // Terminal steps

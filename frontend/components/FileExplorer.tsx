@@ -18,6 +18,7 @@ import {
   Loader2,
   CheckCircle
 } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { FileNode, SearchFilter } from '@/types';
 
 interface FileExplorerProps {
@@ -576,16 +577,37 @@ const FileTreeNode: React.FC<{
                     </button>
                   </>
                 )}
+                {/* Copy path button (left of trash) */}
                 <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(node.id);
-              }}
-              className={`${btnBase} hover:bg-red-500/10 rounded-full transition-all duration-200 hover:scale-110`}
-              title="Delete"
-            >
-              <Trash2 className={iconClass} />
-            </button>
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const path = node.id.includes(':') ? node.id.split(':')[0] : node.id;
+                    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                      navigator.clipboard.writeText(path).catch(() => {
+                        // Fallback for clipboard errors
+                        const ta = document.createElement('textarea');
+                        ta.value = path;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+                      });
+                    }
+                  }}
+                  className={`${btnBase} hover:bg-deep-espresso/10 rounded-full transition-all duration-200 hover:scale-110`}
+                  title="Copy Path"
+                >
+                  <Copy className={iconClass} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(node.id);
+                  }}
+                  className={`${btnBase} hover:bg-red-500/10 rounded-full transition-all duration-200 hover:scale-110`}
+                  title="Delete"
+                >
+                  <Trash2 className={iconClass} />
+                </button>
               </>
             );
           })()}

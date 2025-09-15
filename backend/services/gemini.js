@@ -167,8 +167,20 @@ Fix the specific error while preserving original structure and logic. Consider t
     const stepContext = stepInstruction && lineRanges && stepId 
       ? `Step ${stepId}: ${stepInstruction} (Lines ${lineRanges.join('-')})
 
-Analyze if code correctly implements this step. If correct: confirm success. If incorrect: provide simple hint for this step only.`
-      : 'Provide a simple, beginner-friendly hint for this code.';
+Analyze if code correctly implements this step. If correct: confirm success. If incorrect: provide a simple, beginner-friendly hint for THIS STEP ONLY.
+
+STRICT RULES:
+- Do NOT include code blocks, snippets, or inline code.
+- Do NOT show exact code to paste. Use plain language only.
+- Explain in simple, clear terms what to change and where.
+- Keep it short and encouraging.`
+      : `Provide a simple, beginner-friendly hint for this code.
+
+STRICT RULES:
+- Do NOT include code blocks, snippets, or inline code.
+- Use plain language only.
+- Explain in simple, clear terms.
+- Keep it short and encouraging.`;
 
     return `${stepContext}
 

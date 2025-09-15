@@ -293,17 +293,22 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
             onFinish ? (
               <Button
                 onClick={onFinish}
+                disabled={!isComplete}
                 className="flex items-center gap-1"
                 style={{ 
-                  background: '#34c759',
+                  background: isComplete ? '#8b4513' : '#cccccc',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
                   padding: '8px 16px',
                   fontSize: '15px',
                   fontWeight: '600',
-                  boxShadow: '0 2px 6px rgba(52, 199, 89, 0.3)',
-                  minWidth: '80px'
+                  boxShadow: isComplete 
+                    ? '0 2px 6px rgba(139, 69, 19, 0.3)'
+                    : '0 2px 6px rgba(204, 204, 204, 0.3)',
+                  minWidth: '80px',
+                  cursor: isComplete ? 'pointer' : 'not-allowed',
+                  opacity: isComplete ? 1 : 0.6
                 }}
               >
                 <CheckCircle className="h-4 w-4" />
@@ -313,18 +318,22 @@ const GuidedStepPopup: React.FC<GuidedStepPopupProps> = ({
           ) : (
             <Button
               onClick={onNextStep}
-              disabled={false}
+              disabled={!isComplete}
               className="flex items-center gap-1"
               style={{ 
-                background: '#8b4513',
+                background: isComplete ? '#8b4513' : '#cccccc',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '8px',
                 padding: '8px 16px',
                 fontSize: '15px',
                 fontWeight: '600',
-                boxShadow: '0 2px 6px rgba(139, 69, 19, 0.3)',
-                minWidth: '80px'
+                boxShadow: isComplete 
+                  ? '0 2px 6px rgba(139, 69, 19, 0.3)'
+                  : '0 2px 6px rgba(204, 204, 204, 0.3)',
+                minWidth: '80px',
+                cursor: isComplete ? 'pointer' : 'not-allowed',
+                opacity: isComplete ? 1 : 0.6
               }}
             >
               <ArrowRight className="h-4 w-4" />
