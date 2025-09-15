@@ -132,15 +132,15 @@ function fallbackGenerateSteps(projectDescription, requestedCount = null) {
   switch (type) {
     case 'react': {
       // Prefer a Vite-first React workflow with lenient terminal-based checks
-      push("Open the terminal and run: npm create vite@latest crypto-tracker -- --template react");
-      push("Navigate into the project folder: cd 'crypto-tracker'");
+      push("Open the terminal and run: npm create vite@latest my-app -- --template react");
+      push("Navigate into the project folder: cd 'my-app'");
       push("Install dependencies by running: npm install");
       push("Create a folder called 'src/components'");
-      push("Create a file called 'PriceTicker.jsx' in 'src/components'");
-      push("Modify 'src/App.jsx' to import and render 'PriceTicker'");
+      push("Create a file called 'App.jsx' in 'src/components'");
+      push("Modify 'src/App.jsx' to import and render 'App'");
       push("Create a folder called 'src/services'");
       push("Create a file called 'api.js' in 'src/services'");
-      push("Modify 'src/services/api.js' to export a 'fetchPrices' function");
+      push("Modify 'src/services/api.js' to export a 'fetchData' function");
       push("Modify 'src/App.css' to add basic layout styles");
       push("Start the dev server by running: npm run dev");
       break;
@@ -537,7 +537,7 @@ function analyzeStepType(instruction, projectFiles, userId = null) {
       };
     }
     
-    // Detect simple navigation steps like "cd crypto-tracker" or "navigate into 'crypto-tracker'"
+    // Detect simple navigation steps like "cd my-app" or "navigate into 'my-app'"
     const cdMatch = instruction.match(/\bcd\s+([\w\-_.\/]+)/i);
     const navigateMatch = instruction.match(/navigate\s+(?:into|to|inside)\s+['"`]?(.*?)['"`]?\b/i);
     const navTarget = (cdMatch && cdMatch[1]) || (navigateMatch && navigateMatch[1]) || null;
