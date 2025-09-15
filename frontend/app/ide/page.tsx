@@ -1630,7 +1630,7 @@ function IDEPage() {
     } catch (error) {
       console.error('Error generating steps:', error);
       setStepsFlowError('A server error occurred. Please press "Generate Steps" again to retry.');
-       setChatMessages(prev => [...prev, { type: 'assistant', content: '❌ **Server Error**: The step generation failed. Please press "Generate Steps" again to retry.', timestamp: new Date() }]);
+       setChatMessages(prev => [...prev, { type: 'assistant', content: '❌ **Server Error**: The step generation failed. Please try to start a guided project once again.', timestamp: new Date() }]);
     } finally {
       setIsGeneratingSteps(false);
     }

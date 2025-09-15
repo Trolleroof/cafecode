@@ -54,12 +54,32 @@ export async function runDecisionTree({
     wasNavigationPerformedFromLogs,
     checkDirectoryExists,
     wasDependencyInstalledFromLogs,
+    checkViteProjectCreated,
   } = helpers || {};
 
   // Guard: require essential helpers
   if (typeof checkFileExists !== 'function' || typeof extractFileTargetsFromInstruction !== 'function') {
     return { handled: false, classification: null };
   }
+
+  // Pre-rule: Vite project creation command
+  try {
+    const lowered = String(instruction || '').toLowerCase();
+    if (lowered.includes('npm create vite') || lowered.includes('npx create vite')) {
+      const m = instruction.match(/create\s+vite@latest\s+([\w\-_.]+)/i);
+      const projectName = m ? m[1] : null;
+      if (projectName) {
+        const created = typeof checkViteProjectCreated === 'function'
+          ? checkViteProjectCreated(projectFiles, projectName)
+          : checkFileExists(projectFiles, projectName, 'folder', userId);
+        if (created) {
+          const msg = `Excellent! You've created the React app '${projectName}' with Vite.`;
+          return { handled: true, classification: { kind: 'terminal-generic', target: projectName }, result: { feedback: [{ line: 1, correct: true, suggestion: msg }], chatMessage: { type: 'assistant', content: msg }, analysisType: 'vite-create', targetName: projectName, exists: true } };
+        }
+        return { handled: true, classification: { kind: 'terminal-generic', target: projectName }, result: { feedback: [{ line: 1, correct: false, suggestion: `Please run the Vite create command or ensure '${projectName}' exists.` }], chatMessage: { type: 'assistant', content: `I don't see the project folder '${projectName}' yet.` }, analysisType: 'vite-create', targetName: projectName, exists: false } };
+      }
+    }
+  } catch {}
 
   let classification;
   try {
@@ -165,4 +185,3 @@ function robustJsonParseSafe(jsonString) {
     return null;
   }
 }
-

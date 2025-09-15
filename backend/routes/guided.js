@@ -1837,7 +1837,7 @@ router.post("/analyzeStep", async (req, res) => {
     console.log(`[ANALYZE STEP] Using projectFiles with ${filesForAnalysis.length} items for analysis`);
     
     // PHASE 1: Decision tree module (AI classify + structural/terminal/fast-path handling)
-    const helpers = { checkFileExists, extractFileTargetsFromInstruction, wasNavigationPerformedFromLogs, checkDirectoryExists, wasDependencyInstalledFromLogs };
+    const helpers = { checkFileExists, extractFileTargetsFromInstruction, wasNavigationPerformedFromLogs, checkDirectoryExists, wasDependencyInstalledFromLogs, checkViteProjectCreated };
     const decision = await runDecisionTreeService({
       geminiService: req.geminiService,
       instruction: currentStep.instruction,
@@ -1859,115 +1859,7 @@ router.post("/analyzeStep", async (req, res) => {
     const kind = String(classification?.kind || '').toLowerCase();
     console.log(`[ANALYZE STEP] Content analysis path for kind: ${kind}`);
 
-    // Fallback to AI creation intent analysis for unclear creation steps
-    // Skip this when the instruction strongly suggests a modification to an existing file
-    if ((stepType.type === 'generic' || stepType.type === 'file-create') && !stepType.modifySignal) {
-      try {
-        // Phase 3a: Try static analysis first (faster, no AI cost)
-        console.log(`\n⚡ [ANALYZE STEP] Trying static analysis for step: "${currentStep.instruction}"`);
-        
-        const staticResult = await staticCreationChecker.analyzeCreationIntent(
-          currentStep.instruction,
-          req.user.id,
-          filesForAnalysis
-        );
-
-        let intent;
-        
-        // If static analysis is confident enough, use it
-        if (!staticResult.requiresAI) {
-          console.log(`\n✅ [ANALYZE STEP] Static analysis successful, skipping AI`);
-          intent = staticResult;
-        } else {
-          // Phase 3b: Fallback to AI for complex cases
-          console.log(`\n🔍 [ANALYZE STEP] Static analysis requires AI fallback: ${staticResult.reason}`);
-          
-          intent = await aiExtractCreationIntent(
-            req.geminiService,
-            currentStep.instruction,
-            filesForAnalysis
-          );
-
-        }
-        
-        if (intent && intent.isCreation === true) {
-          if (!intent.isValid) {
-            return res.json({
-              feedback: [{
-                line: 1,
-                correct: false,
-                suggestion: intent.error || intent.suggestion || 'This step is unclear. Please specify the exact name to create.'
-              }],
-              chatMessage: {
-                type: 'assistant',
-                content: intent.suggestion || intent.error || 'Please specify the exact name (e.g., Create a folder called "my-app" or Create a file called "index.html").'
-              },
-              analysisType: 'invalid-creation',
-              targetName: null,
-              exists: false
-            });
-          }
-
-          // Trust the AI's classification
-          const creationType = intent.creationType;
-          const targetName = intent.targetName;
-
-          if (!targetName) {
-            return res.json({
-              feedback: [{
-                line: 1,
-                correct: false,
-                suggestion: 'Could not determine the name to create. Please specify it clearly.'
-              }],
-              chatMessage: {
-                type: 'assistant',
-                content: 'Please specify the exact name (e.g., Create a folder called "my-app" or Create a file called "index.html").'
-              },
-              analysisType: 'unclear-creation',
-              targetName: null,
-              exists: false
-            });
-          }
-
-          const exists = checkFileExists(projectFiles, targetName, creationType, req.user.id);
-          
-          if (exists) {
-            return res.json({
-              feedback: [{
-                line: 1,
-                correct: true,
-                suggestion: `Great job creating the ${creationType} '${targetName}'!`
-              }],
-              chatMessage: {
-                type: 'assistant',
-                content: `Perfect! You've successfully created the ${creationType} '${targetName}'. You can proceed to the next step.`
-              },
-              analysisType: creationType === 'file' ? 'file-create' : 'folder',
-              targetName: targetName,
-              exists: true
-            });
-          }
-
-          return res.json({
-            feedback: [{
-              line: 1,
-              correct: false,
-              suggestion: `Please create the ${creationType} '${targetName}' as instructed.`
-            }],
-            chatMessage: {
-              type: 'assistant',
-              content: `I don't see the ${creationType} '${targetName}' yet. Please create it using the file explorer.`
-            },
-            analysisType: creationType === 'file' ? 'file-create' : 'folder',
-            targetName: targetName,
-            exists: false
-          });
-        }
-      } catch (aiErr) {
-        console.error('[analyzeStep] AI validation failed, falling back to code analysis:', aiErr);
-        // continue to code analysis
-      }
-    }
+    // Creation intent is handled inside the decision tree. Proceed with content analysis if needed.
 
     // Attempt to auto-select a target file if code is empty
     let effectiveCode = code;
