@@ -267,35 +267,6 @@ router.post('/run',
   }
 );
 
-// GET /api/code/health - Service health check
-router.get('/health', async (req, res) => {
-  try {
-    const geminiStatus = req.geminiService ? await req.geminiService.checkHealth() : false;
-    
-    res.json({
-      status: geminiStatus ? 'healthy' : 'degraded',
-      service: 'CodeCraft Code Analysis API',
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-      services: {
-        gemini_ai: geminiStatus ? 'connected' : 'disconnected'
-      },
-      endpoints: {
-        analyze: '/api/code/analyze',
-        fix: '/api/code/fix',
-        run: '/api/code/run',
-        health: '/api/code/health'
-      }
-    });
-  } catch (error) {
-    console.error('Health check failed:', error);
-    res.status(503).json({
-      status: 'unhealthy',
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
 
 // GET /api/code/docs - API documentation
 router.get('/docs', (req, res) => {

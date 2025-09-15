@@ -155,20 +155,22 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Stripe webhook needs the raw body for signature verification
-// Mount this BEFORE the JSON/body parsers
-app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+// Mount this BEFORE the JSON/body parsers. Use */* to handle any charset variations.
+app.use('/api/stripe/webhook', express.raw({ type: '*/*' }));
 
 // Body parsing middleware (skip Stripe webhook to preserve raw body)
 const jsonParser = express.json({ limit: '10mb' });
 const urlencodedParser = express.urlencoded({ extended: true, limit: '10mb' });
 
 app.use((req, res, next) => {
-  if (req.originalUrl === '/api/stripe/webhook') return next();
+  // Skip JSON parsing for any Stripe webhook path variant (with optional trailing slash or query)
+  if (req.originalUrl && req.originalUrl.startsWith('/api/stripe/webhook')) return next();
   jsonParser(req, res, next);
 });
 
 app.use((req, res, next) => {
-  if (req.originalUrl === '/api/stripe/webhook') return next();
+  // Skip urlencoded parsing for any Stripe webhook path variant
+  if (req.originalUrl && req.originalUrl.startsWith('/api/stripe/webhook')) return next();
   urlencodedParser(req, res, next);
 });
 
@@ -276,14 +278,6 @@ app.use('/api/search', authenticateUser, searchRoutes);
 app.use('/api/sync', authenticateUser, syncRoutes);
 // --- End authentication enforcement ---
 
-// Health check endpoint for Fly.io (no auth required)
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
 
 // Lightweight status check for WebContainer Cloud integration
 app.get('/api/webcontainer/status', authenticateUser, (req, res) => {
@@ -409,47 +403,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check endpoint
-app.get('/health', async (req, res) => {
-  try {
-    const geminiStatus = geminiService ? await geminiService.checkHealth() : false;
-    const geminiQuotaExceeded = geminiService ? geminiService.quotaExceeded : false;
-    // Lazy import to avoid circular dependency
-    const { Cache } = await import('./services/Cache.js');
-    const cacheStats = await Cache.getStats();
-    
-    let overallStatus = 'healthy';
-    if (!geminiStatus && geminiService) {
-      overallStatus = geminiQuotaExceeded ? 'degraded' : 'degraded';
-    } else if (!geminiService) {
-      overallStatus = 'degraded';
-    }
-    
-    res.json({
-      status: overallStatus,
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-      services: {
-        gemini_ai: geminiStatus ? 'connected' : (geminiQuotaExceeded ? 'quota_exceeded' : 'disconnected'),
-        database: 'not_applicable',
-        cache: cacheStats.mode || 'enabled'
-      },
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development',
-      api_key_status: process.env.GEMINI_API_KEY ? 'configured' : 'missing',
-      cache: cacheStats,
-      gemini_quota_exceeded: geminiQuotaExceeded
-    });
-  } catch (error) {
-    console.error('Health check failed:', error);
-    res.status(503).json({
-      status: 'unhealthy',
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
 
 // Local dev health indicator for frontend feature toggles
 app.get('/api/health/local-dev', (req, res) => {

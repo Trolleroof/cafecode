@@ -248,35 +248,25 @@ export default function Home() {
         <Header />
 
             {/* Hero Section */}
-              <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-white to-light-cream w-full py-16 sm:py-20">
-                <div className="relative z-10 w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Project Counter - positioned at top for all screen sizes */}
-                {user && (
-                  <div className="mb-10 md:mb-14 w-full max-w-md mx-auto md:mx-0 md:max-w-none">
-                    <ProjectCounter
-                      projectCount={projectCount}
-                      hasUnlimitedAccess={hasUnlimitedAccess}
-                      onUpgradeClick={() => setShowPaymentModal(true)}
-                    />
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-10 lg:gap-14 xl:gap-16">
-                  {/* Left: Text Content */}
-                  <div className="lg:col-span-5 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 lg:pr-6">
+              <section className="relative flex flex-col justify-center min-h-screen px-4 py-16 overflow-hidden bg-gradient-to-b from-white to-light-cream sm:py-20 sm:px-6 lg:px-8">
+                <div className="relative z-10 w-full max-w-screen-xl mx-auto">
+                
+                <div className="grid items-center grid-cols-1 gap-10 md:grid-cols-12 lg:gap-14 xl:gap-16">
+                  {/* Left: Text Content - Reordered for mobile */}
+                  <div className="flex flex-col items-center text-center md:col-span-6 md:items-start md:text-left lg:col-span-5 space-y-7">
                     {/* Main heading with coffee theme */}
-                    <h1 className="font-heading text-5xl sm:text-6xl lg:text-7xl xl:text-7xl font-bold text-dark-charcoal tracking-tight leading-[0.95]">
-                      <div className="lg:whitespace-nowrap">Ship Your Code.</div>
-                      <div className="text-medium-coffee lg:whitespace-nowrap">Sip Your Coffee.</div>
+                    <h1 className="text-4xl font-bold tracking-tight font-heading sm:text-5xl lg:text-6xl xl:text-6xl text-dark-charcoal leading-tight">
+                      <span>Ship Your Code. </span>
+                      <span className="text-medium-coffee">Sip Your Coffee.</span>
                     </h1>
                     
                     {/* Coffee-themed Subheading */}
-                    <p className="font-body text-lg sm:text-xl lg:text-2xl text-medium-coffee max-w-2xl leading-relaxed font-medium">
+                    <p className="max-w-xl text-lg font-medium leading-relaxed font-body sm:text-xl lg:text-2xl text-medium-coffee">
                       Actually learn to code projects in the time it takes to sip your morning coffee.
                     </p>
 
                     {/* Hero action buttons */}
-                    <div className="flex flex-col sm:flex-row gap-3 mt-3">
+                    <div className="flex flex-col gap-4 sm:flex-row">
                       <button
                         onClick={() => {
                           if (!user) {
@@ -285,7 +275,7 @@ export default function Home() {
                             handleStartCoding();
                           }
                         }}
-                        className="px-8 py-4 text-lg xl:text-xl font-semibold rounded-full shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 bg-deep-espresso text-light-cream hover:bg-deep-espresso/90 hover:scale-[1.02] border-2 border-deep-espresso"
+                        className="flex items-center justify-center gap-2 px-8 py-4 text-lg font-semibold transition-all duration-300 border-2 rounded-full shadow-md hover:shadow-lg xl:text-xl bg-deep-espresso text-light-cream border-deep-espresso hover:bg-deep-espresso/90 hover:scale-[1.02]"
                         disabled={loadingButton !== null}
                       >
                         {loadingButton === 'ide' ? (
@@ -295,39 +285,37 @@ export default function Home() {
                           </>
                         ) : (
                           <>
-                            <IconCode className="h-5 w-5" />
+                            <IconCode className="w-5 h-5" />
                             Start Coding!
                           </>
                         )}
                       </button>
                       
                       {/* Watch Demo Button */}
-                      <button
-                        onClick={() => {
-                          // Scroll to video or play video
-                          const videoElement = document.querySelector('#demo-video') as HTMLVideoElement;
-                          if (videoElement) {
-                            videoElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            videoElement.play();
-                          }
-                        }}
-                        className="px-7 py-4 text-lg xl:text-xl font-semibold rounded-full transition-all duration-300 flex items-center justify-center gap-2 bg-transparent text-deep-espresso hover:bg-medium-coffee hover:text-light-cream border-2 border-medium-coffee hover:scale-[1.02]"
-                      >
-                        <IconSparkles className="h-5 w-5" />
-                        Watch Demo
-                      </button>
+                    
                     </div>
                   </div>
 
-                  {/* Right: Demo Video */}
-                  <div className="lg:col-span-7 flex justify-center items-center w-full">
-                    <div className="relative w-full max-w-4xl group">
+                  {/* Right: Demo Video & Project Counter */}
+                  <div className="w-full md:col-span-6 lg:col-span-7">
+                    {/* Project Counter - positioned above video on mobile */}
+                    {user && (
+                      <div className="w-full max-w-md mx-auto mb-8 md:max-w-none">
+                        <ProjectCounter
+                          projectCount={projectCount}
+                          hasUnlimitedAccess={hasUnlimitedAccess}
+                          onUpgradeClick={() => setShowPaymentModal(true)}
+                        />
+                      </div>
+                    )}
+
+                    <div className="relative flex items-center justify-center w-full group">
                       {/* Video Container */}
-                      <div className="relative aspect-video w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-medium-coffee/20 bg-gradient-to-br from-medium-coffee/10 to-deep-espresso/10">
+                      <div className="relative w-full overflow-hidden border-4 rounded-3xl aspect-video shadow-2xl border-medium-coffee/20 bg-gradient-to-br from-medium-coffee/10 to-deep-espresso/10">
                         {/* Placeholder for video - you'll replace src with your demo video */}
                         <video
                           id="demo-video"
-                          className="w-full h-full object-cover rounded-2xl"
+                          className="object-cover w-full h-full rounded-2xl"
                           poster="/images/demo.png"
                           controls
                           preload="metadata"
@@ -341,35 +329,33 @@ export default function Home() {
                         </video>
                         
                         {/* Video Overlay Elements */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"></div>
+                        <div className="absolute inset-0 transition-opacity duration-300 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 pointer-events-none rounded-2xl"></div>
                         
                         {/* Play Button Overlay - only shows when video is paused */}
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                          <div className="bg-deep-espresso/80 rounded-full p-6 backdrop-blur-sm">
-                            <IconTrendingUp className="h-12 w-12 text-light-cream" />
+                        <div className="absolute inset-0 flex items-center justify-center transition-opacity duration-300 opacity-0 pointer-events-none group-hover:opacity-100">
+                          <div className="p-6 rounded-full bg-deep-espresso/80 backdrop-blur-sm">
+                            <IconTrendingUp className="w-12 h-12 text-light-cream" />
                           </div>
                         </div>
                       </div>
                       
                       {/* Video Features Badges */}
-                      <div className="absolute -bottom-6 -left-6 flex flex-col gap-2">
-                        <div className="bg-light-cream border-2 border-medium-coffee/30 rounded-xl px-4 py-2 shadow-lg">
-                          <span className="text-deep-espresso font-semibold text-sm">✨ Live Demo</span>
+                      <div className="absolute flex flex-col gap-2 -bottom-6 -left-6">
+                        <div className="px-4 py-2 border-2 rounded-xl bg-light-cream border-medium-coffee/30 shadow-lg">
+                          <span className="text-sm font-semibold text-deep-espresso"> Demo</span>
                         </div>
                       </div>
-                      
-                      {/* Removed Real-time Coding badge */}
                     </div>
                   </div>
                 </div>
               </div>
             </section>
 {/* Problem Statement Section - Coffee themed */}
-            <section id="problemStatement" className='py-20 md:py-24 bg-light-cream relative overflow-hidden'>
+            <section id="problemStatement" className='relative py-20 overflow-hidden md:py-24 bg-light-cream'>
               
-              <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-12">
-                  <div className="inline-flex items-center space-x-3 bg-red-100 rounded-full px-6 py-3 mb-8">
+              <div className="relative max-w-6xl px-4 mx-auto sm:px-6 lg:px-8">
+                <div className="mb-12 text-center">
+                  <div className="inline-flex items-center px-6 py-3 mb-8 space-x-3 bg-red-100 rounded-full">
                     <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
                     <span className="text-red-700 font-semibold text-sm">The Bitter Truth</span>
                   </div>

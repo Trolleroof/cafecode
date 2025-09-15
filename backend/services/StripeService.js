@@ -40,7 +40,7 @@ export class StripeService {
         }],
         mode: 'payment', // One-time payment (not subscription)
         success_url: `${frontendUrl}/payment-success?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${frontendUrl}/ide?payment=canceled`,
+        cancel_url: `${frontendUrl}/?payment=canceled`,
         
         client_reference_id: userId, // This helps you track which user made the payment
         metadata: {
@@ -127,17 +127,14 @@ export class StripeService {
       }
 
       const isBuffer = Buffer.isBuffer(body);
-      if (!isBuffer) {
-        console.warn('[Stripe] Webhook body is not a Buffer. Type:', typeof body);
+      const isString = typeof body === 'string';
+      if (!isBuffer && !isString) {
+        console.warn('[Stripe] Webhook body is not raw Buffer/string. Type:', typeof body);
       }
-      // Prefer raw string per Stripe docs (Buffer is also accepted)
-      const payload = isBuffer ? body.toString('utf8') : body;
+      // Pass the exact raw payload (Buffer preferred)
+      const payload = isBuffer ? body : (isString ? body : JSON.stringify(body));
 
-      return stripe.webhooks.constructEvent(
-        payload,
-        signature,
-        webhookSecret
-      );
+      return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
     } catch (error) {
       console.error('Webhook signature verification failed:', error.message);
       throw new Error('Webhook signature verification failed');
