@@ -76,6 +76,8 @@ INCORRECT FORMATS (DO NOT USE):
 - "Create a file" (missing name)
 - "Create a folder called folder" (generic name)
 - "Create a file called file" (generic name)
+- "Create a folder called 'src/components' inside your 'tic-tac-toe-game' project to store reusable parts" (creates empty folder without immediate file creation)
+- "Create a folder called 'utils' for helper functions" (creates empty folder without immediate file creation)
 - "Add the following code: [code snippet]" (including code directly)
 - "Write this function: function add(a, b) { return a + b; }" (including code directly)
 - "Insert the following HTML: <div>Hello World</div>" (including code directly)
@@ -174,6 +176,19 @@ STEP CREATION RULES:
   * Step 4: "Add basic styling rules to the 'styles.css' file"
 - This makes the workflow more intuitive and prevents users from having empty files
 - The only exception is when creating configuration files that don't need immediate editing (like package.json after npm init)
+
+🚨 MANDATORY FOLDER CREATION + FILE CREATION RULE 🚨
+- EVERY folder creation step MUST be immediately followed by creating at least one file inside that folder
+- After "Create a folder called 'folder-name'", the VERY NEXT step must create a specific file within that folder
+- NEVER create empty folders without immediately populating them with files
+- Examples:
+  * Step 1: "Create a folder called 'src'"
+  * Step 2: "Create a file called 'main.js' inside the 'src' folder"
+  * Step 3: "Create a folder called 'components'"
+  * Step 4: "Create a file called 'Button.js' inside the 'components' folder"
+- This ensures every folder serves a purpose and contains working code
+- The only exception is the main project folder (step 1) which is allowed to be empty initially
+- If you create a subfolder, you MUST create at least one file in it in the very next step
 - Make steps granular and detailed, determining the appropriate number based on project complexity. Err on the side of more, smaller steps.
 - If the solution involves a common algorithmic pattern (such as two pointers, sliding window, recursion, dynamic programming, etc.), explicitly mention the pattern in the relevant step(s) and explain what part of the pattern is being implemented in that step. Do this every time a new part of the pattern is coded.
 - Use language like: "This step implements the first part of the two pointers pattern: initializing the pointers." or "Now, apply the sliding window pattern by moving the right pointer."

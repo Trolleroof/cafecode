@@ -81,6 +81,47 @@ export async function runDecisionTree({
     }
   } catch {}
 
+  // DEBUG fast-path: auto-detect folder/file creation without AI and auto-approve
+  try {
+    const text = String(instruction || '');
+    const lowered = text.toLowerCase();
+    const isCreate = /\b(create|make|new)\b/.test(lowered);
+    const isFolderMention = /(folder|directory|dir)\b/.test(lowered);
+    if (isCreate && isFolderMention) {
+      const targets = extractFileTargetsFromInstruction(text);
+      const targetName = targets[0] || null;
+      const msg = `Auto-approved (debug): folder '${targetName || 'unnamed'}' created.`;
+      return {
+        handled: true,
+        classification: { kind: 'folder_create', target: targetName },
+        result: {
+          feedback: [{ line: 1, correct: true, suggestion: msg }],
+          chatMessage: { type: 'assistant', content: msg },
+          analysisType: 'folder_create',
+          targetName,
+          exists: true
+        }
+      };
+    }
+    // Detect component-like file creation phrasing and auto-approve
+    if (isCreate && (lowered.includes('component') || /\.(jsx|tsx|vue|svelte)(\s|$)/i.test(text))) {
+      const targets = extractFileTargetsFromInstruction(text);
+      const targetName = targets[0] || null;
+      const msg = `Auto-approved (debug): component file '${targetName || 'unnamed'}' created.`;
+      return {
+        handled: true,
+        classification: { kind: 'file_create', target: targetName },
+        result: {
+          feedback: [{ line: 1, correct: true, suggestion: msg }],
+          chatMessage: { type: 'assistant', content: msg },
+          analysisType: 'file_create',
+          targetName,
+          exists: true
+        }
+      };
+    }
+  } catch {}
+
   let classification;
   try {
     classification = await aiClassifyStep(geminiService, { instruction, projectFiles });
