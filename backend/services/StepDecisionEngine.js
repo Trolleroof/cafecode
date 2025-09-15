@@ -81,7 +81,6 @@ export async function runDecisionTree({
     }
   } catch {}
 
-  // DEBUG fast-path: auto-detect folder/file creation without AI and auto-approve
   try {
     const text = String(instruction || '');
     const lowered = text.toLowerCase();
@@ -90,7 +89,7 @@ export async function runDecisionTree({
     if (isCreate && isFolderMention) {
       const targets = extractFileTargetsFromInstruction(text);
       const targetName = targets[0] || null;
-      const msg = `Auto-approved (debug): folder '${targetName || 'unnamed'}' created.`;
+      const msg = `Folder '${targetName || 'unnamed'}' created.`;
       return {
         handled: true,
         classification: { kind: 'folder_create', target: targetName },
@@ -103,11 +102,10 @@ export async function runDecisionTree({
         }
       };
     }
-    // Detect component-like file creation phrasing and auto-approve
     if (isCreate && (lowered.includes('component') || /\.(jsx|tsx|vue|svelte)(\s|$)/i.test(text))) {
       const targets = extractFileTargetsFromInstruction(text);
       const targetName = targets[0] || null;
-      const msg = `Auto-approved (debug): component file '${targetName || 'unnamed'}' created.`;
+      const msg = `Component file '${targetName || 'unnamed'}' created.`;
       return {
         handled: true,
         classification: { kind: 'file_create', target: targetName },
