@@ -36,7 +36,8 @@ const fixSchema = Joi.object({
   error_message: Joi.string().min(1).max(1000).required(),
   line_number: Joi.number().integer().min(1).optional(),
   projectFiles: Joi.array().items(Joi.object()).optional(),
-  chatHistory: Joi.array().items(messageSchema).optional()
+  chatHistory: Joi.array().items(messageSchema).optional(),
+  instruction: Joi.string().max(2000).optional()
 });
 
 const runSchema = Joi.object({

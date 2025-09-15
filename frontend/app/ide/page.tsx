@@ -2656,8 +2656,14 @@ function IDEPage() {
                 {/* Chat Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b-2 border-cream-beige bg-light-cream">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-medium-coffee rounded-full flex items-center justify-center">
-                      <IconCoffee className="h-4 w-4 text-light-cream" />
+                    <div className="w-8 h-8 bg-light-cream rounded-full flex items-center justify-center">
+                      <Image 
+                        src="/images/logo-trans.png" 
+                        alt="Cody" 
+                        width={20} 
+                        height={20}
+                        className="object-contain"
+                      />
                     </div>
                     <div>
                       <h3 className="font-semibold text-deep-espresso text-base">Cody</h3>

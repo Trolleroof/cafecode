@@ -555,36 +555,6 @@ const FileTreeNode: React.FC<{
                 <button
               onClick={(e) => {
                 e.stopPropagation();
-                const path = getPathFromId(node.id);
-                const baseId = node.type === 'folder' ? path : (() => {
-                  const idx = path.lastIndexOf('/');
-                  return idx > -1 ? path.substring(0, idx) : null;
-                })();
-                onCreateFile(baseId, 'file', '');
-              }}
-              className={`${btnBase}`}
-              title="New File"
-            >
-              <Plus className={iconClass} />
-            </button>
-                <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const path = getPathFromId(node.id);
-                const baseId = node.type === 'folder' ? path : (() => {
-                  const idx = path.lastIndexOf('/');
-                  return idx > -1 ? path.substring(0, idx) : null;
-                })();
-                onCreateFolder(baseId, 'folder', '');
-              }}
-              className={`${btnBase}`}
-              title="New Folder"
-            >
-              <Folder className={iconClass} />
-            </button>
-                <button
-              onClick={(e) => {
-                e.stopPropagation();
                 onDelete(node.id);
               }}
               className={`${btnBase}`}
@@ -932,47 +902,6 @@ export default function FileExplorer({
           <h3 className="text-sm font-semibold text-deep-espresso">Explorer</h3>
         </div>
         <div className="flex gap-0.5">
-          <button
-            onClick={() => {
-              // Header "+":
-              // - If a folder is selected, create inside it
-              // - If a file is selected, create alongside it (in its parent)
-              // - If nothing selected, create at root
-              let parentId: string | null = null;
-              if (selectedFileId) {
-                const selectedNode = findNodeById(selectedFileId, files);
-                if (selectedNode && selectedNode.type === 'folder') {
-                  parentId = selectedFileId;
-                } else {
-                  parentId = getParentId(selectedFileId, files);
-                }
-              }
-              handleShowCreate(parentId, 'file');
-            }}
-            className="p-1 hover:bg-cream-beige rounded"
-            title="New File"
-          >
-            <Plus className="h-4 w-4 text-deep-espresso" />
-          </button>
-          <button
-            onClick={() => {
-              let parentId: string | null = null;
-              if (selectedFileId) {
-                const selectedNode = findNodeById(selectedFileId, files);
-                if (selectedNode && selectedNode.type === 'folder') {
-                  parentId = selectedFileId;
-                } else {
-                  parentId = getParentId(selectedFileId, files);
-                }
-              }
-              handleShowCreate(parentId, 'folder');
-            }}
-            className="p-1 hover:bg-cream-beige rounded"
-            title="New Folder"
-          >
-            <Folder className="h-4 w-4 text-deep-espresso" />
-          </button>
-
           <button
             onClick={handleRefresh}
             className="p-1 hover:bg-cream-beige rounded"

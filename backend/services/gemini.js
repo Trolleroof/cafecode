@@ -119,7 +119,7 @@ Return JSON:
 Focus on syntax errors, logic bugs, performance issues, code style, security vulnerabilities, and readability. Consider the specific technology stack and best practices for that framework.`;
   }
 
-  createFixPrompt(code, language, errorMessage, lineNumber = null, projectFiles = null, chatHistory = null) {
+  createFixPrompt(code, language, errorMessage, lineNumber = null, projectFiles = null, chatHistory = null, instruction = null) {
     const projectContext = this.createProjectContext(projectFiles);
 
     // Format last five chat messages if present
@@ -132,10 +132,17 @@ Focus on syntax errors, logic bugs, performance issues, code style, security vul
       chatContext = `\n\nRecent Chat (last 5):\n${formatted}`;
     }
 
-    return `Fix this ${language} code based on the error and recent user conversation context.
+    // Include instruction context if provided
+    let instructionContext = '';
+    if (instruction && instruction.trim()) {
+      instructionContext = `\n\nCurrent Instruction/Task: ${instruction}`;
+    }
+
+    return `Fix this ${language} code based on the error, recent user conversation context, and current instruction.
 
 Error: ${errorMessage}
 ${lineNumber ? `Error at line: ${lineNumber}` : ''}
+${instructionContext}
 ${chatContext}
 
 Code:\n\`\`\`${language}
@@ -151,7 +158,7 @@ Return JSON:
   "explanation": "overall explanation"
 }
 
-Fix the specific error while preserving original structure and logic. Consider the specific technology stack and follow best practices for that framework.`;
+Fix the specific error while preserving original structure and logic. Consider the specific technology stack and follow best practices for that framework. Pay special attention to the current instruction/task to ensure the fix aligns with what the user is trying to accomplish.`;
   }
 
   createHintPrompt(code, language, stepInstruction = null, lineRanges = null, stepId = null, projectFiles = null) {
@@ -305,7 +312,8 @@ Use extremely simple language for complete beginners.`;
         request.error_message,
         request.line_number,
         request.projectFiles,
-        request.chatHistory || null
+        request.chatHistory || null,
+        request.instruction || null
       );
 
       const result = await this.model.generateContent(prompt);

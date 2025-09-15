@@ -34,7 +34,7 @@ export class StripeService {
               description: 'One-time payment to unlock unlimited project creation on Cafécode',
               images: ['https://trycafecode.xyz/logo.png'],
             },
-            unit_amount: 50, // $0.50 for testing 
+            unit_amount: 499, // $4.99 
           },
           quantity: 1,
         }],
@@ -118,29 +118,17 @@ export class StripeService {
       }
       const stripe = new Stripe(key);
 
-      // Log which endpoint secret is being used (masked)
-      try {
-        const maskedSecret = `${webhookSecret.slice(0, 7)}…${webhookSecret.slice(-4)}`;
-        console.log(`[Stripe] Using webhook endpoint secret: ${maskedSecret}`);
-      } catch (_) {
-        // no-op if masking fails
-      }
 
       // Ensure we have a Buffer - this is the key fix
       let payload;
       if (Buffer.isBuffer(body)) {
         payload = body;
-        console.log(`[Stripe] Webhook body is Buffer, length: ${payload.length}`);
       } else if (typeof body === 'string') {
         payload = Buffer.from(body, 'utf8');
-        console.log(`[Stripe] Webhook body is string, converted to Buffer, length: ${payload.length}`);
       } else {
         // If it's already parsed JSON, we need to stringify it back
         payload = Buffer.from(JSON.stringify(body), 'utf8');
-        console.log(`[Stripe] Webhook body is ${typeof body}, stringified to Buffer, length: ${payload.length}`);
       }
-
-      console.log(`[Stripe] Webhook signature header: ${signature ? 'present' : 'missing'}`);
 
       return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
     } catch (error) {

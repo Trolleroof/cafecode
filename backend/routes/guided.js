@@ -358,35 +358,27 @@ async function aiJudgeStep(geminiService, { instruction, projectContext, code, l
 
   const codeBlock = code ? `\n\nCODE (${language || 'text'}):\n\`\`\`${language || ''}\n${code}\n\`\`\`\n` : '';
 
-  const prompt = `You are an automated step judge inside a web IDE. Determine what the current step expects and whether it is completed based on the provided context. Be decisive and practical.
+  const prompt = `Judge if this step is completed. Be fast and decisive.
 
-INSTRUCTION:\n${instruction}
-
-PROJECT CONTEXT (files and brief content previews):\n${projectContext}
-
-TERMINAL (most recent lines):\n${terminalText}
+INSTRUCTION: ${instruction}
 ${codeBlock}
-RECENT CHAT:\n${chatText}
+TERMINAL: ${terminalText.substring(0, 200)}...
+FILES: ${projectContext.substring(0, 300)}...
 
-Respond ONLY as JSON with this exact schema (no markdown code fences):
+Respond as JSON only:
 {
   "kind": "navigate|install|terminal|file_create|file_modify|folder_create|clean_file|generic",
   "target": "string or null",
   "completed": true/false,
-  "rationale": "short explanation of why",
-  "hint": "one short next action or confirmation"
+  "rationale": "brief why",
+  "hint": "next action"
 }
 
 Rules:
-- If the step is navigating folders, set kind=navigate and typically completed=true (no file changes required).
-- If the step installs dependencies, set kind=install and infer completion from terminal logs (lenient).
-- If the step asks to remove default code/styles, set kind=clean_file and consider empty/minimal content as completed.
-- For file edits, set kind=file_modify and judge completion from provided code/content.
-- Keep output concise.
-
-Special handling:
-- If instruction includes "npm create vite" or "npx create vite" followed by a project name (e.g., crypto-tracker), inspect the project tree. If a folder with that name exists AND contains typical Vite files like package.json and index.html, plus either src/main.jsx|src/main.tsx or vite.config.js, set completed=true, kind=terminal, target=<project folder>.
-- For navigation like "cd <name>" or "navigate into '<name>'", consider terminal logs: if logs show a matching "cd" command or a "pwd" that ends with the folder, mark completed=true; otherwise be lenient but prefer completed=false if clear evidence is missing.`;
+- navigate/install: usually completed=true
+- file_create: check if file exists
+- file_modify: check if code has content
+- vite-create: check if project folder exists with package.json`;
 
   const result = await geminiService.model.generateContent(prompt);
   const responseText = (await result.response).text();
@@ -522,12 +514,12 @@ function checkDirectoryExists(projectFiles, directoryName) {
   });
 }
 
-// Comprehensive step type analysis function
+// Fast step type analysis function
 function analyzeStepType(instruction, projectFiles, userId = null) {
   const lowered = instruction.toLowerCase();
   
-  // Check for terminal commands first
-  const isTerminalCommand = /\b(run|open the terminal|execute|npm create|npx create|pip install|npm install)\b/i.test(instruction);
+  // Quick terminal command check
+  const isTerminalCommand = /\b(run|terminal|execute|npm|npx|pip|cd|navigate)\b/i.test(instruction);
   
   if (isTerminalCommand) {
     // Handle specific terminal commands
@@ -1770,8 +1762,10 @@ router.post("/analyzeStep", async (req, res) => {
   try {
     const { projectId, stepId, code, language, projectFiles } = req.body;
 
-    // OPTIMIZATION: Response Caching - check if we have a result for this exact code
-    const cacheKey = `${projectId}-${stepId}-${code}`; // Use the code itself as part of the key
+    // OPTIMIZATION: Response Caching - use hash for faster lookups
+    const crypto = await import('crypto');
+    const codeHash = crypto.createHash('md5').update(code || '').digest('hex').substring(0, 8);
+    const cacheKey = `${projectId}-${stepId}-${codeHash}`;
     if (analysisCache.has(cacheKey)) {
       console.log(`[ANALYZE STEP] Returning cached result for project ${projectId}, step ${stepId}.`);
       return res.json(analysisCache.get(cacheKey));
@@ -1805,14 +1799,20 @@ router.post("/analyzeStep", async (req, res) => {
     
     // PHASE 1: AI-first step judgement (model determines the step type and completion)
     try {
-      const aiVerdict = await aiJudgeStep(req.geminiService, {
-        instruction: currentStep.instruction,
-        projectContext: createProjectContext(filesForAnalysis),
-        code,
-        language,
-        terminalOutput: Array.isArray(req.body?.terminalOutput) ? req.body.terminalOutput : [],
-        chatHistory: []
-      });
+      // Add timeout to AI analysis (5 seconds max)
+      const aiVerdict = await Promise.race([
+        aiJudgeStep(req.geminiService, {
+          instruction: currentStep.instruction,
+          projectContext: createProjectContext(filesForAnalysis),
+          code,
+          language,
+          terminalOutput: Array.isArray(req.body?.terminalOutput) ? req.body.terminalOutput : [],
+          chatHistory: []
+        }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('AI analysis timeout')), 5000)
+        )
+      ]);
 
       console.log('[ANALYZE STEP][AI] Verdict:', aiVerdict);
 

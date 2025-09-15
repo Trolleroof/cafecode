@@ -125,13 +125,6 @@ router.post('/webhook', async (req, res) => {
         case 'checkout.session.completed': {
           const session = event.data.object;
           const userId = session.client_reference_id;
-          console.log('[Stripe] checkout.session.completed details', {
-            sessionId: session.id,
-            userId,
-            amount_total: session.amount_total,
-            currency: session.currency,
-            payment_status: session.payment_status,
-          });
 
           // Validate required fields
           if (!userId) {
@@ -143,11 +136,11 @@ router.post('/webhook', async (req, res) => {
             return res.status(400).json({ error: 'Payment not completed' });
           }
           // Optional: validate expected amount and currency
-          if (typeof session.amount_total === 'number' && session.amount_total !== 50) {
-            console.warn('[Stripe] Unexpected amount_total for session', session.amount_total);
+          if (typeof session.amount_total === 'number' && session.amount_total !== 499) {
+            // Unexpected amount
           }
           if (session.currency && session.currency.toLowerCase() !== 'usd') {
-            console.warn('[Stripe] Unexpected currency for session', session.currency);
+            // Unexpected currency
           }
   
 
@@ -163,7 +156,6 @@ router.post('/webhook', async (req, res) => {
               console.error('[Stripe] RPC grant_unlimited_access_by_id error:', error);
             } else {
               rpcSucceeded = true;
-              console.log('[Stripe] RPC grant_unlimited_access_by_id succeeded');
             }
           } catch (err) {
             console.error('[Stripe] RPC call threw:', err);
@@ -187,7 +179,6 @@ router.post('/webhook', async (req, res) => {
               if (upErr) {
                 console.error('[Stripe] Fallback profile update failed:', upErr);
               } else {
-                console.log('[Stripe] Fallback profile update succeeded');
                 fallbackSucceeded = true;
               }
 
@@ -208,7 +199,6 @@ router.post('/webhook', async (req, res) => {
         
       case 'checkout.session.expired': {
         const session = event.data.object;
-        console.log('[Stripe] checkout.session.expired', { sessionId: session.id });
         // Optional: clean up any pending state in your DB if needed
         break;
       }
@@ -216,11 +206,6 @@ router.post('/webhook', async (req, res) => {
       case 'payment_intent.succeeded':
         {
           const paymentIntent = event.data.object;
-          console.log('[Stripe] payment_intent.succeeded', {
-            paymentIntentId: paymentIntent.id,
-            amount_received: paymentIntent.amount_received,
-            currency: paymentIntent.currency,
-          });
           try {
             // If metadata contains userId, update profile as a fallback path
             const userId = paymentIntent.metadata?.userId;
@@ -235,7 +220,7 @@ router.post('/webhook', async (req, res) => {
                 console.error('[Stripe] DB grant via PI succeeded path failed:', error);
                 return res.status(500).json({ error: 'Failed to persist PI payment' });
               } else {
-                console.log('[Stripe] User access granted via PI succeeded');
+                // User access granted via PI succeeded
               }
             } else {
               // Attempt to locate Checkout Session to extract client_reference_id
@@ -270,7 +255,6 @@ router.post('/webhook', async (req, res) => {
       case 'payment_intent.payment_failed':
         {
           const failedPayment = event.data.object;
-          console.log('[Stripe] payment_intent.payment_failed', { paymentIntentId: failedPayment.id });
           try {
             const userId = failedPayment.metadata?.userId;
             if (userId) {
@@ -288,7 +272,6 @@ router.post('/webhook', async (req, res) => {
       case 'payment_intent.canceled':
         {
           const canceled = event.data.object;
-          console.log('[Stripe] payment_intent.canceled', { paymentIntentId: canceled.id });
           try {
             const userId = canceled.metadata?.userId;
             if (userId) {
@@ -304,7 +287,7 @@ router.post('/webhook', async (req, res) => {
         break;
         
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        // Unhandled event type
     }
 
     // Mark event as processed (best-effort). Note: process memory scoped.
