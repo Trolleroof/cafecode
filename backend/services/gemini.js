@@ -245,6 +245,36 @@ Use extremely simple language for complete beginners.`;
     }
   }
 
+  // Attempt best-effort repair of common invalid JSON patterns (multiline strings)
+  tryRepairJson(jsonString) {
+    try {
+      return JSON.parse(jsonString);
+    } catch (_) {
+      // Repair multiline string for known keys like fixed_code and hint_text
+      const repairKey = (str, key) => {
+        const re = new RegExp(`\"${key}\"\\s*:\\s*\"([\\s\\S]*?)\"\\s*,\\s*\"`, 'm');
+        const m = str.match(re);
+        if (!m) return str;
+        const original = m[1];
+        // Escape newlines and carriage returns inside the captured string
+        const escaped = original
+          .replace(/\\/g, '\\\\') // escape backslashes first
+          .replace(/\r/g, '\\r')
+          .replace(/\n/g, '\\n')
+          .replace(/\t/g, '\\t')
+          .replace(/\u2028/g, '\\u2028')
+          .replace(/\u2029/g, '\\u2029')
+          .replace(/\"/g, '\\"');
+        return str.replace(re, `\"${key}\": \"${escaped}\",\n  \"`);
+      };
+      let repaired = jsonString;
+      for (const key of ['fixed_code', 'hint_text', 'translated_text', 'explanation', 'analysis_summary']) {
+        repaired = repairKey(repaired, key);
+      }
+      return JSON.parse(repaired);
+    }
+  }
+
   async analyzeCode(request) {
     const startTime = Date.now();
     
@@ -337,7 +367,41 @@ Use extremely simple language for complete beginners.`;
       }
 
       const cleanResponse = this.extractJsonFromResponse(responseText);
-      const fixData = this.robustJsonParse(cleanResponse);
+      let fixData;
+      try {
+        fixData = this.robustJsonParse(cleanResponse);
+      } catch (e) {
+        // Fallback: attempt to repair invalid JSON and extract minimally useful fields
+        try {
+          fixData = this.tryRepairJson(cleanResponse);
+        } catch (e2) {
+          // As a last resort, try to extract code block or fixed_code content heuristically
+          let codeFromBlock = null;
+          const codeFence = responseText.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
+          if (codeFence) {
+            codeFromBlock = codeFence[1].trim();
+          } else {
+            const m = cleanResponse.match(/\"fixed_code\"\s*:\s*\"([\s\S]*?)\"\s*,\s*\"/m);
+            if (m) {
+              codeFromBlock = m[1]
+                .replace(/\\\"/g, '"')
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\r')
+                .replace(/\\t/g, '\t');
+            }
+          }
+
+          const executionTime = (Date.now() - startTime) / 1000;
+          return {
+            success: true,
+            fixed_code: codeFromBlock || request.code,
+            fixes_applied: [],
+            explanation: codeFromBlock ? 'Auto-recovered code from non-JSON AI response.' : `Failed to parse AI response; returning original code. Reason: ${e.message}`,
+            summary: codeFromBlock ? 'Recovered code from response.' : 'No changes applied due to parse error.',
+            execution_time: executionTime
+          };
+        }
+      }
       const executionTime = (Date.now() - startTime) / 1000;
 
       // Build a deterministic summary of changes
@@ -467,7 +531,27 @@ Use extremely simple language for complete beginners.`;
       }
 
       const cleanResponse = this.extractJsonFromResponse(responseText);
-      const hintData = this.robustJsonParse(cleanResponse);
+      let hintData;
+      try {
+        hintData = this.robustJsonParse(cleanResponse);
+      } catch (e) {
+        try {
+          hintData = this.tryRepairJson(cleanResponse);
+        } catch (e2) {
+          // Fallback: treat plain text response as a successful hint when it reads like confirmation or hint
+          const text = responseText.trim();
+          const looksAffirmative = /\b(correct|looks good|success|completed|done)\b/i.test(text);
+          const executionTime = (Date.now() - startTime) / 1000;
+          return {
+            success: true,
+            hint_text: text || 'No hint available',
+            line_number: null,
+            suggestion_type: looksAffirmative ? 'confirmation' : 'general',
+            detailed_explanation: null,
+            execution_time: executionTime
+          };
+        }
+      }
       const executionTime = (Date.now() - startTime) / 1000;
 
       return {
